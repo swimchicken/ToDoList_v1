@@ -122,8 +122,8 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // 5. 計時器：每 2 秒切換到下一階段
-            Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
+            
+            Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { timer in
                 if currentStageIndex < stages.count - 1 {
                     // 直接用動畫切換索引
                     withAnimation {
