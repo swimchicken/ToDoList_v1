@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct ToDoList_v1App: App {
+    // 暫時註解掉 Cloud 版的 ModelContainer 初始化
+    /*
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -22,11 +24,13 @@ struct ToDoList_v1App: App {
             fatalError("Could not create ModelContainer: \(error)")
         }
     }()
+    */
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(sharedModelContainer)
+        // 也暫時移除綁定 ModelContainer
+        // .modelContainer(sharedModelContainer)
     }
 }

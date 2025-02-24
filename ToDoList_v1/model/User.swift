@@ -6,3 +6,14 @@
 //
 
 import Foundation
+
+
+struct User: Identifiable, Codable {
+    let id: UUID = UUID()
+    var name: String
+    var email: String
+    
+    private enum CodingKeys: String, CodingKey {
+        case name, email
+    }
+}

@@ -10,6 +10,11 @@ import SwiftUI
 
 struct Home: View {
     var body: some View {
-        Text("Welcome to Home")
+        VStack {
+            Text("Home Page")
+                .font(.largeTitle)
+                .foregroundColor(.white)
+            Spacer()
+        }
     }
 }
