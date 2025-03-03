@@ -15,12 +15,13 @@
 		7911CDF72D633BB60034BEE6 /* ToDoList_v1Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDF62D633BB60034BEE6 /* ToDoList_v1Tests.swift */; };
 		7911CE012D633BB60034BEE6 /* ToDoList_v1UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE002D633BB60034BEE6 /* ToDoList_v1UITests.swift */; };
 		7911CE032D633BB60034BEE6 /* ToDoList_v1UITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE022D633BB60034BEE6 /* ToDoList_v1UITestsLaunchTests.swift */; };
-		7911CE122D6896F70034BEE6 /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE112D6896F70034BEE6 /* Login.swift */; };
 		7911CE192D6AF60B0034BEE6 /* AppleSignInManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE182D6AF60B0034BEE6 /* AppleSignInManager.swift */; };
 		7911CE202D6B02650034BEE6 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE1F2D6B02650034BEE6 /* User.swift */; };
 		7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE212D6B02E00034BEE6 /* UserRecord.swift */; };
 		7911CE242D6B084A0034BEE6 /* Home.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE232D6B084A0034BEE6 /* Home.swift */; };
 		7911CE262D6B086D0034BEE6 /* guide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE252D6B086D0034BEE6 /* guide.swift */; };
+		791FECA32D6E0E59003716DE /* coolmark2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791FECA22D6E0E58003716DE /* coolmark2.swift */; };
+		79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD832D758EEF00DDDC8C /* Login.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,13 +53,14 @@
 		7911CDFC2D633BB60034BEE6 /* ToDoList_v1UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ToDoList_v1UITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7911CE002D633BB60034BEE6 /* ToDoList_v1UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoList_v1UITests.swift; sourceTree = "<group>"; };
 		7911CE022D633BB60034BEE6 /* ToDoList_v1UITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoList_v1UITestsLaunchTests.swift; sourceTree = "<group>"; };
-		7911CE112D6896F70034BEE6 /* Login.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = Login.swift; path = ../../../../.Trash/Login.swift; sourceTree = "<group>"; };
 		7911CE182D6AF60B0034BEE6 /* AppleSignInManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInManager.swift; sourceTree = "<group>"; };
 		7911CE1A2D6AFE2A0034BEE6 /* ToDoList_v1.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ToDoList_v1.entitlements; sourceTree = "<group>"; };
 		7911CE1F2D6B02650034BEE6 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		7911CE212D6B02E00034BEE6 /* UserRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRecord.swift; sourceTree = "<group>"; };
 		7911CE232D6B084A0034BEE6 /* Home.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Home.swift; sourceTree = "<group>"; };
 		7911CE252D6B086D0034BEE6 /* guide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide.swift; sourceTree = "<group>"; };
+		791FECA22D6E0E58003716DE /* coolmark2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = coolmark2.swift; sourceTree = "<group>"; };
+		79E0AD832D758EEF00DDDC8C /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,9 +115,9 @@
 				7911CE152D6AF4220034BEE6 /* v */,
 				7911CE142D6AF4180034BEE6 /* screen */,
 				7911CE132D6AF40F0034BEE6 /* model */,
-				7911CE112D6896F70034BEE6 /* Login.swift */,
 				7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */,
 				7911CDE52D633BAD0034BEE6 /* ContentView.swift */,
+				79E0AD832D758EEF00DDDC8C /* Login.swift */,
 				7911CDE72D633BAD0034BEE6 /* Item.swift */,
 				7911CDE92D633BB60034BEE6 /* Assets.xcassets */,
 				7911CDEB2D633BB60034BEE6 /* Preview Content */,
@@ -163,6 +165,7 @@
 			children = (
 				7911CE252D6B086D0034BEE6 /* guide.swift */,
 				7911CE232D6B084A0034BEE6 /* Home.swift */,
+				791FECA22D6E0E58003716DE /* coolmark2.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -305,11 +308,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
+				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* User.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
+				791FECA32D6E0E59003716DE /* coolmark2.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
-				7911CE122D6896F70034BEE6 /* Login.swift in Sources */,
 				7911CE262D6B086D0034BEE6 /* guide.swift in Sources */,
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
 				7911CE192D6AF60B0034BEE6 /* AppleSignInManager.swift in Sources */,
