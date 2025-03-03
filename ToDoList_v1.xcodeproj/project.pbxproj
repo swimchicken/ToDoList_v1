@@ -117,7 +117,6 @@
 				7911CE132D6AF40F0034BEE6 /* model */,
 				7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */,
 				7911CDE52D633BAD0034BEE6 /* ContentView.swift */,
-				79E0AD832D758EEF00DDDC8C /* Login.swift */,
 				7911CDE72D633BAD0034BEE6 /* Item.swift */,
 				7911CDE92D633BB60034BEE6 /* Assets.xcassets */,
 				7911CDEB2D633BB60034BEE6 /* Preview Content */,
@@ -163,6 +162,7 @@
 		7911CE142D6AF4180034BEE6 /* screen */ = {
 			isa = PBXGroup;
 			children = (
+				79E0AD832D758EEF00DDDC8C /* Login.swift */,
 				7911CE252D6B086D0034BEE6 /* guide.swift */,
 				7911CE232D6B084A0034BEE6 /* Home.swift */,
 				791FECA22D6E0E58003716DE /* coolmark2.swift */,
