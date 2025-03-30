@@ -1,68 +1,85 @@
-//
-//  WheelPicker.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/3/26.
-//
-
 import SwiftUI
 
-/// 一個自製的「輪子選擇器」，用 ScrollView 實作
-struct WheelPicker: View {
-    /// 可選資料，這裡用 Int 做範例；也可以是 String、或自訂 struct
-    let data: [Int]
+struct MultiComponentPicker: UIViewRepresentable {
+    @Binding var hour: Int
+    @Binding var minute: Int
+    @Binding var ampm: Int
     
-    /// 外部傳進來的選擇值
-    @Binding var selection: Int
+    func makeUIView(context: Context) -> UIPickerView {
+        let picker = UIPickerView()
+        picker.dataSource = context.coordinator
+        picker.delegate = context.coordinator
+        return picker
+    }
     
-    /// 每個項目的高度
-    private let rowHeight: CGFloat = 40
+    func updateUIView(_ uiView: UIPickerView, context: Context) {
+        uiView.selectRow(hour - 1, inComponent: 0, animated: false)
+        uiView.selectRow(minute, inComponent: 1, animated: false)
+        uiView.selectRow(ampm, inComponent: 2, animated: false)
+    }
     
-    var body: some View {
-        GeometryReader { geo in
-            ScrollViewReader { scrollProxy in
-                ScrollView(.vertical, showsIndicators: false) {
-                    // 用空白 Spacer 讓中間對齊
-                    // 確保中間對齊區塊能對準視窗正中
-                    Spacer().frame(height: geo.size.height / 2 - rowHeight / 2)
-                    
-                    ForEach(data, id: \.self) { item in
-                        Text("\(item)")
-                            .font(.system(size: 32, weight: .medium))
-                            .foregroundColor(.white)
-                            .frame(height: rowHeight)
-                            .frame(maxWidth: .infinity)
-                            // 簡單示範：若當前項目是 selection，就加個淡灰背景
-                            .background(
-                                Color.white.opacity(selection == item ? 0.15 : 0.0)
-                            )
-                            // 用 .id(item) 讓 ScrollViewReader 能滾動到此位置
-                            .id(item)
-                            // 點擊切換選擇，並自動滾動至該項目
-                            .onTapGesture {
-                                withAnimation {
-                                    selection = item
-                                    scrollProxy.scrollTo(item, anchor: .center)
-                                }
-                            }
-                    }
-                    
-                    Spacer().frame(height: geo.size.height / 2 - rowHeight / 2)
-                }
-                .overlay(
-                    // 中間的「選取區域」高亮方塊
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: rowHeight)
-                        .allowsHitTesting(false),
-                    alignment: .center
-                )
-                .onAppear {
-                    // 螢幕出現時，自動滾動到預設的 selection
-                    scrollProxy.scrollTo(selection, anchor: .center)
-                }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIPickerViewDataSource, UIPickerViewDelegate {
+        var parent: MultiComponentPicker
+        
+        init(_ parent: MultiComponentPicker) {
+            self.parent = parent
+        }
+        
+        func numberOfComponents(in pickerView: UIPickerView) -> Int {
+            3
+        }
+        
+        func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+            switch component {
+            case 0: return 12  // 1~12
+            case 1: return 60  // 0~59
+            case 2: return 2   // AM/PM
+            default: return 0
+            }
+        }
+        
+        // 每個 row 的高度
+        func pickerView(_ pickerView: UIPickerView, rowHeightForComponent component: Int) -> CGFloat {
+            return 60  // 依需求調整
+        }
+        
+        // 自訂字體、顏色等（viewForRow）
+        func pickerView(_ pickerView: UIPickerView,
+                        viewForRow row: Int,
+                        forComponent component: Int,
+                        reusing view: UIView?) -> UIView {
+            let label = UILabel()
+            label.textAlignment = .center
+            label.textColor = .white
+            label.font = UIFont(name: "Inter-Medium", size: 32.68482)
+                ?? UIFont.systemFont(ofSize: 32.68482, weight: .medium)
+            
+            switch component {
+            case 0:
+                label.text = "\(row + 1)"  // hour
+            case 1:
+                label.text = "\(row)"      // minute
+            case 2:
+                label.text = (row == 0) ? "AM" : "PM"
+            default:
+                label.text = ""
+            }
+            return label
+        }
+        
+        func pickerView(_ pickerView: UIPickerView,
+                        didSelectRow row: Int,
+                        inComponent component: Int) {
+            switch component {
+            case 0: parent.hour = row + 1
+            case 1: parent.minute = row
+            case 2: parent.ampm = row
+            default: break
             }
         }
     }
 }
-

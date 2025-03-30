@@ -5,4 +5,11 @@
 //  Created by swimchichen on 2025/3/29.
 //
 
-import Foundation
+//import Foundation
+import SwiftUI
+
+//struct Event: View{
+////    var body: some View{
+////        
+////    }
+//}

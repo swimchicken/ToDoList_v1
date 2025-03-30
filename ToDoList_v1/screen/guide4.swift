@@ -36,7 +36,7 @@ struct guide4: View {
                                 .fill(Color.green)
                                 .frame(height: 10)
                                 .cornerRadius(10)
-                            RRectangle()
+                            Rectangle()
                                 .fill(Color.white.opacity(0.2))
                                 .frame(height: 10)
                                 .cornerRadius(10)
@@ -50,8 +50,7 @@ struct guide4: View {
                                 .cornerRadius(10)
                             
                             // 最後一塊可能是 checkmark
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
+                            Image("Gride01")
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -81,27 +80,29 @@ struct guide4: View {
                         VStack(spacing: 20) {
                             // Picker for Age
                             Picker("Select Age", selection: $selectedAge) {
-                                Text("7").tag(7)
-                                Text("8").tag(8)
-                                Text("9").tag(9)
+                                ForEach(0...130, id: \.self) { age in
+                                    Text("\(age)")
+                                    .font(.system(size: 30).weight(.medium))
+                                    .foregroundColor(.white)
+                                }
                             }
-                            .pickerStyle(.wheel)           // 轉盤風格
-                            .frame(height: 100)            // 可視需要調整高度
-                            .labelsHidden()                // 隱藏預設標籤
-                            .foregroundColor(.white)       // 讓選項文字呈現白色
-                            
+                            .pickerStyle(.wheel)
+                            .frame(height: 120)
+                            .labelsHidden() // 隱藏標籤
                             // Start 按鈕
                             Button(action: {
-                                // 按下 Start 後的行為
+                                // 驗證行為
                             }) {
                                 Text("Start")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity, minHeight: 56)
                             }
-                            .background(Color.white.opacity(0.2))
+//                            .padding(.horizontal, 152)
+                            .padding(.vertical, 17)
+                            .frame(width: 329, height: 56, alignment: .center)
+                            .background(Color(red: 0.94, green: 0.94, blue: 0.94))
                             .cornerRadius(44)
-                            .frame(width: 300)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -115,5 +116,5 @@ struct guide4: View {
 }
 
 #Preview {
-    guide04()
+    guide4()
 }

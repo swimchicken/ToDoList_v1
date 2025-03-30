@@ -8,7 +8,7 @@
 import Foundation
 
 
-struct User: Identifiable, Codable {
+struct AppUser: Identifiable, Codable {
     let id: UUID = UUID()
     var name: String
     var email: String

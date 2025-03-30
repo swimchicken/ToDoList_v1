@@ -1,7 +1,8 @@
 import SwiftUI
+import CloudKit
 
 struct Login: View {
-    @State private var navigateTo: String? = nil  // "onboarding" 或 "home"
+    @State private var navigateTo: String? = nil  // "onboarding", "home", 或 nil
     
     var body: some View {
         NavigationStack {
@@ -43,7 +44,6 @@ struct Login: View {
                             .cornerRadius(36)
                         
                         VStack(spacing: 16) {
-                            // Google 登入（示意）
                             Button(action: {
                                 // Google 登入行為
                             }) {
@@ -92,7 +92,7 @@ struct Login: View {
                             
                             // Email 登入（示意）
                             Button(action: {
-                                // Email 登入行為
+                                navigateTo = "email"
                             }) {
                                 HStack(spacing: 10) {
                                     Image(systemName: "envelope.fill")
@@ -118,18 +118,32 @@ struct Login: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
-                // 接收登入完成後的通知，決定導向哪個頁面
+                // 後端資料前端接收目的地
                 .onReceive(NotificationCenter.default.publisher(for: .didLogin)) { notification in
                     if let userInfo = notification.userInfo,
                         let destination = userInfo["destination"] as? String {
-                        navigateTo = destination
+                            navigateTo = destination
+                    }
+                }
+                .onAppear {
+                    LoginStatusChecker.shared.checkLoginStatus { destination in
+                        switch destination {
+                        case .home:
+                            navigateTo = "home"
+                        case .onboarding:
+                            navigateTo = "onboarding"
+                        case .login:
+                            navigateTo = nil
+                        }
                     }
                 }
             }
             
             
+            // Intent
+            
             NavigationLink(tag: "onboarding", selection: $navigateTo) {
-                guide()
+                guide3()
             } label: {
                 EmptyView()
             }
@@ -140,8 +154,16 @@ struct Login: View {
             } label: {
                 EmptyView()
             }
+            
+            NavigationLink(tag: "email", selection: $navigateTo) {
+                EmailLogin()
+            } label: {
+                EmptyView()
+            }
         }
     }
+    
+    
 }
 
 #Preview {

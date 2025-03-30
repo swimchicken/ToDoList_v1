@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct Visit: View {
+struct EmailLogin: View {
     // 狀態管理
     @State private var email: String = ""            // 預設空字串
     @State private var password: String = ""
@@ -162,6 +162,6 @@ struct Visit: View {
 
 struct coolmark2Previews: PreviewProvider {
     static var previews: some View {
-        Visit()
+        EmailLogin()
     }
 }
