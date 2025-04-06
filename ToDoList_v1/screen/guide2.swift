@@ -1,29 +1,23 @@
-//
-//  guide2.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/3/13.
-//
-
 import SwiftUI
+import CloudKit
 
 struct guide2: View {
-    // 假設要讓使用者輸入 4 位數驗證碼
+    let email: String   // 從 guide 傳入的 email
     @State private var code1 = ""
     @State private var code2 = ""
     @State private var code3 = ""
     @State private var code4 = ""
+    @State private var navigateToHome = false  // 驗證成功後跳轉到 Home
     
     var body: some View {
         NavigationStack {
             ZStack {
-                // 背景色
                 Color.black
                     .ignoresSafeArea()
                 
                 VStack(spacing: 15) {
                     
-                    // 進度條 (可依需求調整，示範 4~5 個方塊或圓點)
+                    // 進度條
                     ZStack(alignment: .leading) {
                         HStack {
                             Rectangle()
@@ -71,8 +65,8 @@ struct guide2: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(0.9)
                     
-                    // 副標題 (提示已寄出驗證碼)
-                    Text("We've sent a code to s*****o@yuniverses.com")
+                    // 副標題：動態顯示遮罩後的 email
+                    Text("We've sent a code to \(maskEmail(email))")
                         .font(Font.custom("Inter", size: 16))
                         .foregroundColor(.white.opacity(0.7))
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -86,7 +80,6 @@ struct guide2: View {
                             .frame(width: 354, height: 179)
                             .background(.white.opacity(0.08))
                             .cornerRadius(36)
-//                            .blur(radius: 31.8)
                         VStack(spacing: 25){
                             // 4 個驗證碼輸入框
                             HStack(spacing: 16) {
@@ -98,26 +91,29 @@ struct guide2: View {
                             
                             // 驗證按鈕
                             Button(action: {
-                                // 驗證行為
+                                let code = code1 + code2 + code3 + code4
+                                EmailAccountManager.shared.verifyEmailAccount(email: email, code: code) { success, error in
+                                    DispatchQueue.main.async {
+                                        if success {
+                                            navigateToHome = true
+                                        } else {
+                                            print("Verification failed: \(error?.localizedDescription ?? "Incorrect code")")
+                                        }
+                                    }
+                                }
                             }) {
                                 Text("Verify")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity, minHeight: 56)
                             }
-//                            .padding(.horizontal, 152)
                             .padding(.vertical, 17)
                             .frame(width: 329, height: 56, alignment: .center)
                             .background(Color(red: 0.94, green: 0.94, blue: 0.94))
                             .cornerRadius(44)
                         }
-                        
-                        
-                        
                     }
                     .frame(maxWidth: .infinity)
-                    
-                    
                     
                     // 重寄驗證碼區塊
                     HStack(spacing: 5) {
@@ -133,12 +129,32 @@ struct guide2: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
             }
+            // 當驗證成功時，跳轉到 Home 頁面
+            NavigationLink(destination: Home(), isActive: $navigateToHome) {
+                EmptyView()
+            }
         }
     }
     
-    
+    /// 將 email 中間部分遮罩，只顯示首尾各一個字元
+    private func maskEmail(_ email: String) -> String {
+        let parts = email.split(separator: "@")
+        guard parts.count == 2 else { return email }
+        let name = String(parts[0])
+        let domain = String(parts[1])
+        let maskedName: String
+        if name.count <= 2 {
+            maskedName = String(repeating: "*", count: name.count)
+        } else {
+            let first = name.prefix(1)
+            let last = name.suffix(1)
+            let stars = String(repeating: "*", count: name.count - 2)
+            maskedName = "\(first)\(stars)\(last)"
+        }
+        return "\(maskedName)@\(domain)"
+    }
 }
 
 #Preview {
-    guide2()
+    guide2(email: "swimchickenouo@gmail.com")
 }

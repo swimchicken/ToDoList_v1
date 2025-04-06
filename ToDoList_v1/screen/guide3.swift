@@ -1,29 +1,18 @@
-//
-//  guide3.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/3/26.
-//
-
 import SwiftUI
+import CloudKit
 
 struct guide3: View {
-    //資料庫預設
     @State private var userName: String = "SHIRO"
     
     var body: some View {
         NavigationStack {
             ZStack {
-                // 背景色
-                Color.black
-                    .ignoresSafeArea()
+                Color.black.ignoresSafeArea()
                 
                 VStack(spacing: 15) {
-                    
                     // 進度條
                     ZStack(alignment: .leading) {
                         HStack {
-                            // 假設前 3 塊綠色，後面一塊是灰色帶邊框，最後是 checkmark
                             Rectangle()
                                 .fill(Color.green)
                                 .frame(height: 10)
@@ -34,9 +23,6 @@ struct guide3: View {
                                 .frame(height: 10)
                                 .cornerRadius(10)
                             
-                          
-                            
-                            // 第四塊，白底半透明 + 綠色邊框
                             Rectangle()
                                 .fill(Color.white.opacity(0.2))
                                 .frame(height: 10)
@@ -60,21 +46,18 @@ struct guide3: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 10)
+
                     
-                    // 標題
                     Text("What's your name?")
-                        .font(
-                            Font.custom("Inria Sans", size: 25.45489)
+                        .font(Font.custom("Inria Sans", size: 25.45489)
                                 .weight(.bold)
-                                .italic()
-                        )
+                                .italic())
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(0.9)
                     
                     Spacer()
                     
-                    // 底部卡片區塊
                     ZStack {
                         Rectangle()
                             .foregroundColor(.clear)
@@ -83,38 +66,91 @@ struct guide3: View {
                             .frame(width: 354, height: 180)
                         
                         VStack(spacing: 20) {
-                            // 輸入名字
                             TextField("", text: $userName)
                                 .font(Font.custom("Inter", size: 20).weight(.medium))
                                 .foregroundColor(.white)
-                                // 將 center 改為 leading
                                 .multilineTextAlignment(.leading)
                                 .frame(height: 44)
-//                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(8)
-                                // 如果想讓文字更貼左邊，可以減少或移除 horizontal padding
                                 .padding(.horizontal, 40)
                             
-                            Button(action: {
-                                // 驗證行為
-                            }) {
+                            NavigationLink(destination: guide4()) {
                                 Text("Next")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity, minHeight: 56)
+                                    .background(Color(red: 0.94, green: 0.94, blue: 0.94))
+                                    .cornerRadius(44)
+                                    .padding(.vertical, 17)
+                                    .frame(width: 329, height: 56, alignment: .center)
                             }
-//                            .padding(.horizontal, 152)
-                            .padding(.vertical, 17)
-                            .frame(width: 329, height: 56, alignment: .center)
-                            .background(Color(red: 0.94, green: 0.94, blue: 0.94))
-                            .cornerRadius(44)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
+                .onDisappear {
+                    // 儲存至 PersonalData (public)
+                    saveUserNameToCloudKit(userName: userName)
+                    // 若是 API 登入的使用者，更新 apiUser (private) 的 name 欄位
+                    updateApiUserName(userName: userName)
+                }
+            }
+        }
+    }
+    
+    // 儲存用戶名稱到 CloudKit 的 PersonalData 資料表 (public)
+    private func saveUserNameToCloudKit(userName: String) {
+        guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
+            print("沒有找到 Apple 用戶 ID")
+            return
+        }
+        
+        let data: [String: CKRecordValue] = [
+            "name": userName as CKRecordValue
+        ]
+        
+        CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
+            if success {
+                print("PersonalData: User name saved/updated successfully!")
+            } else if let error = error {
+                print("PersonalData: Error saving user name: \(error.localizedDescription)")
+            }
+        }
+        
+        // 同步更新 apiUser (private) 的 name 欄位
+        updateApiUserName(userName: userName)
+    }
+    
+    // 更新 apiUser (private) 資料表中的 name 欄位 (僅針對 API 登入的使用者)
+    private func updateApiUserName(userName: String) {
+        guard let userId = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
+            return
+        }
+        
+        let container = CKContainer(identifier: "iCloud.com.fcu.ToDolist1")
+        let privateDatabase = container.privateCloudDatabase
+        let zoneID = CKRecordZone.ID(zoneName: "new_zone", ownerName: CKCurrentUserDefaultName)
+        let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
+        let query = CKQuery(recordType: "ApiUser", predicate: predicate)
+        
+        privateDatabase.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { result in
+            switch result {
+            case .success(let queryResult):
+                guard let record = queryResult.matchResults.compactMap({ try? $0.1.get() }).first else {
+                    print("No apiUser record found to update name.")
+                    return
+                }
+                record["name"] = userName as CKRecordValue
+                privateDatabase.save(record) { savedRecord, error in
+                    if let error = error {
+                        print("Error updating apiUser name: \(error.localizedDescription)")
+                    } else {
+                        print("apiUser name updated successfully.")
+                    }
+                }
+            case .failure(let error):
+                print("Error fetching apiUser record: \(error.localizedDescription)")
             }
         }
     }

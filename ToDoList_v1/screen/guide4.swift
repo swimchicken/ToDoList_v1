@@ -1,25 +1,15 @@
-//
-//  guide04.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/3/26.
-//
-
 import SwiftUI
+import CloudKit
 
 struct guide4: View {
-    // 假設使用者只能選 7, 8, 9 歲
     @State private var selectedAge = 7
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
-                // 背景色
-                Color.black
-                    .ignoresSafeArea()
+                Color.black.ignoresSafeArea()
                 
                 VStack(spacing: 15) {
-                    
                     // 進度條
                     ZStack(alignment: .leading) {
                         HStack {
@@ -55,21 +45,18 @@ struct guide4: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 10)
+
                     
-                    // 標題
-                    Text("Whats your age?")
-                        .font(
-                            Font.custom("Inria Sans", size: 25.45489)
+                    Text("What's your age?")
+                        .font(Font.custom("Inria Sans", size: 25.45489)
                                 .weight(.bold)
-                                .italic()
-                        )
+                                .italic())
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(0.9)
                     
                     Spacer()
                     
-                    // 底部卡片區塊
                     ZStack {
                         Rectangle()
                             .foregroundColor(.clear)
@@ -78,38 +65,56 @@ struct guide4: View {
                             .frame(width: 354, height: 240)
                         
                         VStack(spacing: 20) {
-                            // Picker for Age
                             Picker("Select Age", selection: $selectedAge) {
                                 ForEach(0...130, id: \.self) { age in
                                     Text("\(age)")
-                                    .font(.system(size: 30).weight(.medium))
-                                    .foregroundColor(.white)
+                                        .font(.system(size: 30).weight(.medium))
+                                        .foregroundColor(.white)
                                 }
                             }
                             .pickerStyle(.wheel)
                             .frame(height: 120)
-                            .labelsHidden() // 隱藏標籤
-                            // Start 按鈕
-                            Button(action: {
-                                // 驗證行為
-                            }) {
+                            .labelsHidden()
+                            
+                            NavigationLink(destination: guide5()) {
                                 Text("Start")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity, minHeight: 56)
+                                    .background(Color(red: 0.94, green: 0.94, blue: 0.94))
+                                    .cornerRadius(44)
+                                    .padding(.vertical, 17)
+                                    .frame(width: 329, height: 56, alignment: .center)
                             }
-//                            .padding(.horizontal, 152)
-                            .padding(.vertical, 17)
-                            .frame(width: 329, height: 56, alignment: .center)
-                            .background(Color(red: 0.94, green: 0.94, blue: 0.94))
-                            .cornerRadius(44)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
+                .onDisappear {
+                    saveAgeToCloudKit(age: selectedAge)
+                }
+            }
+        }
+    }
+    
+    // 儲存用戶年齡到 CloudKit 的 PersonalData 資料表，使用 key "ageInt"
+    private func saveAgeToCloudKit(age: Int) {
+        guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
+            print("沒有找到 Apple 用戶 ID")
+            return
+        }
+        
+        let data: [String: CKRecordValue] = [
+            "age": age as CKRecordValue
+        ]
+        
+        CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
+            if success {
+                print("User age saved/updated successfully!")
+            } else if let error = error {
+                print("Error saving user age: \(error.localizedDescription)")
             }
         }
     }

@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
+		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
+		7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */; };
 		7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */; };
 		7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE52D633BAD0034BEE6 /* ContentView.swift */; };
 		7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE72D633BAD0034BEE6 /* Item.swift */; };
@@ -20,8 +23,8 @@
 		7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE212D6B02E00034BEE6 /* UserRecord.swift */; };
 		7911CE242D6B084A0034BEE6 /* Home.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE232D6B084A0034BEE6 /* Home.swift */; };
 		7911CE262D6B086D0034BEE6 /* guide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE252D6B086D0034BEE6 /* guide.swift */; };
-		7919A90C2D90073100FE363B /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7919A90B2D90073100FE363B /* LoginStatusChecker.swift */; };
 		791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791FECA22D6E0E58003716DE /* EmailLogin.swift */; };
+		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
 		79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD832D758EEF00DDDC8C /* Login.swift */; };
 		79E0AD892D82E1A800DDDC8C /* guide2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD882D82E1A800DDDC8C /* guide2.swift */; };
 		79F7C2472D926DD500B2E19E /* MyProject.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = 79F7C2462D926DD500B2E19E /* MyProject.entitlements */; };
@@ -30,7 +33,7 @@
 		79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C24C2D940B9600B2E19E /* guide4.swift */; };
 		79F7C25D2D9414BE00B2E19E /* MultiComponentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C25C2D9414BE00B2E19E /* MultiComponentPicker.swift */; };
 		79F7C25F2D9415EF00B2E19E /* guide5.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C25E2D9415EF00B2E19E /* guide5.swift */; };
-		79F7C2612D97E8C000B2E19E /* event.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2602D97E8C000B2E19E /* event.swift */; };
+		79F7C2612D97E8C000B2E19E /* Event.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2602D97E8C000B2E19E /* Event.swift */; };
 		79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */; };
 		79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2642D99507100B2E19E /* SaveLast.swift */; };
 /* End PBXBuildFile section */
@@ -53,6 +56,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
+		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
+		7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
 		7911CDE02D633BAD0034BEE6 /* ToDoList_v1.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ToDoList_v1.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoList_v1App.swift; sourceTree = "<group>"; };
 		7911CDE52D633BAD0034BEE6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -69,8 +75,8 @@
 		7911CE212D6B02E00034BEE6 /* UserRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRecord.swift; sourceTree = "<group>"; };
 		7911CE232D6B084A0034BEE6 /* Home.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Home.swift; sourceTree = "<group>"; };
 		7911CE252D6B086D0034BEE6 /* guide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide.swift; sourceTree = "<group>"; };
-		7919A90B2D90073100FE363B /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
 		791FECA22D6E0E58003716DE /* EmailLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailLogin.swift; sourceTree = "<group>"; };
+		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
 		79E0AD832D758EEF00DDDC8C /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		79E0AD872D82D8DB00DDDC8C /* ToDoList-v1-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ToDoList-v1-Info.plist"; sourceTree = SOURCE_ROOT; };
 		79E0AD882D82E1A800DDDC8C /* guide2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide2.swift; sourceTree = "<group>"; };
@@ -80,7 +86,7 @@
 		79F7C24C2D940B9600B2E19E /* guide4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide4.swift; sourceTree = "<group>"; };
 		79F7C25C2D9414BE00B2E19E /* MultiComponentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiComponentPicker.swift; sourceTree = "<group>"; };
 		79F7C25E2D9415EF00B2E19E /* guide5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide5.swift; sourceTree = "<group>"; };
-		79F7C2602D97E8C000B2E19E /* event.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = event.swift; sourceTree = "<group>"; };
+		79F7C2602D97E8C000B2E19E /* Event.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Event.swift; sourceTree = "<group>"; };
 		79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoView.swift; sourceTree = "<group>"; };
 		79F7C2642D99507100B2E19E /* SaveLast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveLast.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -175,10 +181,13 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
-				7911CE182D6AF60B0034BEE6 /* AppleSignInManager.swift */,
+				7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */,
 				7911CE1F2D6B02650034BEE6 /* AppUser.swift */,
+				7911CE182D6AF60B0034BEE6 /* AppleSignInManager.swift */,
+				7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */,
+				7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */,
+				793C4AA72DA2872400C76125 /* EmailAccountManager.swift */,
 				7911CE212D6B02E00034BEE6 /* UserRecord.swift */,
-				7919A90B2D90073100FE363B /* LoginStatusChecker.swift */,
 				79F7C2642D99507100B2E19E /* SaveLast.swift */,
 			);
 			path = model;
@@ -204,7 +213,7 @@
 			children = (
 				79F7C2482D94060100B2E19E /* codefield.swift */,
 				79F7C25C2D9414BE00B2E19E /* MultiComponentPicker.swift */,
-				79F7C2602D97E8C000B2E19E /* event.swift */,
+				79F7C2602D97E8C000B2E19E /* Event.swift */,
 				79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */,
 			);
 			path = view;
@@ -349,18 +358,21 @@
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
+				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
+				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
 				791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */,
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
+				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
-				79F7C2612D97E8C000B2E19E /* event.swift in Sources */,
+				79F7C2612D97E8C000B2E19E /* Event.swift in Sources */,
 				79E0AD892D82E1A800DDDC8C /* guide2.swift in Sources */,
+				7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */,
 				79F7C24B2D94098000B2E19E /* guide3.swift in Sources */,
 				7911CE262D6B086D0034BEE6 /* guide.swift in Sources */,
 				79F7C25F2D9415EF00B2E19E /* guide5.swift in Sources */,
-				7919A90C2D90073100FE363B /* LoginStatusChecker.swift in Sources */,
 				79F7C2492D94060100B2E19E /* codefield.swift in Sources */,
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
 				7911CE192D6AF60B0034BEE6 /* AppleSignInManager.swift in Sources */,

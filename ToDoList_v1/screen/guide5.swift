@@ -1,32 +1,22 @@
-//
-//  guide5.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/3/26.
-//
-
 import SwiftUI
+import CloudKit
 
 struct guide5: View {
-    // 三個 Picker 的狀態
-    @State private var hour = 8       // 預設 8
-    @State private var minute = 20    // 預設 20
-    @State private var ampm = 1       // 0=>AM, 1=>PM(預設PM)
-    
+    @State private var hour = 8
+    @State private var minute = 20
+    @State private var ampm = 1  // 0 = AM, 1 = PM
+    @State private var navigateToHome = false  // 控制跳轉到 Home 頁面的狀態
     
     var body: some View {
         NavigationStack {
             ZStack {
-                // 背景色
-                Color.black
-                    .ignoresSafeArea()
+                Color.black.ignoresSafeArea()
                 
                 VStack(spacing: 15) {
-                    
-                    // 進度條 (與前幾頁類似)
+                    // 進度條區域
                     ZStack(alignment: .leading) {
                         HStack {
-                            // 4 塊綠色
+                            // 進度條的各個塊
                             Rectangle()
                                 .fill(Color.green)
                                 .frame(height: 10)
@@ -52,7 +42,7 @@ struct guide5: View {
                                         .stroke(Color.green, lineWidth: 2)
                                 )
                             
-                            // 最後可能是 checkmark 或留白
+                            // 最後是打勾符號
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                         }
@@ -60,20 +50,16 @@ struct guide5: View {
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 10)
                     
-                    // 標題
-                    Text("你通常幾點入睡？")
-                        .font(
-                            Font.custom("Inria Sans", size: 25.45489)
+                    Text("你通常幾點入睡?")
+                        .font(Font.custom("Inria Sans", size: 25.45489)
                                 .weight(.bold)
-                                .italic()
-                        )
+                                .italic())
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .opacity(0.9)
                     
                     Spacer()
                     
-                    // 底部卡片區塊
                     ZStack {
                         Rectangle()
                             .foregroundColor(.clear)
@@ -82,30 +68,78 @@ struct guide5: View {
                             .frame(width: 354, height: 240)
                         
                         VStack(spacing: 20) {
-                            // 三個 Picker 放在 HStack
-                            MultiComponentPicker(hour: $hour,minute: $minute,ampm: $ampm)
+                            MultiComponentPicker(hour: $hour, minute: $minute, ampm: $ampm)
                                 .frame(height: 120)
                             
-                            // 按鈕
                             Button(action: {
-                                // 驗證行為
+                                // 儲存用戶睡眠時間並跳轉到 Home
+                                saveSleepTimeToCloudKit(hour: hour, minute: minute, ampm: ampm)
+                                navigateToHome = true  // 更新狀態以觸發跳轉
                             }) {
                                 Text("Start")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity, minHeight: 56)
+                                    .background(Color(red: 0.94, green: 0.94, blue: 0.94))
+                                    .cornerRadius(44)
+                                    .padding(.vertical, 17)
+                                    .frame(width: 329, height: 56, alignment: .center)
                             }
-//                            .padding(.horizontal, 152)
-                            .padding(.vertical, 17)
-                            .frame(width: 329, height: 56, alignment: .center)
-                            .background(Color(red: 0.94, green: 0.94, blue: 0.94))
-                            .cornerRadius(44)
                         }
                     }
                     .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
+            }
+            
+            // 當 navigateToHome 為 true 時，跳轉到 Home 頁面
+            NavigationLink(destination: Home(), isActive: $navigateToHome) {
+                EmptyView()
+            }
+        }
+    }
+    
+    // 輔助函數：根據使用者選取的時間組件轉換為 Date
+    private func dateFromTime(hour: Int, minute: Int, ampm: Int) -> Date? {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: Date())
+        var hour24 = hour
+        if ampm == 1 { // PM
+            if hour != 12 {
+                hour24 += 12
+            }
+        } else {
+            if hour == 12 {
+                hour24 = 0
+            }
+        }
+        components.hour = hour24
+        components.minute = minute
+        components.second = 0
+        return calendar.date(from: components)
+    }
+    
+    // 儲存用戶睡眠時間到 CloudKit 的 PersonalData 資料表，key 使用 "sleeptimeDate/Time"
+    private func saveSleepTimeToCloudKit(hour: Int, minute: Int, ampm: Int) {
+        guard let sleepDate = dateFromTime(hour: hour, minute: minute, ampm: ampm) else {
+            print("Failed to create sleep date")
+            return
+        }
+        guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
+            print("沒有找到 Apple 用戶 ID")
+            return
+        }
+        
+        let data: [String: CKRecordValue] = [
+            "sleeptime": sleepDate as CKRecordValue
+        ]
+        
+        CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
+            if success {
+                print("Sleep time saved/updated successfully!")
+            } else if let error = error {
+                print("Error saving sleep time: \(error.localizedDescription)")
             }
         }
     }

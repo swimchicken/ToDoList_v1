@@ -1,10 +1,3 @@
-//
-//  Home.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/2/23.
-//
-
 import Foundation
 import SwiftUI
 
@@ -17,71 +10,35 @@ struct Home: View {
             ZStack {
                 Color.black.ignoresSafeArea()
                 
-                VStack(spacing: 15) {
+                VStack(spacing: 0) {
                     
-//                    VStack() {
-//                        // MARK: - 頂部資訊區域
-//                        HStack(spacing: 12) {
-//                            // 頭像 (請在專案中新增 "avatar" 圖片)
-//                            Image("avatar")
-//                                .resizable()
-//                                .scaledToFill()
-//                                .frame(width: 44, height: 44)
-//                                .clipShape(Circle())
-//
-//                            VStack(alignment: .leading, spacing: 4) {
-//
-//                                // 日期
-//                                Text("Jan 11 Wednesday")
-//                                    .font(
-//                                        Font.custom("Inria Sans", size: 20)
-//                                            .weight(.bold)
-//                                    )
-//                                    .foregroundColor(.white)
-//
-//                                // 狀態與溫度
-//                                Text("9:02 awake • 26°C")
-//                                    .font(
-//                                        Font.custom("Inria Sans", size: 14)
-//                                            .weight(.regular)
-//                                    )
-//                                    .foregroundColor(.white.opacity(0.7))
-//                            }
-//
-//                            Spacer()
-//
-//                            // 右上角可放置設定按鈕或其他圖示
-//                            Image(systemName: "gearshape")
-//                                .foregroundColor(.white)
-//                                .font(.system(size: 20))
-//                        }
-//                        .padding(.horizontal, 12)
-//
-//                        // 分隔線
-//                        Rectangle()
-//                            .fill(Color.white.opacity(0.2))
-//                            .frame(height: 1)
-//                            .padding(.horizontal, 12)
-//                    }
                     // 使用者頭像、日期資料、日曆 icon
                     ZStack {
+//                        Rectangle()
+//                            .foregroundColor(.clear)
+//                            .frame(width: 354, height: 54)
+//                            .background(.white.opacity(0.08))
+                        
                         // 預設背景
-                        VStack(spacing: 20) {
+                        VStack() {
                             // 呼叫自訂的 UserInfoView
                             UserInfoView(
-                                avatarImageName: "avatar",  // 請將 "avatar" 替換成你專案中的圖片名稱
-                                dateText: "Jan 11 Wednesday",
+                                avatarImageName: "who",  // 請將 "avatar" 替換成你專案中的圖片名稱
+                                dateText: "Jan 11 ",
+                                dateText2: "Wednesday",
                                 statusText: "9:02 awake",
                                 temperatureText: "26°C"
                             )
-                            .padding(.horizontal, 16)
+//                            .padding(.horizontal, 16)
                             
-                            // 其餘內容 ...
-                            
-                            Spacer()
+//                            Spacer()
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: 54)
+//                    .frame(width: 365, height: 54)
+//                    .padding(.top, 0)
+//                    .ignoresSafeArea(edges: .top)
+                    .background(Color.gray.opacity(0.2))
                     
                     VStack(alignment: .leading, spacing: 8) {
                         VStack {
@@ -132,10 +89,13 @@ struct Home: View {
 //                            .listStyle(PlainListStyle())
                         }
                     }
-                    .padding(0)
-                    .frame(width: 353, height: 368, alignment: .topLeading)
+//                    .frame(width: 353, height: 368, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 60)
             }
+            
             // 畫面出現時更新最近登入時間
             .onAppear {
                 guard let userId = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
@@ -143,6 +103,7 @@ struct Home: View {
                     updateStatus = "找不到 Apple 用戶 ID"
                     return
                 }
+                // 呼叫 SaveLast 更新登入時間並將 guidedInputCompleted 設為 1
                 SaveLast.updateLastLoginDate(forUserId: userId) { result in
                     DispatchQueue.main.async {
                         switch result {

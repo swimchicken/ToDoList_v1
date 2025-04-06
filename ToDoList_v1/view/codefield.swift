@@ -7,20 +7,28 @@ struct CodeField: View {
     
     var body: some View {
         TextField("", text: $text)
-            .font(.system(size: 24)) // 增加文字大小，可以根據需求調整數值
+            .font(.system(size: 24))
             .keyboardType(.numberPad)
             .multilineTextAlignment(.center)
-            .foregroundColor(.white) // 輸入的文字顯示顏色（可依需求調整）
+            .foregroundColor(.white)
             .frame(width: 71.07317, height: 72.21951)
             .cornerRadius(24)
-            // 讓這個 TextField 可以被 focus
             .focused($isFocused)
-            // 動態決定邊框顏色
             .overlay(
                 RoundedRectangle(cornerRadius: 24)
                     .inset(by: 0.57)
                     .stroke(isFocused ? .white : Color(red: 0.37, green: 0.37, blue: 0.37),
                             lineWidth: 1.14634)
             )
+            .onChange(of: text) { newValue in
+                // 過濾掉非數字
+                let filtered = newValue.filter { $0.isNumber }
+                // 限制最多只留一個數字
+                if filtered.count > 1 {
+                    text = String(filtered.prefix(1))
+                } else {
+                    text = filtered
+                }
+            }
     }
 }

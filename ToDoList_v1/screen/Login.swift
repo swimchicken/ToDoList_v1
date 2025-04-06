@@ -2,7 +2,7 @@ import SwiftUI
 import CloudKit
 
 struct Login: View {
-    @State private var navigateTo: String? = nil  // "onboarding", "home", 或 nil
+    @State private var navigateTo: String? = nil  // 可能值："onboarding"、"home"、"email" 或 nil
     
     var body: some View {
         NavigationStack {
@@ -44,8 +44,9 @@ struct Login: View {
                             .cornerRadius(36)
                         
                         VStack(spacing: 16) {
+                            // Google 登入按鈕
                             Button(action: {
-                                // Google 登入行為
+                                // 請依需求加入 Google 登入邏輯
                             }) {
                                 HStack(spacing: 10) {
                                     Image("Google")
@@ -66,7 +67,7 @@ struct Login: View {
                                 .cornerRadius(28)
                             }
                             
-                            // Apple 登入
+                            // Apple 登入按鈕
                             Button(action: {
                                 AppleSignInManager.shared.performSignIn()
                             }) {
@@ -90,7 +91,7 @@ struct Login: View {
                                 .cornerRadius(28)
                             }
                             
-                            // Email 登入（示意）
+                            // Email 登入按鈕（示意）
                             Button(action: {
                                 navigateTo = "email"
                             }) {
@@ -118,20 +119,19 @@ struct Login: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
-                // 後端資料前端接收目的地
+                // 接收 AppleSignInManager 發出的登入結果通知
                 .onReceive(NotificationCenter.default.publisher(for: .didLogin)) { notification in
                     if let userInfo = notification.userInfo,
-                        let destination = userInfo["destination"] as? String {
-                            navigateTo = destination
+                       let destination = userInfo["destination"] as? String {
+                        navigateTo = destination
                     }
                 }
                 .onAppear {
+                    // 進入 Login 頁面時，僅檢查最近登入狀態，若今天已登入則直接進入 Home
                     LoginStatusChecker.shared.checkLoginStatus { destination in
                         switch destination {
                         case .home:
                             navigateTo = "home"
-                        case .onboarding:
-                            navigateTo = "onboarding"
                         case .login:
                             navigateTo = nil
                         }
@@ -139,31 +139,28 @@ struct Login: View {
                 }
             }
             
-            
-            // Intent
-            
             NavigationLink(tag: "onboarding", selection: $navigateTo) {
                 guide3()
+                    .navigationBarBackButtonHidden(true)
             } label: {
                 EmptyView()
             }
-            
-                
+
             NavigationLink(tag: "home", selection: $navigateTo) {
                 Home()
+                    .navigationBarBackButtonHidden(true)
             } label: {
                 EmptyView()
             }
-            
+
             NavigationLink(tag: "email", selection: $navigateTo) {
                 EmailLogin()
+                    .navigationBarBackButtonHidden(true)
             } label: {
                 EmptyView()
             }
         }
     }
-    
-    
 }
 
 #Preview {
