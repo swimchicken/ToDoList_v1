@@ -36,6 +36,7 @@
 		79F7C2612D97E8C000B2E19E /* Event.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2602D97E8C000B2E19E /* Event.swift */; };
 		79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */; };
 		79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2642D99507100B2E19E /* SaveLast.swift */; };
+		EB522C212DA64BA900D4B591 /* HomeREMAKE.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522C202DA64B9F00D4B591 /* HomeREMAKE.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +90,7 @@
 		79F7C2602D97E8C000B2E19E /* Event.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Event.swift; sourceTree = "<group>"; };
 		79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoView.swift; sourceTree = "<group>"; };
 		79F7C2642D99507100B2E19E /* SaveLast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveLast.swift; sourceTree = "<group>"; };
+		EB522C202DA64B9F00D4B591 /* HomeREMAKE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeREMAKE.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -196,6 +198,7 @@
 		7911CE142D6AF4180034BEE6 /* screen */ = {
 			isa = PBXGroup;
 			children = (
+				EB522C202DA64B9F00D4B591 /* HomeREMAKE.swift */,
 				79E0AD832D758EEF00DDDC8C /* Login.swift */,
 				7911CE232D6B084A0034BEE6 /* Home.swift */,
 				7911CE252D6B086D0034BEE6 /* guide.swift */,
@@ -355,6 +358,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
+				EB522C212DA64BA900D4B591 /* HomeREMAKE.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
