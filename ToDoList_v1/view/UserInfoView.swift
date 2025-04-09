@@ -18,17 +18,16 @@ struct UserInfoView: View {
     let temperatureText: String
     
     var body: some View {
-        // 可使用 ZStack 或 HStack 做容器
         ZStack {
             Color.black.ignoresSafeArea()
 //            Color.gray.opacity(0.2) //For check view
             
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 // 頭像
                 Image(avatarImageName)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 44, height: 44)
+                    .frame(width: 45, height: 45)
                     .clipShape(Circle())
                 
                 Spacer()
@@ -39,9 +38,11 @@ struct UserInfoView: View {
                         (
                             Text(dateText)
                                 .foregroundColor(.white)
+                                .font(.headline)
                             +
                             Text(dateText2)
                                 .foregroundStyle(.white.opacity(0.3))
+                                .font(.headline)
                         )
                         .font(Font.custom("Inter", size: 17.3))
                             .bold()
@@ -75,15 +76,14 @@ struct UserInfoView: View {
                     Color.white.opacity(0.08)
                         .cornerRadius(8)
                     
-                    // 右側可加上您想要的圖示或按鈕（此處示範 calendar）
+                    // 圖示按鈕 calendar
                     Image(systemName: "calendar")
                         .foregroundColor(.white)
                 }
+                .frame(width: 54, height: 54)
             }
-            .padding()
         }
 //        .frame(maxWidth: .infinity) // 讓背景能自動延展
         .frame(height: 54)
-        .padding()
     }
 }
