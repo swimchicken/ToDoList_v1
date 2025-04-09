@@ -133,6 +133,7 @@ struct EmailLogin: View {
                 NavigationLink("", destination: guide(email: email), isActive: $navigateToRegister)
                 // NavigationLink 跳轉到 Home 頁面
                 NavigationLink("", destination: Home(), isActive: $navigateToHome)
+                //aasss
             }
         }
     }
