@@ -1,0 +1,79 @@
+name: Notify Discord on All Events
+
+on:
+  push:
+  pull_request:
+  issues:
+  issue_comment:
+  pull_request_review:
+  pull_request_review_comment:
+  discussion:
+  discussion_comment:
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Embed notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
+          ACTOR="${{ github.actor }}"
+          REPO="${{ github.repository }}"
+          EVENT_URL="${{ github.server_url }}/${{ github.repository }}"
+          REPO_NAME="${{ github.repository }}"
+
+          # 設置預設顏色和訊息
+          TITLE="GitHub 事件通知"
+          DESCRIPTION="有新活動發生！"
+          COLOR="3447003"  # 預設藍色
+          
+          # 根據事件類型設置不同訊息
+          if [ "$EVENT_NAME" = "issues" ]; then
+            EVENT_URL="${{ github.event.issue.html_url }}"
+            TITLE="Issue: ${{ github.event.issue.title }}"
+            DESCRIPTION="Issue 被開啟"
+            COLOR="3066993" # 藍色
+          elif [ "$EVENT_NAME" = "push" ]; then
+            EVENT_URL="${{ github.event.head_commit.url }}"
+            TITLE="Push: ${{ github.event.head_commit.message }}"
+            DESCRIPTION="Push了新程式碼"
+            COLOR="3066993" # 藍色
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            EVENT_URL="${{ github.event.pull_request.html_url }}"
+            TITLE="Pull Request: ${{ github.event.pull_request.title }}"
+            DESCRIPTION="PR 被建立"
+            COLOR="13632027" # 黃色
+          elif [ "$EVENT_NAME" = "pull_request_review" ]; then
+            EVENT_URL="${{ github.event.review.html_url }}"
+            TITLE="PR Review: ${{ github.event.review.state }}"
+            DESCRIPTION="有新的 PR 審查"
+            COLOR="15158332" # 紅色
+          elif [ "$EVENT_NAME" = "issue_comment" ]; then
+            EVENT_URL="${{ github.event.comment.html_url }}"
+            TITLE="Issue Comment"
+            DESCRIPTION="有新的留言在 Issue 上"
+            COLOR="16098851" # 綠色
+          fi
+
+          # 發送嵌入式訊息到 Discord
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"$TITLE\",
+                \"description\": \"$DESCRIPTION\",
+                \"url\": \"$EVENT_URL\",
+                \"color\": $COLOR,
+                \"footer\": {
+                  \"text\": \"來自 GitHub 的通知\"
+                },
+                \"author\": {
+                  \"name\": \"$ACTOR\",
+                  \"icon_url\": \"https://avatars.githubusercontent.com/$ACTOR\"
+                }
+              }]
+            }" \
+            "$DISCORD_WEBHOOK"
