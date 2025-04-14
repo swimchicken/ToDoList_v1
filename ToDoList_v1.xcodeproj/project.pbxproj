@@ -24,8 +24,10 @@
 		7911CE242D6B084A0034BEE6 /* Home.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE232D6B084A0034BEE6 /* Home.swift */; };
 		7911CE262D6B086D0034BEE6 /* guide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE252D6B086D0034BEE6 /* guide.swift */; };
 		791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791FECA22D6E0E58003716DE /* EmailLogin.swift */; };
+		7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971C2DAD295100E1A97B /* ToDoSheetView.swift */; };
+		7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */; };
+		792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792297202DAD59DA00E1A97B /* TodoItem.swift */; };
 		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
-		793C4AAA2DA677D800C76125 /* ToDoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA92DA677D800C76125 /* ToDoItem.swift */; };
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
 		79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD832D758EEF00DDDC8C /* Login.swift */; };
 		79E0AD892D82E1A800DDDC8C /* guide2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD882D82E1A800DDDC8C /* guide2.swift */; };
@@ -78,8 +80,10 @@
 		7911CE232D6B084A0034BEE6 /* Home.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Home.swift; sourceTree = "<group>"; };
 		7911CE252D6B086D0034BEE6 /* guide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide.swift; sourceTree = "<group>"; };
 		791FECA22D6E0E58003716DE /* EmailLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailLogin.swift; sourceTree = "<group>"; };
+		7922971C2DAD295100E1A97B /* ToDoSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoSheetView.swift; sourceTree = "<group>"; };
+		7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBlur.swift; sourceTree = "<group>"; };
+		792297202DAD59DA00E1A97B /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
-		793C4AA92DA677D800C76125 /* ToDoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoItem.swift; sourceTree = "<group>"; };
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
 		79E0AD832D758EEF00DDDC8C /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		79E0AD872D82D8DB00DDDC8C /* ToDoList-v1-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ToDoList-v1-Info.plist"; sourceTree = SOURCE_ROOT; };
@@ -193,7 +197,7 @@
 				793C4AA72DA2872400C76125 /* EmailAccountManager.swift */,
 				7911CE212D6B02E00034BEE6 /* UserRecord.swift */,
 				79F7C2642D99507100B2E19E /* SaveLast.swift */,
-				793C4AA92DA677D800C76125 /* ToDoItem.swift */,
+				792297202DAD59DA00E1A97B /* TodoItem.swift */,
 			);
 			path = model;
 			sourceTree = "<group>";
@@ -209,6 +213,7 @@
 				79F7C24C2D940B9600B2E19E /* guide4.swift */,
 				79F7C25E2D9415EF00B2E19E /* guide5.swift */,
 				791FECA22D6E0E58003716DE /* EmailLogin.swift */,
+				7922971C2DAD295100E1A97B /* ToDoSheetView.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -221,6 +226,7 @@
 				79F7C2602D97E8C000B2E19E /* Event.swift */,
 				79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */,
 				793C4AAB2DA6789000C76125 /* ItemRow.swift */,
+				7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */,
 			);
 			path = view;
 			sourceTree = "<group>";
@@ -363,7 +369,9 @@
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
+				792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
+				7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */,
 				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
@@ -374,7 +382,6 @@
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
 				79F7C2612D97E8C000B2E19E /* Event.swift in Sources */,
-				793C4AAA2DA677D800C76125 /* ToDoItem.swift in Sources */,
 				79E0AD892D82E1A800DDDC8C /* guide2.swift in Sources */,
 				7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */,
 				79F7C24B2D94098000B2E19E /* guide3.swift in Sources */,
@@ -383,6 +390,7 @@
 				79F7C2492D94060100B2E19E /* codefield.swift in Sources */,
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
 				793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */,
+				7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */,
 				7911CE192D6AF60B0034BEE6 /* AppleSignInManager.swift in Sources */,
 				79F7C25D2D9414BE00B2E19E /* MultiComponentPicker.swift in Sources */,
 			);
