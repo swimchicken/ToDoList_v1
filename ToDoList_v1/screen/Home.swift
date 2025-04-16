@@ -12,7 +12,7 @@ struct Home: View {
             createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
         ),
         TodoItem(
-            id: UUID(), userID: "user123", title: "Prepare tomorrow’s ", priority: 2, isPinned: false,
+            id: UUID(), userID: "user123", title: "Prepare tomorrow’s", priority: 2, isPinned: false,
             taskDate: Date().addingTimeInterval(3600), note: "備註 2", status: .toBeStarted,
             createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
         ),
@@ -39,7 +39,6 @@ struct Home: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: 0)
 
-
                 VStack(alignment: .leading, spacing: 8) {
                     // 按鈕列：靠左對齊
                     HStack {
@@ -61,7 +60,6 @@ struct Home: View {
                             .foregroundColor(.white)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-
                     .padding(.top, 60)
 
                     // 節日區塊
@@ -101,8 +99,7 @@ struct Home: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 60)
-
-            // 浮層
+            
             if showToDoSheet {
                 ZStack {
                     Color.black.opacity(0.4)
@@ -126,6 +123,24 @@ struct Home: View {
             }
         }
         .animation(.easeOut, value: showToDoSheet)
+        // 當 Home View 出現時，自動更新 lastLoginDate
+        .onAppear {
+            if let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") {
+                SaveLast.updateLastLoginDate(forUserId: appleUserID) { result in
+                    switch result {
+                    case .success:
+                        updateStatus = "更新成功"
+                        print("更新成功")
+                    case .failure(let error):
+                        updateStatus = "更新失敗: \(error.localizedDescription)"
+                        print("更新失敗: \(error.localizedDescription)")
+                    }
+                }
+            } else {
+                updateStatus = "找不到 Apple 使用者 ID"
+                print("找不到 Apple 使用者 ID")
+            }
+        }
     }
 }
 

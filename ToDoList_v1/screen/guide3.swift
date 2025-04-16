@@ -31,10 +31,12 @@ struct guide3: View {
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(Color.green, lineWidth: 2)
                                 )
+                            
                             Rectangle()
                                 .fill(Color.white.opacity(0.2))
                                 .frame(height: 10)
                                 .cornerRadius(10)
+                            
                             Rectangle()
                                 .fill(Color.white.opacity(0.2))
                                 .frame(height: 10)
@@ -130,9 +132,13 @@ struct guide3: View {
         
         let container = CKContainer(identifier: "iCloud.com.fcu.ToDolist1")
         let privateDatabase = container.privateCloudDatabase
-        let zoneID = CKRecordZone.ID(zoneName: "new_zone", ownerName: CKCurrentUserDefaultName)
+        
+        // 使用預設的 zone
+        let zoneID = CKRecordZone.default().zoneID
+        
         let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
+        
         
         privateDatabase.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { result in
             switch result {
