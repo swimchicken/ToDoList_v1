@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
 		7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */; };
@@ -29,9 +30,6 @@
 		792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792297202DAD59DA00E1A97B /* TodoItem.swift */; };
 		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
-		793D1B3C2DAE68E400E0B653 /* CircleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B3B2DAE68E400E0B653 /* CircleView.swift */; };
-		793D1B3E2DAE6BB000E0B653 /* GearShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B3D2DAE6BB000E0B653 /* GearShape.swift */; };
-		793D1B402DAE6BD700E0B653 /* AdjustableGearView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B3F2DAE6BD700E0B653 /* AdjustableGearView.swift */; };
 		793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B412DAE748100E0B653 /* BumpyCircle.swift */; };
 		793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B432DAE881D00E0B653 /* CloudKitHelper.swift */; };
 		79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD832D758EEF00DDDC8C /* Login.swift */; };
@@ -65,6 +63,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
@@ -90,9 +89,6 @@
 		792297202DAD59DA00E1A97B /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
-		793D1B3B2DAE68E400E0B653 /* CircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleView.swift; sourceTree = "<group>"; };
-		793D1B3D2DAE6BB000E0B653 /* GearShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GearShape.swift; sourceTree = "<group>"; };
-		793D1B3F2DAE6BD700E0B653 /* AdjustableGearView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustableGearView.swift; sourceTree = "<group>"; };
 		793D1B412DAE748100E0B653 /* BumpyCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BumpyCircle.swift; sourceTree = "<group>"; };
 		793D1B432DAE881D00E0B653 /* CloudKitHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitHelper.swift; sourceTree = "<group>"; };
 		79E0AD832D758EEF00DDDC8C /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
@@ -238,10 +234,8 @@
 				79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */,
 				793C4AAB2DA6789000C76125 /* ItemRow.swift */,
 				7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */,
-				793D1B3B2DAE68E400E0B653 /* CircleView.swift */,
-				793D1B3D2DAE6BB000E0B653 /* GearShape.swift */,
-				793D1B3F2DAE6BD700E0B653 /* AdjustableGearView.swift */,
 				793D1B412DAE748100E0B653 /* BumpyCircle.swift */,
+				7906564C2DB158EC00EB90AC /* PhysicsScene.swift */,
 			);
 			path = view;
 			sourceTree = "<group>";
@@ -382,8 +376,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
-				793D1B3E2DAE6BB000E0B653 /* GearShape.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
+				7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
 				792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */,
 				793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */,
@@ -396,12 +390,10 @@
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
 				791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */,
 				793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */,
-				793D1B3C2DAE68E400E0B653 /* CircleView.swift in Sources */,
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
 				79F7C2612D97E8C000B2E19E /* Event.swift in Sources */,
-				793D1B402DAE6BD700E0B653 /* AdjustableGearView.swift in Sources */,
 				79E0AD892D82E1A800DDDC8C /* guide2.swift in Sources */,
 				7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */,
 				79F7C24B2D94098000B2E19E /* guide3.swift in Sources */,
