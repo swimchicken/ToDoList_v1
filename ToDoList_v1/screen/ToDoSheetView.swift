@@ -30,84 +30,83 @@ struct ToDoSheetView: View {
 
     var body: some View {
         ZStack {
-            // 背景模糊視圖：只在此形狀內產生模糊效果
-            VisualEffectBlur(style: .systemChromeMaterialDark)
-
-            // 前景內容：保持清晰
-            VStack(alignment: .center, spacing: 20) {
-                // 小橫槓作為拖曳指示器
-                Capsule()
-                    .fill(Color.white.opacity(0.5))
-                    .frame(width: 40, height: 6)
-                    .padding(.top, 8)
-                    .gesture(
-                        DragGesture().onEnded { value in
-                            if value.translation.height > 50 {
-                                closeSheet()
-                            }
-                        }
-                    )
+            // 背景 - 深灰色半透明背景
+            Color(red: 0.15, green: 0.15, blue: 0.15, opacity: 0.95)
+            
+            // 頂部拖曳條
+            VStack(spacing: 0) {
+                // 頂部灰色指示條
+                Rectangle()
+                    .fill(Color.gray.opacity(0.5))
+                    .frame(width: 40, height: 4)
+                    .cornerRadius(2)
+                    .padding(.top, 12)
+                    .padding(.bottom, 20)
                 
-                // ─── 標題列 ───
+                // 標題欄
                 HStack {
                     Text("待辦事項佇列")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                     Spacer()
                     Image(systemName: "ellipsis")
                         .foregroundColor(.white)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
                 
-                // ─── 篩選標籤列 ───
-                HStack(spacing: 12) {
-                    categoryButton(.all, title: "全部")
-                    categoryButton(.memo, title: "備忘錄")
-                    categoryButton(.incomplete, title: "未完成")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)  // 使按鈕向左對齊
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                
-                // ─── 待辦事項清單 ───
-                List {
-                    ForEach(filteredItems) { item in
-                        HStack {
-                            Image(systemName: "envelope.fill")
-                                .foregroundColor(.white)
-                            Text(item.title)
-                                .foregroundColor(.white)
-                            Spacer()
-                            if item.priority >= 2 {
-                                Text("★")
-                                    .foregroundColor(.yellow)
-                            }
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.white)
+                // 分類按鈕列
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        categoryButton(.all, title: "全部")
+                        categoryButton(.memo, title: "備忘錄")
+                        categoryButton(.incomplete, title: "未完成")
+                        Button {
+                            // 新增分類按鈕的功能
+                        } label: {
+                            Image(systemName: "plus")
+                                .foregroundColor(Color(red: 0.53, green: 0.53, blue: 0.53))
+                                .frame(width: 16, height: 16)
+                                .padding(10)
+                                .frame(width: 40, height: 38, alignment: .center)
+                                .background(.white.opacity(0.06))
+                                .cornerRadius(28)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 28)
+                                        .inset(by: 0)
+                                        .stroke(Color(red: 0.53, green: 0.53, blue: 0.53), lineWidth: 0)
+                                )
                         }
-                        .padding(.vertical, 8)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                        .listRowBackground(Color.clear)
+                    }
+                    .padding(.horizontal, 24)
+                }
+                .padding(.bottom, 16)
+                
+                // 待辦事項列表 - 使用新的TodoSheetItemRow
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(filteredItems.indices, id: \.self) { index in
+                            let item = filteredItems[index]
+                            if let originalIndex = toDoItems.firstIndex(where: { $0.id == item.id }) {
+                                TodoSheetItemRow(item: Binding(
+                                    get: { toDoItems[originalIndex] },
+                                    set: { _ in }
+                                ))
+                                Divider()
+                                    .background(Color.white.opacity(0.1))
+                                    .padding(.leading, 60)
+                            }
+                        }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .frame(height: 300)
+                .padding(.bottom, 20)
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 16)
-            .padding(.bottom, 28)
         }
-        // 固定浮層尺寸與圓角
-        .frame(width: 369, height: 566, alignment: .top)
-        .clipShape(RoundedRectangle(cornerRadius: 36))
-        .overlay(
-            RoundedRectangle(cornerRadius: 36)
-                .inset(by: 0.5)
-                .stroke(Color(red: 0.28, green: 0.28, blue: 0.28), lineWidth: 1)
-        )
-        // 更新 offset：基於初始位置與當前拖曳偏移
-        .offset(y: (animateSheetUp ? 50 : 650) + currentDragOffset)
+        // 圓角和尺寸
+        .frame(width: UIScreen.main.bounds.width - 40, height: 530)
+        .cornerRadius(30)
+        // 动画和偏移 - 默认位置不设置，由容器控制
+        .offset(y: (animateSheetUp ? 0 : 800) + currentDragOffset)
         // 整體拖曳手勢處理
         .gesture(
             DragGesture()
@@ -151,8 +150,7 @@ struct ToDoSheetView: View {
             Text(title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(10)
                 .background(
                     selectedCategory == category
                     ? Color(red: 0, green: 0.72, blue: 0.41)
@@ -165,63 +163,53 @@ struct ToDoSheetView: View {
 
 struct ToDoSheetView_Previews: PreviewProvider {
     static var previews: some View {
-        ToDoSheetView(
-            toDoItems: [
-                TodoItem(
-                    id: UUID(),
-                    userID: "user123",
-                    title: "市場研究",
-                    priority: 1,
-                    isPinned: false,
-                    taskDate: Date(),
-                    note: "研究產品市場趨勢",
-                    status: .toBeStarted,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    correspondingImageID: ""
-                ),
-                TodoItem(
-                    id: UUID(),
-                    userID: "user123",
-                    title: "備忘錄：市場研究",
-                    priority: 2,
-                    isPinned: false,
-                    taskDate: Date(),
-                    note: "記得撰寫備忘錄",
-                    status: .toBeStarted,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    correspondingImageID: ""
-                ),
-                TodoItem(
-                    id: UUID(),
-                    userID: "user123",
-                    title: "Draft meeting notes",
-                    priority: 3,
-                    isPinned: false,
-                    taskDate: Date(),
-                    note: "會議記錄初稿",
-                    status: .completed,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    correspondingImageID: ""
-                ),
-                TodoItem(
-                    id: UUID(),
-                    userID: "user123",
-                    title: "回覆所有未讀郵件",
-                    priority: 1,
-                    isPinned: false,
-                    taskDate: Date(),
-                    note: "清空收件箱",
-                    status: .toBeStarted,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    correspondingImageID: ""
-                )
-            ],
-            onDismiss: {}
-        )
+        ZStack {
+            Color.black.edgesIgnoringSafeArea(.all)
+            ToDoSheetView(
+                toDoItems: [
+                    TodoItem(
+                        id: UUID(),
+                        userID: "user123",
+                        title: "回覆所有未讀郵件",
+                        priority: 2,
+                        isPinned: false,
+                        taskDate: Date(),
+                        note: "清空收件箱",
+                        status: .toBeStarted,
+                        createdAt: Date(),
+                        updatedAt: Date(),
+                        correspondingImageID: ""
+                    ),
+                    TodoItem(
+                        id: UUID(),
+                        userID: "user123",
+                        title: "回覆所有未讀郵件",
+                        priority: 1,
+                        isPinned: false,
+                        taskDate: Date(),
+                        note: "清空收件箱",
+                        status: .toBeStarted,
+                        createdAt: Date(),
+                        updatedAt: Date(),
+                        correspondingImageID: ""
+                    ),
+                    TodoItem(
+                        id: UUID(),
+                        userID: "user123",
+                        title: "回覆所有未讀郵件",
+                        priority: 3,
+                        isPinned: false,
+                        taskDate: Date(),
+                        note: "清空收件箱",
+                        status: .toBeStarted,
+                        createdAt: Date(),
+                        updatedAt: Date(),
+                        correspondingImageID: ""
+                    )
+                ],
+                onDismiss: {}
+            )
+        }
         .preferredColorScheme(.dark)
     }
 }

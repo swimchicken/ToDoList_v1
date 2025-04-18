@@ -5,51 +5,107 @@ struct Home: View {
     @State private var updateStatus: String = ""
     @State private var showToDoSheet: Bool = false
     @State private var toDoItems: [TodoItem] = [
+        // 置頂且待辦的項目
         TodoItem(
             id: UUID(), userID: "user123", title: "市場研究", priority: 1, isPinned: true,
             taskDate: Date(), note: "備註 1", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
         ),
+        // 一般優先級2的項目
         TodoItem(
-            id: UUID(), userID: "user123", title: "Prepare tomorrow’s", priority: 2, isPinned: false,
+            id: UUID(), userID: "user123", title: "Prepare tomorrow's", priority: 2, isPinned: false,
             taskDate: Date().addingTimeInterval(3600), note: "備註 2", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "22"
         ),
+        // 已完成的項目
+        TodoItem(
+            id: UUID(), userID: "user123", title: "更新上週報告", priority: 2, isPinned: false,
+            taskDate: Date().addingTimeInterval(7200), note: "已完成", status: .completed,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "completed1"
+        ),
+        // 一般優先級3的項目
         TodoItem(
             id: UUID(), userID: "user123", title: "回覆所有未讀郵件", priority: 3, isPinned: false,
             taskDate: Date().addingTimeInterval(7200), note: "備註 3", status: .toDoList,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "44"
         ),
+        // 進行中但未完成的項目
         TodoItem(
-            id: UUID(), userID: "user123", title: "回覆所有未讀郵件", priority: 3, isPinned: false,
-            taskDate: Date().addingTimeInterval(7200), note: "備註 3", status: .toDoList,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+            id: UUID(), userID: "user123", title: "製作簡報", priority: 3, isPinned: false,
+            taskDate: Date().addingTimeInterval(7200), note: "進行中", status: .undone,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "55"
         ),
+        // 置頂但已完成的項目
         TodoItem(
-            id: UUID(), userID: "user123", title: "回覆所有未讀郵件", priority: 3, isPinned: false,
-            taskDate: Date().addingTimeInterval(7200), note: "備註 3", status: .toDoList,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+            id: UUID(), userID: "user123", title: "重要任務已完成", priority: 1, isPinned: true,
+            taskDate: Date().addingTimeInterval(7200), note: "重要且已完成", status: .completed,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "66"
         ),
+        // 待辦佇列項目
         TodoItem(
-            id: UUID(), userID: "user123", title: "回覆所有未讀郵件", priority: 3, isPinned: false,
-            taskDate: Date().addingTimeInterval(7200), note: "備註 3", status: .toDoList,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+            id: UUID(), userID: "user123", title: "排程下週會議", priority: 2, isPinned: false,
+            taskDate: Date().addingTimeInterval(7200), note: "備註", status: .toDoList,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "77"
+        ),
+        // 待開始項目
+        TodoItem(
+            id: UUID(), userID: "user123", title: "聯絡客戶", priority: 3, isPinned: false,
+            taskDate: Date().addingTimeInterval(7200), note: "備註", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "88"
+        ),
+        // 另一個進行中項目
+        TodoItem(
+            id: UUID(), userID: "user123", title: "系統測試", priority: 3, isPinned: false,
+            taskDate: Date().addingTimeInterval(7200), note: "進行中", status: .undone,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "99"
         )
     ]
+    
+    // 計算屬性：排序後的待辦事項
+    private var sortedToDoItems: [TodoItem] {
+        // 首先按置頂狀態排序，其次按任務日期排序
+        return toDoItems.sorted { item1, item2 in
+            // 置頂項目優先
+            if item1.isPinned && !item2.isPinned {
+                return true
+            }
+            if !item1.isPinned && item2.isPinned {
+                return false
+            }
+                    
+            // 如果置頂狀態相同，按任務日期排序（由早到晚）
+            return item1.taskDate < item2.taskDate
+        }
+    }
+
+    // 提供索引訪問方法，用於在ForEach中使用
+    private func getBindingToSortedItem(at index: Int) -> Binding<TodoItem> {
+        let sortedItem = sortedToDoItems[index]
+        // 找到原始數組中的索引
+        if let originalIndex = toDoItems.firstIndex(where: { $0.id == sortedItem.id }) {
+            return $toDoItems[originalIndex]
+        }
+        // 這種情況理論上不應該發生，但提供一個後備選項
+        return Binding<TodoItem>(
+            get: { sortedItem },
+            set: { _ in }
+        )
+    }
 
     private var physicsScene: PhysicsScene {
         PhysicsScene(
-            size: CGSize(width: 369, height: 140),
-            itemsCount: toDoItems.count
+            size: CGSize(width: 369, height: 100),
+            todoItems: sortedToDoItems // 使用排序後的待辦事項
         )
     }
 
     var body: some View {
         ZStack {
+            // 1. 背景
             Color.black
                 .ignoresSafeArea()
 
-            // 主介面內容
+            // 2. 主介面內容
             VStack(spacing: 0) {
                 // Header
                 UserInfoView(
@@ -99,54 +155,31 @@ struct Home: View {
                     }
                     .foregroundColor(.white)
 
-                    // 待辦清單
                     List {
-                        ForEach(toDoItems.indices, id: \.self) { idx in
+                        ForEach(0..<sortedToDoItems.count, id: \.self) { idx in
                             VStack(spacing: 0) {
-                                ItemRow(item: $toDoItems[idx])
+                                ItemRow(item: getBindingToSortedItem(at: idx))
                                     .padding(.vertical, 8)
                                 Rectangle()
                                     .fill(Color.white.opacity(0.2))
                                     .frame(height: 2)
+                                }
+                                .listRowInsets(.init())
+                                .listRowBackground(Color.black)
                             }
-                            .listRowInsets(.init())
-                            .listRowBackground(Color.black)
                         }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .padding(.bottom, 170)
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .padding(.bottom, 170)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 24)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 60)
+            .zIndex(1) // 設置主界面内容的層級
 
-            // ToDoSheetView 彈窗
-            if showToDoSheet {
-                ZStack {
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.easeInOut) { showToDoSheet = false }
-                        }
-
-                    ToDoSheetView(toDoItems: toDoItems) {
-                        withAnimation(.easeInOut) { showToDoSheet = false }
-                    }
-                    .transition(.move(edge: .bottom))
-                }
-                .gesture(
-                    DragGesture().onEnded { v in
-                        if v.translation.height > 50 {
-                            withAnimation(.easeInOut) { showToDoSheet = false }
-                        }
-                    }
-                )
-            }
-
-            // 底部灰色容器：只包 BumpyCircle & 按鈕
+            // 3. 底部灰色容器：只包 BumpyCircle & 按鈕
             VStack {
                 Spacer()
 
@@ -190,6 +223,36 @@ struct Home: View {
                         .fill(Color.gray.opacity(0.2))
                 )
                 .padding(.bottom, 20)
+            }
+            .zIndex(2) // 設置底部容器的層級
+
+            // 4. ToDoSheetView 彈窗 - 使用半透明背景覆盖整个屏幕
+            if showToDoSheet {
+                // 半透明背景
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeInOut) { showToDoSheet = false }
+                    }
+                    .zIndex(9)
+                
+                // 弹出视图位置调整 - 进一步降低位置
+                GeometryReader { geometry in
+                    VStack {
+                        // 调整上方空间，显示在更下方
+                        Spacer().frame(height: geometry.size.height * 0.15)
+                        
+                        // 中央弹出视图
+                        ToDoSheetView(toDoItems: toDoItems) {
+                            withAnimation(.easeInOut) { showToDoSheet = false }
+                        }
+                        
+                        // 预留更多空间给底部
+                        Spacer()
+                    }
+                    .frame(width: geometry.size.width)
+                }
+                .zIndex(10) // 設置ToDoSheetView在最上層
             }
         }
         .animation(.easeOut, value: showToDoSheet)
