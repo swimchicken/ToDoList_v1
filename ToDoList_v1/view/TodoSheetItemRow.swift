@@ -1,11 +1,6 @@
-//
-//  TodoSheetItemRow.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/4/18.
-//
-
+// MARK: - TodoSheetItemRow.swift
 import SwiftUI
+import Foundation
 
 struct TodoSheetItemRow: View {
     @Binding var item: TodoItem
@@ -13,61 +8,65 @@ struct TodoSheetItemRow: View {
     private let iconSize: CGFloat = 16
     
     var body: some View {
-        HStack(spacing: 12) {
-            // 矩形按鈕 (點擊前灰色，點擊後綠色)
-            Button {
-                withAnimation {
-                    item.status = (item.status == .completed ? .toBeStarted : .completed)
-                }
-            } label: {
+        ZStack {
+            // 完成狀態下的橫跨整行的刪除線
+            if item.status == .completed {
                 Rectangle()
-                    .foregroundColor(.clear)
-                    .frame(width: 28, height: 28)
-                    .background(item.status == .completed ? doneColor : .white.opacity(0.15))
-                    .cornerRadius(40.5)
+                    .fill(doneColor)
+                    .frame(height: 2)
+                    .offset(y: 0)
             }
-            .buttonStyle(PlainButtonStyle())
             
-            // 任務標題 (帶刪除線)
-            Text(item.title)
-                .font(.system(size: 16))
-                .foregroundColor(item.status == .completed ? doneColor : .white)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .overlay(
-                    Group {
-                        if item.status == .completed {
-                            Rectangle()
-                                .fill(doneColor)
-                                .frame(height: 1.5)
-                        }
-                    },
-                    alignment: .center
-                )
-            
-            Spacer()
-            
-            // 星標（如果優先度>=1）
-            if item.priority >= 1 {
-                HStack(spacing: 2) {
-                    ForEach(0..<item.priority, id: \.self) { _ in
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(item.status == .completed ? doneColor : .white.opacity(0.7))
+            HStack(spacing: 12) {
+                // 矩形按鈕 (點擊前灰色，點擊後綠色)
+                Button {
+                    print("按鈕被點擊，狀態從 \(item.status) 變為 \(item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)")
+                    withAnimation {
+                        item.status = (item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)
                     }
+                } label: {
+                    Rectangle()
+                        .foregroundColor(.clear)
+                        .frame(width: 28, height: 28)
+                        .background(item.status == .completed ? doneColor : .white.opacity(0.15))
+                        .cornerRadius(40.5)
                 }
-                .padding(.trailing, 8)
+                .buttonStyle(PlainButtonStyle())
+                
+                // 任務標題 (不再需要單獨的刪除線)
+                Text(item.title)
+                    .font(.system(size: 16))
+                    .foregroundColor(item.status == .completed ? doneColor : .white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                
+                Spacer()
+                
+                // 星標（如果優先度>=1）
+                if item.priority >= 1 {
+                    HStack(spacing: 2) {
+                        ForEach(0..<item.priority, id: \.self) { _ in
+                            Image("Star")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: iconSize, height: iconSize)
+                                .foregroundColor(item.status == .completed ? doneColor : .white.opacity(0.7))
+                        }
+                    }
+                    .padding(.trailing, 8)
+                }
+                
+                // 右側箭頭按鈕
+                Button {
+                    // 這裡可以添加點擊箭頭的操作，例如查看詳情
+                } label: {
+                    Image(systemName: "arrow.turn.right.up")
+                        .font(.system(size: 14))
+                        .foregroundColor(item.status == .completed ? doneColor : .white.opacity(0.5))
+                }
+                .buttonStyle(PlainButtonStyle())
             }
-            
-            // 右側箭頭按鈕
-            Button {
-                // 這裡可以添加點擊箭頭的操作，例如查看詳情
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14))
-                    .foregroundColor(item.status == .completed ? doneColor : .white.opacity(0.5))
-            }
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 24)
@@ -83,7 +82,7 @@ struct TodoSheetItemRow_Previews: PreviewProvider {
         isPinned: false,
         taskDate: Date(),
         note: "備註",
-        status: .toBeStarted,
+        status: TodoStatus.toBeStarted, // 明確指定枚舉類型
         createdAt: Date(),
         updatedAt: Date(),
         correspondingImageID: ""
@@ -96,7 +95,7 @@ struct TodoSheetItemRow_Previews: PreviewProvider {
         isPinned: false,
         taskDate: Date(),
         note: "備註",
-        status: .completed,
+        status: TodoStatus.completed, // 明確指定枚舉類型
         createdAt: Date(),
         updatedAt: Date(),
         correspondingImageID: ""

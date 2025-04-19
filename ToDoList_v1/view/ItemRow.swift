@@ -54,8 +54,10 @@ struct ItemRow: View {
                     } else if item.priority > 0 {
                         // 星星圖標 - 固定從左側開始
                         ForEach(0..<max(0, item.priority), id: \.self) { index in
-                            Image(systemName: "star.fill")
+                            Image("Star")
+                                .renderingMode(.template)
                                 .resizable()
+                                .aspectRatio(contentMode: .fit)
                                 .frame(width: iconSize, height: iconSize)
                                 .foregroundColor(item.status == .completed ? doneColor : .white)
                                 .padding(.leading, index > 0 ? 2 : 0) // 星星之間的間距

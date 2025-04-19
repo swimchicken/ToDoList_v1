@@ -24,6 +24,7 @@
 		7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE212D6B02E00034BEE6 /* UserRecord.swift */; };
 		7911CE242D6B084A0034BEE6 /* Home.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE232D6B084A0034BEE6 /* Home.swift */; };
 		7911CE262D6B086D0034BEE6 /* guide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CE252D6B086D0034BEE6 /* guide.swift */; };
+		791E53AD2DB3F4470096F3B2 /* TodoStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791E53AC2DB3F4470096F3B2 /* TodoStatus.swift */; };
 		791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 791FECA22D6E0E58003716DE /* EmailLogin.swift */; };
 		792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792073FE2DB292EC00057A45 /* TodoSheetItemRow.swift */; };
 		7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971C2DAD295100E1A97B /* ToDoSheetView.swift */; };
@@ -33,6 +34,7 @@
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
 		793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B412DAE748100E0B653 /* BumpyCircle.swift */; };
 		793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B432DAE881D00E0B653 /* CloudKitHelper.swift */; };
+		79C66A332DB40B7300BF8703 /* Add.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C66A322DB40B7300BF8703 /* Add.swift */; };
 		79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD832D758EEF00DDDC8C /* Login.swift */; };
 		79E0AD892D82E1A800DDDC8C /* guide2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E0AD882D82E1A800DDDC8C /* guide2.swift */; };
 		79F7C2472D926DD500B2E19E /* MyProject.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = 79F7C2462D926DD500B2E19E /* MyProject.entitlements */; };
@@ -84,6 +86,7 @@
 		7911CE212D6B02E00034BEE6 /* UserRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRecord.swift; sourceTree = "<group>"; };
 		7911CE232D6B084A0034BEE6 /* Home.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Home.swift; sourceTree = "<group>"; };
 		7911CE252D6B086D0034BEE6 /* guide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide.swift; sourceTree = "<group>"; };
+		791E53AC2DB3F4470096F3B2 /* TodoStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoStatus.swift; sourceTree = "<group>"; };
 		791FECA22D6E0E58003716DE /* EmailLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailLogin.swift; sourceTree = "<group>"; };
 		792073FE2DB292EC00057A45 /* TodoSheetItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoSheetItemRow.swift; sourceTree = "<group>"; };
 		7922971C2DAD295100E1A97B /* ToDoSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoSheetView.swift; sourceTree = "<group>"; };
@@ -93,6 +96,7 @@
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
 		793D1B412DAE748100E0B653 /* BumpyCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BumpyCircle.swift; sourceTree = "<group>"; };
 		793D1B432DAE881D00E0B653 /* CloudKitHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitHelper.swift; sourceTree = "<group>"; };
+		79C66A322DB40B7300BF8703 /* Add.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Add.swift; sourceTree = "<group>"; };
 		79E0AD832D758EEF00DDDC8C /* Login.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Login.swift; sourceTree = "<group>"; };
 		79E0AD872D82D8DB00DDDC8C /* ToDoList-v1-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "ToDoList-v1-Info.plist"; sourceTree = SOURCE_ROOT; };
 		79E0AD882D82E1A800DDDC8C /* guide2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = guide2.swift; sourceTree = "<group>"; };
@@ -207,6 +211,7 @@
 				7911CE212D6B02E00034BEE6 /* UserRecord.swift */,
 				79F7C2642D99507100B2E19E /* SaveLast.swift */,
 				792297202DAD59DA00E1A97B /* TodoItem.swift */,
+				791E53AC2DB3F4470096F3B2 /* TodoStatus.swift */,
 			);
 			path = model;
 			sourceTree = "<group>";
@@ -223,6 +228,7 @@
 				79F7C25E2D9415EF00B2E19E /* guide5.swift */,
 				791FECA22D6E0E58003716DE /* EmailLogin.swift */,
 				7922971C2DAD295100E1A97B /* ToDoSheetView.swift */,
+				79C66A322DB40B7300BF8703 /* Add.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -383,12 +389,14 @@
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
 				7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
+				791E53AD2DB3F4470096F3B2 /* TodoStatus.swift in Sources */,
 				792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */,
 				793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
 				7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */,
 				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
+				79C66A332DB40B7300BF8703 /* Add.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
 				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,

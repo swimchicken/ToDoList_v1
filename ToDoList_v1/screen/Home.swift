@@ -4,6 +4,7 @@ import SpriteKit
 struct Home: View {
     @State private var updateStatus: String = ""
     @State private var showToDoSheet: Bool = false
+    @State private var showAddTaskSheet: Bool = false
     @State private var toDoItems: [TodoItem] = [
         // 置頂且待辦的項目
         TodoItem(
@@ -202,15 +203,17 @@ struct Home: View {
                         .background(Color.white)
                         .cornerRadius(40.5)
 
-                        // pencil 按鈕
+                        // plus 按鈕 - 新增任務
                         Button {
-                            // pencil 功能
+                            withAnimation(.easeInOut) {
+                                showAddTaskSheet = true
+                            }
                         } label: {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 77)
                                     .fill(Color(red: 0, green: 0.72, blue: 0.41))
                                     .frame(width: 71, height: 60)
-                                Image(systemName: "square.and.pencil")
+                                Image(systemName: "plus")
                                     .font(.system(size: 24))
                                     .foregroundColor(.white)
                             }
@@ -254,8 +257,35 @@ struct Home: View {
                 }
                 .zIndex(10) // 設置ToDoSheetView在最上層
             }
+            
+            // 5. 添加 Add.swift 彈出視圖
+            if showAddTaskSheet {
+                // 首先添加模糊層，覆蓋整個屏幕
+                ZStack {
+                    // 模糊背景效果
+                    Rectangle()
+                        .fill(.ultraThinMaterial)  // 使用系統模糊材質
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut) {
+                                showAddTaskSheet = false
+                            }
+                        }
+                    
+                    // Add視圖，在模糊背景之上
+                    Add(toDoItems: $toDoItems, onClose: {
+                        withAnimation(.easeInOut) {
+                            showAddTaskSheet = false
+                        }
+                    })
+                    .transition(.move(edge: .bottom))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showAddTaskSheet)
+                .zIndex(100) // 確保在所有其他內容之上
+            }
         }
         .animation(.easeOut, value: showToDoSheet)
+        .animation(.easeOut, value: showAddTaskSheet)
         .onAppear {
             if let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") {
                 SaveLast.updateLastLoginDate(forUserId: appleUserID) { result in
@@ -270,6 +300,23 @@ struct Home: View {
                 updateStatus = "找不到 Apple 使用者 ID"
             }
         }
+    }
+}
+
+// 用於設置圓角的擴展
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }
 

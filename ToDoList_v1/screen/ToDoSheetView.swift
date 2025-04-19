@@ -1,3 +1,4 @@
+// MARK: - ToDoSheetView.swift
 import SwiftUI
 
 enum ToDoCategory: Int {
@@ -9,6 +10,17 @@ enum ToDoCategory: Int {
 struct ToDoSheetView: View {
     let toDoItems: [TodoItem]
     let onDismiss: () -> Void  // 用來從外部關閉此視圖
+    
+    // 創建一個內部可修改的副本
+    @State private var mutableItems: [TodoItem]
+    
+    // 構造器，初始化可變副本
+    init(toDoItems: [TodoItem], onDismiss: @escaping () -> Void) {
+        self.toDoItems = toDoItems
+        self.onDismiss = onDismiss
+        // 初始化內部副本
+        _mutableItems = State(initialValue: toDoItems)
+    }
 
     @State private var selectedCategory: ToDoCategory = .all
     @State private var animateSheetUp: Bool = false
@@ -18,13 +30,13 @@ struct ToDoSheetView: View {
     private var filteredItems: [TodoItem] {
         switch selectedCategory {
         case .all:
-            return toDoItems
+            return mutableItems
         case .memo:
             // 這裡以 priority == 2 作為篩選「備忘錄」的條件，可依需求修改
-            return toDoItems.filter { $0.priority == 2 }
+            return mutableItems.filter { $0.priority == 2 }
         case .incomplete:
             // 過濾出狀態不是 .completed 的待辦事項
-            return toDoItems.filter { $0.status != .completed }
+            return mutableItems.filter { $0.status != .completed }
         }
     }
 
@@ -82,16 +94,13 @@ struct ToDoSheetView: View {
                 }
                 .padding(.bottom, 16)
                 
-                // 待辦事項列表 - 使用新的TodoSheetItemRow
+                // 待辦事項列表 - 使用TodoSheetItemRow
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(filteredItems.indices, id: \.self) { index in
                             let item = filteredItems[index]
-                            if let originalIndex = toDoItems.firstIndex(where: { $0.id == item.id }) {
-                                TodoSheetItemRow(item: Binding(
-                                    get: { toDoItems[originalIndex] },
-                                    set: { _ in }
-                                ))
+                            if let originalIndex = mutableItems.firstIndex(where: { $0.id == item.id }) {
+                                TodoSheetItemRow(item: $mutableItems[originalIndex])
                                 Divider()
                                     .background(Color.white.opacity(0.1))
                                     .padding(.leading, 60)
@@ -162,51 +171,53 @@ struct ToDoSheetView: View {
 }
 
 struct ToDoSheetView_Previews: PreviewProvider {
+    @State static var previewItems: [TodoItem] = [
+        TodoItem(
+            id: UUID(),
+            userID: "user123",
+            title: "回覆所有未讀郵件",
+            priority: 2,
+            isPinned: false,
+            taskDate: Date(),
+            note: "清空收件箱",
+            status: TodoStatus.toBeStarted,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: ""
+        ),
+        TodoItem(
+            id: UUID(),
+            userID: "user123",
+            title: "準備會議資料",
+            priority: 1,
+            isPinned: false,
+            taskDate: Date(),
+            note: "準備PPT",
+            status: TodoStatus.toBeStarted,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: ""
+        ),
+        TodoItem(
+            id: UUID(),
+            userID: "user123",
+            title: "提交週報",
+            priority: 3,
+            isPinned: false,
+            taskDate: Date(),
+            note: "整理本週工作內容",
+            status: TodoStatus.toBeStarted,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: ""
+        )
+    ]
+    
     static var previews: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             ToDoSheetView(
-                toDoItems: [
-                    TodoItem(
-                        id: UUID(),
-                        userID: "user123",
-                        title: "回覆所有未讀郵件",
-                        priority: 2,
-                        isPinned: false,
-                        taskDate: Date(),
-                        note: "清空收件箱",
-                        status: .toBeStarted,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: ""
-                    ),
-                    TodoItem(
-                        id: UUID(),
-                        userID: "user123",
-                        title: "回覆所有未讀郵件",
-                        priority: 1,
-                        isPinned: false,
-                        taskDate: Date(),
-                        note: "清空收件箱",
-                        status: .toBeStarted,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: ""
-                    ),
-                    TodoItem(
-                        id: UUID(),
-                        userID: "user123",
-                        title: "回覆所有未讀郵件",
-                        priority: 3,
-                        isPinned: false,
-                        taskDate: Date(),
-                        note: "清空收件箱",
-                        status: .toBeStarted,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: ""
-                    )
-                ],
+                toDoItems: previewItems,
                 onDismiss: {}
             )
         }
