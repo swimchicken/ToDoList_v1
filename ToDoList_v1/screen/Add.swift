@@ -31,66 +31,16 @@ struct Add: View {
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                         .padding(.top, 16)
+                        .padding(.leading, 20)
                     
                     // 自定義滑動區域，讓兩邊可以看到一部分下一個/上一個區塊
-                    VStack {
-                        TabView(selection: $currentBlockIndex) {
-                            ForEach(0..<blockTitles.count, id: \.self) { index in
-                                // 區塊内容
-                                ZStack {
-                                    // 使用您提供的Rectangle尺寸
-                                    Rectangle()
-                                        .foregroundColor(.clear)
-                                        .frame(width: 329, height: 51)
-                                        .background(Color(red: 0.85, green: 0.85, blue: 0.85))
-                                        .cornerRadius(8)
-                                        .opacity(0.15)
-                                    
-                                    // 內容疊加在Rectangle上
-                                    HStack {
-                                        Text(blockTitles[index])
-                                            .font(
-                                                Font.custom("Instrument Sans", size: 31.79449)
-                                                    .weight(.bold)
-                                            )
-                                            .foregroundColor(.white)
-                                            .padding(.leading, 16)
-                                        
-                                        Spacer()
-                                        
-                                        Text("待辦事項佇列")
-                                            .foregroundColor(.white)
-                                            .font(
-                                                Font.custom("Inter", size: 14)
-                                                    .weight(.semibold)
-                                            )
-                                            .padding(.trailing, 40)
-                                        
-                                        Image(systemName: "chevron.down")
-                                            .foregroundColor(.white)
-                                            .font(.system(size: 14))
-                                            .padding(.trailing, 16)
-                                    }
-                                    .frame(width: 329)
-                                }
-                                .padding(.horizontal, 20) // 添加水平間距，使兩側有空間預覽下一個/上一個區塊
-                                .tag(index)
-                            }
-                        }
-                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                        .frame(height: 51)
-                        .padding(.horizontal, -15) // 負值的外邊距，讓TabView能夠延伸到容器之外
-                    }
-                    .padding(.horizontal, -5) // 讓滑動區域能夠看到下一個區塊的一部分
-                    .frame(maxWidth: .infinity)
-                    .clipped(antialiased: true) // 裁剪越界部分
+                    ScrollCalendarView()
+//                        .padding(.top, 10)
                     
-
-                    
-                    Rectangle()
-                        .fill(Color(red: 0, green: 0.72, blue: 0.41))
-                        .frame(height: 1)
-                        .padding(.vertical, 8)
+                    Image("Vector 81")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(.horizontal, 24)
                     
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -99,6 +49,67 @@ struct Add: View {
                             
                             TextField("點此輸入備註...", text: $note)
                                 .foregroundColor(.white)
+                                .toolbar{
+                                    ToolbarItemGroup(placement: .keyboard){
+                                        ZStack {
+                                            Rectangle()
+                                                .foregroundColor(Color(red: 0.09, green: 0.09, blue: 0.09))
+                                                .frame(height: 46.5)
+                                                .edgesIgnoringSafeArea(.horizontal) // 忽略水平安全區域
+                                            
+                                            ScrollView(.horizontal, showsIndicators: false) {
+                                                HStack(spacing: 9) {
+                                                    Button(action: {}) {
+                                                        HStack(alignment: .center, spacing: 2) {
+                                                            Image("Star 1 (3)")
+                                                                .opacity(0.65)
+                                                            Image("Star 1 (3)")
+                                                                .opacity(0.65)
+                                                            Image("Star 1 (3)")
+                                                                .opacity(0.65)
+                                                        }
+                                                        .frame(width: 109, height: 33.7)
+                                                        .background(Color.white.opacity(0.15))
+                                                        .cornerRadius(12)
+                                                    }
+                                                    
+                                                    Button(action: {}) {
+                                                        HStack {
+                                                            Image("Pin")
+                                                                .opacity(0.25)
+                                                        }
+                                                        .frame(width: 51.7, height: 33.7)
+                                                        .background(Color.white.opacity(0.15))
+                                                        .cornerRadius(12)
+                                                    }
+                                                    
+                                                    Button(action: {}) {
+                                                        Text("time")
+                                                            .foregroundColor(.white.opacity(0.65))
+                                                            .font(.system(size: 18))
+                                                            .frame(width: 110, height: 33.7)
+                                                            .background(Color.white.opacity(0.15))
+                                                            .cornerRadius(12)
+                                                    }
+                                                    
+                                                    Button(action: {}) {
+                                                        Text("note")
+                                                            .foregroundColor(.white.opacity(0.65))
+                                                            .font(.system(size: 18))
+                                                            .frame(width: 110, height: 33.7)
+                                                            .background(Color.white.opacity(0.15))
+                                                            .cornerRadius(12)
+                                                    }
+                                                }
+                                                .padding(.vertical, 7)
+                                                .padding(.horizontal, 8)
+                                            }
+                                            // 這裡不再給 ScrollView 加背景色，因為已經有外層的 Rectangle
+                                        }
+                                        .frame(maxWidth: .infinity) // 確保整個工具列最大寬度
+                                        
+                                    }
+                                }
                         }
                         .padding(.horizontal, 8)
                     }

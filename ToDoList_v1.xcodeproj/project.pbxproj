@@ -11,6 +11,7 @@
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
 		7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */; };
+		790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */; };
 		7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */; };
 		7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE52D633BAD0034BEE6 /* ContentView.swift */; };
 		7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE72D633BAD0034BEE6 /* Item.swift */; };
@@ -70,6 +71,7 @@
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
+		790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollCalendarView.swift; sourceTree = "<group>"; };
 		7911CDE02D633BAD0034BEE6 /* ToDoList_v1.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ToDoList_v1.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoList_v1App.swift; sourceTree = "<group>"; };
 		7911CDE52D633BAD0034BEE6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -245,6 +247,7 @@
 				793D1B412DAE748100E0B653 /* BumpyCircle.swift */,
 				7906564C2DB158EC00EB90AC /* PhysicsScene.swift */,
 				792073FE2DB292EC00057A45 /* TodoSheetItemRow.swift */,
+				790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */,
 			);
 			path = view;
 			sourceTree = "<group>";
@@ -384,6 +387,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */,
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
