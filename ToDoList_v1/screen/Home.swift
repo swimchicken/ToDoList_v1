@@ -2,6 +2,7 @@ import SwiftUI
 import SpriteKit
 
 struct Home: View {
+    @State private var showCalendarView: Bool = false
     @State private var updateStatus: String = ""
     @State private var showToDoSheet: Bool = false
     @State private var showAddTaskSheet: Bool = false
@@ -114,7 +115,8 @@ struct Home: View {
                     dateText: "Jan 12",
                     dateText2: "Tuesday",
                     statusText: "9:02 awake",
-                    temperatureText: "26°C"
+                    temperatureText: "26°C",
+                    showCalendarView: $showCalendarView  // 添加這一行
                 )
                 .frame(maxWidth: .infinity, maxHeight: 0)
 
@@ -283,9 +285,33 @@ struct Home: View {
                 .animation(.easeInOut(duration: 0.3), value: showAddTaskSheet)
                 .zIndex(100) // 確保在所有其他內容之上
             }
+            
+            // 6. 新增: CalendarView 全屏覆蓋
+            if showCalendarView {
+                ZStack {
+                    // 模糊或半透明背景
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut) {
+                                showCalendarView = false
+                            }
+                        }
+                        
+                    // 顯示 CalendarView，傳入 toDoItems 的綁定
+                    CalendarView(toDoItems: $toDoItems)
+                        .transition(.move(edge: .bottom))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showCalendarView)
+                .zIndex(200) // 確保顯示在最上層
+            }
+            
         }
+        
         .animation(.easeOut, value: showToDoSheet)
         .animation(.easeOut, value: showAddTaskSheet)
+        .animation(.easeOut, value: showCalendarView)
         .onAppear {
             if let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") {
                 SaveLast.updateLastLoginDate(forUserId: appleUserID) { result in
