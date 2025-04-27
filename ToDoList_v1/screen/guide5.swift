@@ -120,7 +120,7 @@ struct guide5: View {
         return calendar.date(from: components)
     }
     
-    // 儲存用戶睡眠時間到 CloudKit 的 PersonalData 資料表，key 使用 "sleeptimeDate/Time"
+    // 儲存用戶睡眠時間到 CloudKit 的 PersonalData 資料表，key 使用 "sleeptime"
     private func saveSleepTimeToCloudKit(hour: Int, minute: Int, ampm: Int) {
         guard let sleepDate = dateFromTime(hour: hour, minute: minute, ampm: ampm) else {
             print("Failed to create sleep date")
@@ -135,6 +135,7 @@ struct guide5: View {
             "sleeptime": sleepDate as CKRecordValue
         ]
         
+        // 此處不需額外指定 zone，因為 CloudKitManager 已預設採用 CKRecordZone.default().zoneID
         CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
             if success {
                 print("Sleep time saved/updated successfully!")

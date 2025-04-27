@@ -45,7 +45,6 @@ struct guide4: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 10)
-
                     
                     Text("What's your age?")
                         .font(Font.custom("Inria Sans", size: 25.45489)
@@ -99,7 +98,7 @@ struct guide4: View {
         }
     }
     
-    // 儲存用戶年齡到 CloudKit 的 PersonalData 資料表，使用 key "ageInt"
+    // 儲存用戶年齡到 CloudKit 的 PersonalData 資料表
     private func saveAgeToCloudKit(age: Int) {
         guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
             print("沒有找到 Apple 用戶 ID")
@@ -110,7 +109,10 @@ struct guide4: View {
             "age": age as CKRecordValue
         ]
         
-        CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
+        // 直接呼叫不需要傳入 zoneID，因為 CloudKitManager 已使用預設 zone
+        CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData",
+                                                    userID: userID,
+                                                    data: data) { success, error in
             if success {
                 print("User age saved/updated successfully!")
             } else if let error = error {

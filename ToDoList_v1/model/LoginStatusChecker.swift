@@ -8,14 +8,11 @@ class LoginStatusChecker {
         case home, login
     }
     
-    // 定義自定義的 zone，請確認 "new_zone" 為你在 CloudKit 中所建立的 zone 名稱
-    private let customZoneID = CKRecordZone.ID(zoneName: "new_zone", ownerName: CKCurrentUserDefaultName)
-    
-    // 設定最近登入的時間閾值，單位：秒 (此處 300 秒即 5 分鐘)
+    // 設定最近登入的時間閾值：300 秒（5 分鐘）
     private let sessionDuration: TimeInterval = 300
 
     func checkLoginStatus(completion: @escaping (Destination) -> Void) {
-        // 取得使用者的 Apple 授權ID
+        // 取得儲存的 Apple 授權 ID
         guard let userId = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
             completion(.login)
             return
@@ -24,9 +21,10 @@ class LoginStatusChecker {
         let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
         let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
+        let defaultZoneID = CKRecordZone.default().zoneID
         
-        // 指定自定義的 zone
-        privateDatabase.fetch(withQuery: query, inZoneWith: customZoneID, desiredKeys: nil, resultsLimit: 1) { result in
+        // 採用預設 zone，inZoneWith 傳 nil
+        privateDatabase.fetch(withQuery: query, inZoneWith: defaultZoneID, desiredKeys: nil, resultsLimit: 1) { result in
             switch result {
             case .success(let queryResult):
                 if let record = queryResult.matchResults.compactMap({ try? $0.1.get() }).first {
@@ -34,7 +32,7 @@ class LoginStatusChecker {
                     let now = Date()
                     
                     DispatchQueue.main.async {
-                        // 如果 lastLogin 存在，且距離現在在 5 分鐘內，就認定為最近登入，導向 Home
+                        // 若 lastLogin 在 5 分鐘內，則視為已登入
                         if let lastLogin = lastLogin, now.timeIntervalSince(lastLogin) < self.sessionDuration {
                             completion(.home)
                         } else {
@@ -46,7 +44,6 @@ class LoginStatusChecker {
                         completion(.login)
                     }
                 }
-                
             case .failure(let error):
                 print("登入狀態查詢錯誤：\(error.localizedDescription)")
                 DispatchQueue.main.async {

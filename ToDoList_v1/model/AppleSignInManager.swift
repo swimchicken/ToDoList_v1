@@ -6,13 +6,12 @@ import CloudKit
 class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
     static let shared = AppleSignInManager()
     
-    // 定義自定義的 zone，請確認 "new_zone" 為你在 CloudKit 中所建立的 zone 名稱
-    private let customZoneID = CKRecordZone.ID(zoneName: "new_zone", ownerName: CKCurrentUserDefaultName)
-
+    // 使用預設 zone時，不再需要自訂 zone 的設定
+    
     func performSignIn() {
         let request = ASAuthorizationAppleIDProvider().createRequest()
         request.requestedScopes = [.fullName, .email]
-
+        
         let controller = ASAuthorizationController(authorizationRequests: [request])
         controller.delegate = self
         controller.presentationContextProvider = self
@@ -27,7 +26,7 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
         }
         return window
     }
-
+    
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
         if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
             let userId = appleIDCredential.user
@@ -35,37 +34,38 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
             UserDefaults.standard.set(userId, forKey: "appleAuthorizedUserId")
             let email = appleIDCredential.email
             let fullName = appleIDCredential.fullName
-
-            // 登入後立即檢查使用者記錄，決定導向頁面
+            
+            // 登入後立即查詢或建立使用者記錄，採用預設 zone（inZoneWith 設為 nil）
             handleUserRecord(userId: userId, email: email, fullName: fullName) { destination in
                 DispatchQueue.main.async {
-                    // 透過通知將目的地傳送給 Login 頁面進行導航
+                    // 利用通知傳送結果給 Login 頁面進行導向
                     NotificationCenter.default.post(name: .didLogin, object: nil, userInfo: ["destination": destination])
                 }
             }
         }
     }
-
+    
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
         print("Apple 登入失敗: \(error.localizedDescription)")
     }
-
+    
     /// 登入後根據使用者記錄判斷：
-    /// 若帳號存在則檢查 guidedInputCompleted：
-    ///   - 為 true 則導向 Home，
-    ///   - 為 false 則導向 onboarding（引導頁面）；
-    /// 若帳號不存在則建立新記錄並導向 onboarding (guide3~5)。
+    /// - 帳號存在：檢查 guidedInputCompleted 狀態（true → home，false → onboarding）
+    /// - 帳號不存在：建立新記錄（預設 guidedInputCompleted 為 false）並導向 onboarding
     private func handleUserRecord(userId: String, email: String?, fullName: PersonNameComponents?, completion: @escaping (_ destination: String) -> Void) {
         let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
         let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
-
-        // 指定自定義的 zone
-        privateDatabase.fetch(withQuery: query, inZoneWith: customZoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
+        let defaultZoneID = CKRecordZone.default().zoneID
+        
+        // 採用預設 zone，故 inZoneWith 傳入 nil
+        privateDatabase.fetch(withQuery: query, inZoneWith: defaultZoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
             switch result {
             case .success(let queryResult):
                 let records = queryResult.matchResults.compactMap { try? $0.1.get() }
+                print("查詢到的記錄數量：\(records.count)")
                 if let record = records.first {
+                    
                     // 若帳號存在，檢查 guidedInputCompleted 狀態
                     let guidedInputCompleted = record["guidedInputCompleted"] as? Bool ?? false
                     if guidedInputCompleted {
@@ -76,11 +76,9 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                         completion("onboarding")
                     }
                 } else {
-                    // 帳號不存在，建立新記錄，預設 guidedInputCompleted 為 false，然後導向 onboarding (guide3~5)
+                    // 帳號不存在，建立新記錄，預設 guidedInputCompleted 為 false
                     print("首次使用第三方登入，創建新記錄並導向 onboarding")
-                    // 建立一個指定 custom zone 的 recordID
-                    let recordID = CKRecord.ID(recordName: UUID().uuidString, zoneID: self.customZoneID)
-                    let newRecord = CKRecord(recordType: "ApiUser", recordID: recordID)
+                    let newRecord = CKRecord(recordType: "ApiUser")  // 建立至預設 zone
                     newRecord["provider"] = "Apple" as CKRecordValue
                     newRecord["providerUserID"] = userId as CKRecordValue
                     newRecord["email"] = email as CKRecordValue?
@@ -90,18 +88,17 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                         newRecord["name"] = nameString as CKRecordValue
                     }
                     newRecord["guidedInputCompleted"] = false as CKRecordValue
-                    // 新增 createdAt 與 updatedAt 資料，皆以當前時間填入
                     let now = Date()
                     newRecord["createdAt"] = now as CKRecordValue
                     newRecord["updatedAt"] = now as CKRecordValue
                     
-                    // 創建新使用者後導向 onboarding (引導頁面)
                     privateDatabase.save(newRecord) { _, error in
                         if let error = error {
                             print("創建新使用者錯誤: \(error.localizedDescription)")
                         }
                         completion("onboarding")
                     }
+                    print("save done")
                 }
             case .failure(let error):
                 print("查詢使用者記錄失敗: \(error.localizedDescription)")

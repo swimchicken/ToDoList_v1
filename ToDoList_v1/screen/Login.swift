@@ -127,7 +127,7 @@ struct Login: View {
                     }
                 }
                 .onAppear {
-                    // 進入 Login 頁面時，僅檢查最近登入狀態，若今天已登入則直接進入 Home
+                    // 進入 Login 頁面時，檢查最近登入狀態，若已登入則直接進入 Home
                     LoginStatusChecker.shared.checkLoginStatus { destination in
                         switch destination {
                         case .home:
@@ -145,14 +145,14 @@ struct Login: View {
             } label: {
                 EmptyView()
             }
-
+            
             NavigationLink(tag: "home", selection: $navigateTo) {
                 Home()
                     .navigationBarBackButtonHidden(true)
             } label: {
                 EmptyView()
             }
-
+            
             NavigationLink(tag: "email", selection: $navigateTo) {
                 EmailLogin()
                     .navigationBarBackButtonHidden(true)
