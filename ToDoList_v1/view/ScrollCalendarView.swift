@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct ScrollCalendarView: View {
-    // 保存總共有多少天
-    private let totalDays = 30
-    
-    // 使用ScrollViewReader來控制滾動
+    // 初始顯示的總天數
+    private let initialDays = 60
+
+    // 動態管理天數的狀態
+    @State private var totalDays = 60
     @State private var selectedDay = 0 // 0=備忘錄, 1=TODAY, 2=Tomorrow...
     
     var body: some View {
@@ -19,6 +20,12 @@ struct ScrollCalendarView: View {
                         ForEach(0...totalDays, id: \.self) { dayIndex in
                             DayBlock(dayIndex: dayIndex)
                                 .id(dayIndex) // 重要：設置ID以便滾動定位
+                                .onAppear {
+                                    // 當接近最右邊時，動態增加更多日期
+                                    if dayIndex >= totalDays - 5 {
+                                        totalDays += 30 // 每次增加30天
+                                    }
+                                }
                         }
                     }
                     .scrollTargetLayout()
