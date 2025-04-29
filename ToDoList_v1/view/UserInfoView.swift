@@ -1,10 +1,3 @@
-//
-//  UserInfo.swift
-//  ToDoList_v1
-//
-//  Created by swimchichen on 2025/3/29.
-//
-
 import SwiftUI
 
 /// 可重複使用的使用者資訊 View
@@ -16,6 +9,7 @@ struct UserInfoView: View {
     let dateText2: String
     let statusText: String
     let temperatureText: String
+    @Binding var showCalendarView: Bool  // 添加綁定屬性來控制日曆視圖的顯示
     
     var body: some View {
         ZStack {
@@ -72,15 +66,19 @@ struct UserInfoView: View {
                 
                 Spacer()
                 
-                ZStack(){
-                    Color.white.opacity(0.08)
-                        .cornerRadius(8)
-                    
-                    // 圖示按鈕 calendar
+                // 日曆按鈕（右上角）
+                Button {
+                    withAnimation(.easeInOut) {
+                        showCalendarView = true
+                    }
+                } label: {
                     Image(systemName: "calendar")
+                        .font(.system(size: 20))
                         .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(8)
                 }
-                .frame(width: 54, height: 54)
             }
         }
 //        .frame(maxWidth: .infinity) // 讓背景能自動延展
