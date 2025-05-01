@@ -21,12 +21,14 @@ struct Add: View {
         ZStack {
             // 背景使用透明色，不會阻擋Home.swift的模糊效果
             Color.clear
+                .contentShape(Rectangle())  // 重要：定義可點擊的形狀
+                .onTapGesture {} // 空的點擊處理器，阻止事件穿透
             
             VStack(alignment: .leading, spacing: 0) {
                 
                 // 主要內容區域
-                VStack(alignment: .leading, spacing: 20) {
-                    // "Add task to" 文本
+                VStack(alignment: .leading, spacing: 0) { // spacing: 20
+
                     Text("Add task to")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
@@ -35,28 +37,28 @@ struct Add: View {
                     
                     // 自定義滑動區域，讓兩邊可以看到一部分下一個/上一個區塊
                     ScrollCalendarView()
-//                        .padding(.top, 10)
+                        .padding(.top, 9)
+                        .padding(.leading, 16)
                     
                     Image("Vector 81")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .padding(.horizontal, 24)
+                        .padding(.top, 24)
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "text.bubble")
-                                .foregroundColor(.white.opacity(0.7))
+                    Spacer()
+                    
+                    VStack(alignment: .leading, spacing: 6){
+                        HStack{
+                            Image("Check_Rec_Group 1000004070")
                             
-                            TextField("點此輸入備註...", text: $note)
+                            TextField("", text: $note)
                                 .foregroundColor(.white)
+                                .keyboardType(.default)
+                                .colorScheme(.dark)
                                 .toolbar{
                                     ToolbarItemGroup(placement: .keyboard){
                                         ZStack {
-                                            Rectangle()
-                                                .foregroundColor(Color(red: 0.09, green: 0.09, blue: 0.09))
-                                                .frame(height: 46.5)
-                                                .edgesIgnoringSafeArea(.horizontal) // 忽略水平安全區域
-                                            
                                             ScrollView(.horizontal, showsIndicators: false) {
                                                 HStack(spacing: 9) {
                                                     Button(action: {}) {
@@ -104,34 +106,14 @@ struct Add: View {
                                                 .padding(.vertical, 7)
                                                 .padding(.horizontal, 8)
                                             }
-                                            // 這裡不再給 ScrollView 加背景色，因為已經有外層的 Rectangle
                                         }
-                                        .frame(maxWidth: .infinity) // 確保整個工具列最大寬度
-                                        
+                                        .frame(maxWidth: .infinity)
                                     }
                                 }
                         }
-                        .padding(.horizontal, 8)
+                        Image("Vector 80")
                     }
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 16) {
-                        HStack(spacing: 8) {
-                            ToolbarButton(icon: "asterisk.circle", text: "")
-                            ToolbarButton(icon: "bell", text: "")
-                            ToolbarButton(icon: "clock", text: "time")
-                            ToolbarButton(icon: "text.badge.plus", text: "note")
-                        }
-                        .padding(.horizontal, 8)
-                        
-                        HStack(spacing: 8) {
-                            QuickSuggestionButton(text: "\"Design\"")
-                            QuickSuggestionButton(text: "Designed")
-                            QuickSuggestionButton(text: "Designer")
-                        }
-                        .padding(.horizontal, 4)
-                    }
+                    .padding(.horizontal, 24)
                     
                     HStack {
                         Button(action: {
@@ -163,14 +145,14 @@ struct Add: View {
                                 .cornerRadius(25)
                         }
                     }
-                    .padding(.top, 20)
+                    .padding(.top, 16)   // origin 20
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
                 .padding(.horizontal, 16)
             }
+            .improvedKeyboardAdaptive()
         }
-        // 使用clear的背景色，讓背景完全透明
         .background(Color.clear)
     }
     
@@ -259,5 +241,71 @@ struct Add_Previews: PreviewProvider {
         Add(toDoItems: $mockItems)
             .background(Color.black)
             .edgesIgnoringSafeArea(.all)
+    }
+}
+
+struct KeyboardAdaptive: ViewModifier {
+    @State private var keyboardHeight: CGFloat = 0
+    @State private var isKeyboardVisible = false
+    @State private var topPadding: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            // 使用條件 padding，只在鍵盤可見時添加
+            .padding(.bottom, isKeyboardVisible ? keyboardHeight : 0)
+            .padding(.top, isKeyboardVisible ? topPadding : 0)
+            .animation(.easeOut(duration: 0.16), value: keyboardHeight)
+            .onAppear {
+                setupKeyboardObservers()
+            }
+            .onDisappear {
+                removeKeyboardObservers()
+            }
+    }
+    
+    private func setupKeyboardObservers() {
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect ?? .zero
+            
+            // 只將鍵盤的高度加上一些額外空間（例如按鈕高度+間距）
+//            keyboardHeight = keyboardFrame.height - 30 // 減去一些高度，避免過大的空白
+            keyboardHeight = 40
+            topPadding = 24
+            isKeyboardVisible = true
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            keyboardHeight = 0
+            topPadding = 0
+            isKeyboardVisible = false
+        }
+    }
+    
+    private func removeKeyboardObservers() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+}
+
+extension View {
+    func improvedKeyboardAdaptive() -> some View {
+        self.modifier(KeyboardAdaptive())
     }
 }

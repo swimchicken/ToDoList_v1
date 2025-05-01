@@ -39,6 +39,7 @@ struct ScrollCalendarView: View {
         }
         .scrollTargetBehavior(.viewAligned)
         .frame(height: 60)
+//        .padding(.horizontal, 8)
     }
     
     // 單日區塊
