@@ -250,32 +250,62 @@ struct Home: View {
             .padding(.vertical, 60)
             .zIndex(1) // 設置主界面内容的層級
 
-            // 3. 底部灰色容器：只包 BumpyCircle & 按鈕
+            // 3. 底部灰色容器：當天包含 BumpyCircle & 按鈕，非當天只包含按鈕
             VStack {
                 Spacer()
 
-                VStack(spacing: 10) {
-                    // 1. 物理場景 (BumpyCircle 掉落動畫) - 只在當天顯示
-                    if isCurrentDay {
+                // 根據當天/非當天使用不同的佈局
+                if isCurrentDay {
+                    // 當天顯示完整灰色容器（包含碰撞球和按鈕）
+                    VStack(spacing: 10) {
+                        // 1. 物理場景 (BumpyCircle 掉落動畫)
                         SpriteView(scene: physicsScene, options: [.allowsTransparency])
                             .frame(width: 369, height: 100)
                             .clipShape(RoundedRectangle(cornerRadius: 32))
                             .background(Color.clear)
-                    } else {
-                        // 非當天顯示空白佔位元件，保持佈局一致
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 369, height: 100)
-                    }
 
-                    // 2. 底下兩個按鈕
-                    HStack(spacing: 10) {
-                        // end today 按鈕 (如果不是當天，顯示 return to today)
-                        Button(isCurrentDay ? "end today" : "return to today") {
-                            if !isCurrentDay {
+                        // 2. 底下兩個按鈕
+                        HStack(spacing: 10) {
+                            // end today 按鈕
+                            Button("end today") {
+                                // end today 功能
+                            }
+                            .font(.custom("Inria Sans", size: 20).weight(.bold))
+                            .foregroundColor(.black)
+                            .frame(width: 272, height: 60)
+                            .background(Color.white)
+                            .cornerRadius(40.5)
+
+                            // plus 按鈕 - 新增任務
+                            Button {
                                 withAnimation(.easeInOut) {
-                                    currentDateOffset = 0 // 返回到當天
+                                    showAddTaskSheet = true
                                 }
+                            } label: {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 77)
+                                        .fill(Color(red: 0, green: 0.72, blue: 0.41))
+                                        .frame(width: 71, height: 60)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 32)
+                            .fill(Color.gray.opacity(0.2))
+                    )
+                    .transition(.opacity.combined(with: .scale))
+                } else {
+                    // 非當天只顯示按鈕
+                    HStack(spacing: 10) {
+                        // return to today 按鈕
+                        Button("return to today") {
+                            withAnimation(.easeInOut) {
+                                currentDateOffset = 0 // 返回到當天
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -300,14 +330,18 @@ struct Home: View {
                             }
                         }
                     }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 32)
+                            .fill(Color.gray.opacity(0.2))
+                    )
+                    .transition(.opacity.combined(with: .scale))
                 }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 32)
-                        .fill(Color.gray.opacity(0.2))
-                )
-                .padding(.bottom, 20)
+                
+                // 底部間距
+                Spacer().frame(height: 20)
             }
+            .animation(.spring(response: 0.3), value: isCurrentDay)
             .zIndex(2) // 設置底部容器的層級
 
             // 4. ToDoSheetView 彈窗 - 使用半透明背景覆盖整个屏幕
