@@ -174,7 +174,8 @@ struct Add: View {
             }
             .improvedKeyboardAdaptive()
         }
-        .background(Color.clear)
+        .background(Color(red: 0.22, green: 0.22, blue: 0.22).opacity(0.7))
+//        .blur(radius: 13.5)
     }
     
     // 添加新任務

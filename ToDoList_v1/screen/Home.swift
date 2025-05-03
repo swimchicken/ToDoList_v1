@@ -377,15 +377,22 @@ struct Home: View {
             if showAddTaskSheet {
                 // 首先添加模糊層，覆蓋整個屏幕
                 ZStack {
-                    // 模糊背景效果
-                    Rectangle()
-                        .fill(.ultraThinMaterial)  // 使用系統模糊材質
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.easeInOut) {
-                                showAddTaskSheet = false
-                            }
+                    // 暗色背景 + 模糊效果疊加，降低亮度
+                    ZStack {
+                        // 半透明黑色底層
+                        Color.black.opacity(0.7)
+                            .ignoresSafeArea()
+                        
+                        // 深色模糊材質
+                        Rectangle()
+                            .fill(.ultraThinMaterial.opacity(0.5))  // 降低模糊材質的透明度
+                            .ignoresSafeArea()
+                    }
+                    .onTapGesture {
+                        withAnimation(.easeInOut) {
+                            showAddTaskSheet = false
                         }
+                    }
                     
                     // Add視圖，在模糊背景之上
                     Add(toDoItems: $toDoItems, onClose: {
@@ -402,15 +409,22 @@ struct Home: View {
             // 6. 新增: CalendarView 全屏覆蓋
             if showCalendarView {
                 ZStack {
-                    // 模糊或半透明背景
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            withAnimation(.easeInOut) {
-                                showCalendarView = false
-                            }
+                    // 暗色背景 + 模糊效果疊加，降低亮度
+                    ZStack {
+                        // 半透明黑色底層
+                        Color.black.opacity(0.7)
+                            .ignoresSafeArea()
+                        
+                        // 深色模糊材質
+                        Rectangle()
+                            .fill(.ultraThinMaterial.opacity(0.5))  // 降低模糊材質的透明度
+                            .ignoresSafeArea()
+                    }
+                    .onTapGesture {
+                        withAnimation(.easeInOut) {
+                            showCalendarView = false
                         }
+                    }
                         
                     // 顯示 CalendarView，傳入 toDoItems 的綁定
                     CalendarView(toDoItems: $toDoItems)
