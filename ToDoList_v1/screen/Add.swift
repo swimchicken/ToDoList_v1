@@ -4,11 +4,12 @@ struct Add: View {
     @Binding var toDoItems: [TodoItem]
     @State private var title: String = ""
     @State private var note: String = ""
-    @State private var priority: Int = 2
+    @State private var priority: Int = 0  // 預設為0
     @State private var isPinned: Bool = false
     @State private var taskDate: Date = Date()
     @State private var showAddSuccess: Bool = false
     @State private var currentBlockIndex: Int = 0
+    @State private var priorityLevel: Int = 0  // 預設為0，新增：追踪優先級 (0-3)
     
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
@@ -61,24 +62,44 @@ struct Add: View {
                                         ZStack {
                                             ScrollView(.horizontal, showsIndicators: false) {
                                                 HStack(spacing: 9) {
-                                                    Button(action: {}) {
+                                                    // 修改後的優先級按鈕
+                                                    Button(action: {
+                                                        // 如果目前有pin，先取消pin
+                                                        if isPinned {
+                                                            isPinned = false
+                                                        }
+                                                        
+                                                        priorityLevel = (priorityLevel + 1) % 4  // 0,1,2,3循環
+                                                        priority = priorityLevel  // 更新 priority 值
+                                                    }) {
                                                         HStack(alignment: .center, spacing: 2) {
-                                                            Image("Star 1 (3)")
-                                                                .opacity(0.65)
-                                                            Image("Star 1 (3)")
-                                                                .opacity(0.65)
-                                                            Image("Star 1 (3)")
-                                                                .opacity(0.65)
+                                                            ForEach(0..<3) { index in
+                                                                Image("Star 1 (3)")
+                                                                    .renderingMode(.template)  // 將圖片設為模板，允許著色
+                                                                    .foregroundColor(index < priorityLevel ? .green : .white.opacity(0.65))
+                                                                    .opacity(index < priorityLevel ? 1.0 : 0.65)
+                                                            }
                                                         }
                                                         .frame(width: 109, height: 33.7)
                                                         .background(Color.white.opacity(0.15))
                                                         .cornerRadius(12)
                                                     }
                                                     
-                                                    Button(action: {}) {
+                                                    // 修改後的Pin按鈕
+                                                    Button(action: {
+                                                        isPinned.toggle()
+                                                        
+                                                        // 如果開啟pin，將優先級設為0
+                                                        if isPinned {
+                                                            priorityLevel = 0
+                                                            priority = 0
+                                                        }
+                                                    }) {
                                                         HStack {
                                                             Image("Pin")
-                                                                .opacity(0.25)
+                                                                .renderingMode(.template)  // 允許著色
+                                                                .foregroundColor(isPinned ? .green : .white)
+                                                                .opacity(isPinned ? 1.0 : 0.25)
                                                         }
                                                         .frame(width: 51.7, height: 33.7)
                                                         .background(Color.white.opacity(0.15))
@@ -178,6 +199,7 @@ struct Add: View {
     }
 }
 
+// 以下輔助組件保持不變...
 // MARK: - 輔助組件
 
 // 工具欄按鈕

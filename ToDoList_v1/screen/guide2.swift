@@ -8,6 +8,7 @@ struct guide2: View {
     @State private var code3 = ""
     @State private var code4 = ""
     @State private var navigateToHome = false  // 驗證成功後跳轉到 Home
+    @Environment(\.presentationMode) var presentationMode // 用於返回上一頁
     
     var body: some View {
         NavigationStack {
@@ -77,10 +78,11 @@ struct guide2: View {
                     ZStack {
                         Rectangle()
                             .foregroundColor(.clear)
-                            .frame(width: 354, height: 179)
+                            .frame(width: 354, height: 230)
                             .background(.white.opacity(0.08))
                             .cornerRadius(36)
-                        VStack(spacing: 25){
+                        
+                        VStack(spacing: 25) {
                             // 4 個驗證碼輸入框
                             HStack(spacing: 16) {
                                 CodeField(text: $code1)
@@ -111,24 +113,41 @@ struct guide2: View {
                             .frame(width: 329, height: 56, alignment: .center)
                             .background(Color(red: 0.94, green: 0.94, blue: 0.94))
                             .cornerRadius(44)
+                            
+                            // 添加 Back 按鈕 (放在卡片內)
+                            Button(action: {
+                                presentationMode.wrappedValue.dismiss()
+                            }) {
+                                Text("Back")
+                                    .font(Font.custom("Inter", size: 16).weight(.medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                            .padding(.top, -10)
                         }
+                        .padding(.horizontal, 20)
                     }
                     .frame(maxWidth: .infinity)
                     
                     // 重寄驗證碼區塊
                     HStack(spacing: 5) {
-                        Text("Send code again")
-                            .foregroundColor(.white)
-                            .underline(true, color: .white)
+                        Button(action: {
+                            // 重新發送驗證碼的邏輯
+                        }) {
+                            Text("Send code again")
+                                .foregroundColor(.white)
+                                .underline(true, color: .white)
+                        }
                         Text("00:20")
                     }
                     .foregroundColor(.white.opacity(0.7))
                     .font(Font.custom("Inter", size: 14))
-                    
+                    .padding(.top, 5)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 60)
             }
+            .navigationBarBackButtonHidden(true) // 隱藏默認的返回按鈕
+            
             // 當驗證成功時，跳轉到 Home 頁面
             NavigationLink(destination: Home(), isActive: $navigateToHome) {
                 EmptyView()
@@ -154,6 +173,7 @@ struct guide2: View {
         return "\(maskedName)@\(domain)"
     }
 }
+
 
 #Preview {
     guide2(email: "swimchickenouo@gmail.com")

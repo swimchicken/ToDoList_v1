@@ -129,11 +129,10 @@ struct EmailLogin: View {
                     }
                 }
                 
-                // NavigationLink 跳轉到註冊頁面 (guide)
-                NavigationLink("", destination: guide(email: email), isActive: $navigateToRegister)
+                // NavigationLink 跳轉到註冊頁面 (guide)，添加 navigationBarBackButtonHidden 設定
+                NavigationLink("", destination: guide(email: email).navigationBarBackButtonHidden(true), isActive: $navigateToRegister)
                 // NavigationLink 跳轉到 Home 頁面
                 NavigationLink("", destination: Home(), isActive: $navigateToHome)
-                //aasss
             }
         }
     }

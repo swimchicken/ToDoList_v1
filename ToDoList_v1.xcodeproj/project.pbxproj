@@ -12,6 +12,7 @@
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
 		7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */; };
 		790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */; };
+		790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1AB2DC6205500FDFC6D /* AddItem.swift */; };
 		7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */; };
 		7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE52D633BAD0034BEE6 /* ContentView.swift */; };
 		7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7911CDE72D633BAD0034BEE6 /* Item.swift */; };
@@ -73,6 +74,7 @@
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
 		790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollCalendarView.swift; sourceTree = "<group>"; };
+		790DD1AB2DC6205500FDFC6D /* AddItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddItem.swift; sourceTree = "<group>"; };
 		7911CDE02D633BAD0034BEE6 /* ToDoList_v1.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ToDoList_v1.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7911CDE32D633BAD0034BEE6 /* ToDoList_v1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoList_v1App.swift; sourceTree = "<group>"; };
 		7911CDE52D633BAD0034BEE6 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 				79F7C2642D99507100B2E19E /* SaveLast.swift */,
 				792297202DAD59DA00E1A97B /* TodoItem.swift */,
 				791E53AC2DB3F4470096F3B2 /* TodoStatus.swift */,
+				790DD1AB2DC6205500FDFC6D /* AddItem.swift */,
 			);
 			path = model;
 			sourceTree = "<group>";
@@ -422,6 +425,7 @@
 				79F7C2492D94060100B2E19E /* codefield.swift in Sources */,
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
 				793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */,
+				790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */,
 				7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */,
 				7911CE192D6AF60B0034BEE6 /* AppleSignInManager.swift in Sources */,
 				79F7C25D2D9414BE00B2E19E /* MultiComponentPicker.swift in Sources */,

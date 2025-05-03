@@ -5,6 +5,7 @@ struct guide: View {
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var navigateToGuide2 = false  // 導向 guide2
+    @Environment(\.presentationMode) var presentationMode // 用於返回上一頁
     
     var body: some View {
         NavigationStack {
@@ -43,7 +44,7 @@ struct guide: View {
                         Rectangle()
                             .foregroundColor(.clear)
                             .background(.white.opacity(0.06))
-                            .frame(width: 354, height: 280)
+                            .frame(width: 354, height: 325)
                             .cornerRadius(36)
                         
                         VStack(alignment: .leading, spacing: 31) {
@@ -98,6 +99,18 @@ struct guide: View {
                                     .background(Color.white.opacity(0.2))
                                     .cornerRadius(44)
                             }
+                            
+                            // 新增的 Back 按鈕
+                            Button(action: {
+                                // 返回 EmailLogin 頁面
+                                presentationMode.wrappedValue.dismiss()
+                            }) {
+                                Text("Back")
+                                    .font(Font.custom("Inter", size: 16).weight(.medium))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .frame(width: 300, height: 30)
+                            }
+                            .padding(.top, -10)
                         }
                         .frame(width: 297, alignment: .topLeading)
                     }
@@ -121,10 +134,11 @@ struct guide: View {
                 .padding(.vertical, 60)
                 
                 // 導航到 guide2，傳入相同 email
-                NavigationLink(destination: guide2(email: email), isActive: $navigateToGuide2) {
+                NavigationLink(destination: guide2(email: email).navigationBarBackButtonHidden(true), isActive: $navigateToGuide2) {
                     EmptyView()
                 }
             }
+            .navigationBarBackButtonHidden(true) // 隱藏默認的返回按鈕
         }
     }
 }

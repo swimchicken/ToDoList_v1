@@ -6,6 +6,8 @@ struct Home: View {
     @State private var updateStatus: String = ""
     @State private var showToDoSheet: Bool = false
     @State private var showAddTaskSheet: Bool = false
+    @State private var currentDate: Date = Date()  // 添加當前時間狀態
+    @State private var timer: Timer?  // 添加定時器
     @State private var toDoItems: [TodoItem] = [
         // 置頂且待辦的項目
         TodoItem(
@@ -63,10 +65,56 @@ struct Home: View {
         )
     ]
     
-    // 計算屬性：排序後的待辦事項
+    // 添加水平滑動狀態
+    @State private var currentDateOffset: Int = 0 // 日期偏移量
+    @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量
+    
+    // 修改後的taiwanTime，基於currentDate和日期偏移量
+    var taiwanTime: (monthDay: String, weekday: String, timeStatus: String) {
+        let currentDateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+        
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+        formatter.locale = Locale(identifier: "en_US")  // 改為英文
+        
+        // 月份和日期
+        formatter.dateFormat = "MMM dd"
+        let monthDay = formatter.string(from: currentDateWithOffset)
+        
+        // 星期幾（英文）
+        formatter.dateFormat = "EEEE"
+        let weekday = formatter.string(from: currentDateWithOffset)
+        
+        // 時間和清醒狀態
+        formatter.dateFormat = "HH:mm"
+        let time = formatter.string(from: currentDateWithOffset)
+        let timeStatus = "\(time) awake"
+        
+        return (monthDay: monthDay, weekday: weekday, timeStatus: timeStatus)
+    }
+    
+    // 檢查是否為當天
+    private var isCurrentDay: Bool {
+        return currentDateOffset == 0
+    }
+    
+    // 計算屬性：篩選並排序當前日期的待辦事項
     private var sortedToDoItems: [TodoItem] {
-        // 首先按置頂狀態排序，其次按任務日期排序
-        return toDoItems.sorted { item1, item2 in
+        // 獲取帶偏移量的日期
+        let dateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+        
+        // 獲取篩選日期的開始和結束時間點
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: dateWithOffset)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        // 篩選當天的項目
+        let filteredItems = toDoItems.filter { item in
+            return item.taskDate >= startOfDay && item.taskDate < endOfDay
+        }
+        
+        // 排序：首先按置頂狀態排序，其次按任務日期排序
+        return filteredItems.sorted { item1, item2 in
             // 置頂項目優先
             if item1.isPinned && !item2.isPinned {
                 return true
@@ -94,10 +142,11 @@ struct Home: View {
         )
     }
 
+    // 只在當前為今天時顯示物理場景
     private var physicsScene: PhysicsScene {
         PhysicsScene(
             size: CGSize(width: 369, height: 100),
-            todoItems: sortedToDoItems // 使用排序後的待辦事項
+            todoItems: isCurrentDay ? sortedToDoItems : [] // 只在今天顯示球體
         )
     }
 
@@ -109,14 +158,14 @@ struct Home: View {
 
             // 2. 主介面內容
             VStack(spacing: 0) {
-                // Header
+                // Header - 使用台灣時間
                 UserInfoView(
                     avatarImageName: "who",
-                    dateText: "Jan 12",
-                    dateText2: "Tuesday",
-                    statusText: "9:02 awake",
+                    dateText: taiwanTime.monthDay,
+                    dateText2: taiwanTime.weekday,
+                    statusText: taiwanTime.timeStatus,
                     temperatureText: "26°C",
-                    showCalendarView: $showCalendarView  // 添加這一行
+                    showCalendarView: $showCalendarView
                 )
                 .frame(maxWidth: .infinity, maxHeight: 0)
 
@@ -158,22 +207,41 @@ struct Home: View {
                     }
                     .foregroundColor(.white)
 
-                    List {
-                        ForEach(0..<sortedToDoItems.count, id: \.self) { idx in
-                            VStack(spacing: 0) {
-                                ItemRow(item: getBindingToSortedItem(at: idx))
-                                    .padding(.vertical, 8)
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.2))
-                                    .frame(height: 2)
-                                }
-                                .listRowInsets(.init())
-                                .listRowBackground(Color.black)
+                    // 使用GeometryReader實現左右滑動和上下滾動
+                    GeometryReader { geometry in
+                        ZStack {
+                            // 水平偏移動畫區域（只包含事件列表）
+                            HStack(spacing: 0) {
+                                taskList(geometry: geometry)
+                                    .frame(width: geometry.size.width)
                             }
+                            .offset(x: dragOffset)
+                            .gesture(
+                                DragGesture()
+                                    .updating($dragOffset) { value, state, _ in
+                                        // 水平拖動時更新狀態
+                                        state = value.translation.width
+                                    }
+                                    .onEnded { value in
+                                        // 計算拖動結束後應該移動的方向
+                                        let threshold = geometry.size.width * 0.2
+                                        let predictedEndTranslation = value.predictedEndTranslation.width
+                                        
+                                        // 根據拖動距離和方向更新日期偏移量
+                                        withAnimation(.easeOut) {
+                                            if predictedEndTranslation < -threshold {
+                                                // 向左滑動 -> 增加日期
+                                                currentDateOffset += 1
+                                            } else if predictedEndTranslation > threshold {
+                                                // 向右滑動 -> 減少日期
+                                                currentDateOffset -= 1
+                                            }
+                                        }
+                                    }
+                            )
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                        .padding(.bottom, 170)
+                    }
+                    .padding(.bottom, 170)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 24)
@@ -187,17 +255,28 @@ struct Home: View {
                 Spacer()
 
                 VStack(spacing: 10) {
-                    // 1. 物理場景 (BumpyCircle 掉落動畫)
-                    SpriteView(scene: physicsScene, options: [.allowsTransparency])
-                        .frame(width: 369, height: 100)
-                        .clipShape(RoundedRectangle(cornerRadius: 32))
-                        .background(Color.clear)
+                    // 1. 物理場景 (BumpyCircle 掉落動畫) - 只在當天顯示
+                    if isCurrentDay {
+                        SpriteView(scene: physicsScene, options: [.allowsTransparency])
+                            .frame(width: 369, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: 32))
+                            .background(Color.clear)
+                    } else {
+                        // 非當天顯示空白佔位元件，保持佈局一致
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: 369, height: 100)
+                    }
 
                     // 2. 底下兩個按鈕
                     HStack(spacing: 10) {
-                        // end today 按鈕
-                        Button("end today") {
-                            // end today 功能
+                        // end today 按鈕 (如果不是當天，顯示 return to today)
+                        Button(isCurrentDay ? "end today" : "return to today") {
+                            if !isCurrentDay {
+                                withAnimation(.easeInOut) {
+                                    currentDateOffset = 0 // 返回到當天
+                                }
+                            }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
                         .foregroundColor(.black)
@@ -312,7 +391,15 @@ struct Home: View {
         .animation(.easeOut, value: showToDoSheet)
         .animation(.easeOut, value: showAddTaskSheet)
         .animation(.easeOut, value: showCalendarView)
+        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
+            // 設置定時器每分鐘更新時間
+            timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                currentDate = Date()
+            }
+            
             if let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") {
                 SaveLast.updateLastLoginDate(forUserId: appleUserID) { result in
                     switch result {
@@ -326,6 +413,41 @@ struct Home: View {
                 updateStatus = "找不到 Apple 使用者 ID"
             }
         }
+        .onDisappear {
+            // 清除定時器
+            timer?.invalidate()
+        }
+    }
+    
+    // 提取列表視圖為獨立函數，以便在水平滑動容器中使用
+    private func taskList(geometry: GeometryProxy) -> some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if sortedToDoItems.isEmpty {
+                    // 無事項時顯示占位符，但仍可以滑動
+                    VStack {
+                        Text("這一天沒有事項")
+                            .foregroundColor(.white.opacity(0.6))
+                            .frame(height: 200)
+                    }
+                    .frame(width: geometry.size.width)
+                    .contentShape(Rectangle()) // 使空白區域也可接收手勢
+                } else {
+                    ForEach(0..<sortedToDoItems.count, id: \.self) { idx in
+                        VStack(spacing: 0) {
+                            ItemRow(item: getBindingToSortedItem(at: idx))
+                                .padding(.vertical, 8)
+                            Rectangle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(height: 2)
+                        }
+                    }
+                }
+            }
+            .background(Color.black)
+            .contentShape(Rectangle()) // 使整個區域可接收手勢，即使項目很少
+        }
+        .scrollIndicators(.hidden)
     }
 }
 
@@ -349,3 +471,62 @@ struct RoundedCorner: Shape {
 #Preview {
     Home()
 }
+
+
+
+//[
+//    // 置頂且待辦的項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "市場研究", priority: 1, isPinned: true,
+//        taskDate: Date(), note: "備註 1", status: .toBeStarted,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+//    ),
+//    // 一般優先級2的項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "Prepare tomorrow's", priority: 2, isPinned: false,
+//        taskDate: Date().addingTimeInterval(3600), note: "備註 2", status: .toBeStarted,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "22"
+//    ),
+//    // 已完成的項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "更新上週報告", priority: 2, isPinned: false,
+//        taskDate: Date().addingTimeInterval(7200), note: "已完成", status: .completed,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "completed1"
+//    ),
+//    // 一般優先級3的項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "回覆所有未讀郵件", priority: 3, isPinned: false,
+//        taskDate: Date().addingTimeInterval(7200), note: "備註 3", status: .toDoList,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "44"
+//    ),
+//    // 進行中但未完成的項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "製作簡報", priority: 3, isPinned: false,
+//        taskDate: Date().addingTimeInterval(7200), note: "進行中", status: .undone,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "55"
+//    ),
+//    // 置頂但已完成的項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "重要任務已完成", priority: 1, isPinned: true,
+//        taskDate: Date().addingTimeInterval(7200), note: "重要且已完成", status: .completed,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "66"
+//    ),
+//    // 待辦佇列項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "排程下週會議", priority: 2, isPinned: false,
+//        taskDate: Date().addingTimeInterval(7200), note: "備註", status: .toDoList,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "77"
+//    ),
+//    // 待開始項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "聯絡客戶", priority: 3, isPinned: false,
+//        taskDate: Date().addingTimeInterval(7200), note: "備註", status: .toBeStarted,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "88"
+//    ),
+//    // 另一個進行中項目
+//    TodoItem(
+//        id: UUID(), userID: "user123", title: "系統測試", priority: 3, isPinned: false,
+//        taskDate: Date().addingTimeInterval(7200), note: "進行中", status: .undone,
+//        createdAt: Date(), updatedAt: Date(), correspondingImageID: "99"
+//    )
+//]
