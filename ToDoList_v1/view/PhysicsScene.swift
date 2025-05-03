@@ -27,8 +27,11 @@ class PhysicsScene: SKScene {
     }
     
     override func didMove(to view: SKView) {
-        // 1. 設定重力 - 減小重力以減少下沉速度
-        physicsWorld.gravity = CGVector(dx: 0, dy: -4.9)  // 原始值是 -9.8
+        // 1. 設定重力 - 進一步減小重力以確保球體不會快速下沉或彈跳過高
+        physicsWorld.gravity = CGVector(dx: 0, dy: -3.5)  // 降低重力加速度
+        
+        // 設置物理世界的其他屬性
+        physicsWorld.speed = 0.8 // 降低模擬速度，使運動更加穩定
         
         // 2. 創建邊界 - 使用實際視圖大小
         let inset: CGFloat = 10
@@ -40,8 +43,8 @@ class PhysicsScene: SKScene {
         )
         
         let bounds = SKPhysicsBody(edgeLoopFrom: boundaryRect)
-        bounds.friction = 0.2
-        bounds.restitution = 0.4  // 降低彈性係數，原始值是 0.7
+        bounds.friction = 0.4     // 增加邊界摩擦力
+        bounds.restitution = 0.2  // 大幅降低邊界彈性係數，防止球體彈跳
         
         let boundsNode = SKNode()
         boundsNode.physicsBody = bounds
@@ -56,10 +59,11 @@ class PhysicsScene: SKScene {
         let maxRows = 2
         let ballsPerRow = Int(ceil(Double(itemsCount) / Double(maxRows)))
         
-        // 降低最大球體尺寸以適應高度
-        let maxBallDiameter: CGFloat = min(40, containerHeight / 3)  // 限制最大直徑，原始值是 60
+        // 提高球體尺寸差異，同時確保不會超出容器
+        let minBallDiameter: CGFloat = 18 // 降低最小直徑以增加差異
+        let maxBallDiameter: CGFloat = min(50, containerHeight / 3)  // 增加最大直徑，但限制不超出容器高度
         let maxBallRadius: CGFloat = maxBallDiameter / 2
-        let safeDistance: CGFloat = 5  // 減小安全距離，原始值是 13
+        let safeDistance: CGFloat = 3  // 進一步減小安全距離，使球體可以更緊密排列
         
         // 計算均勻分佈球體所需的間距
         let horizontalSpace = containerWidth - (CGFloat(ballsPerRow) * maxBallDiameter)
@@ -83,8 +87,27 @@ class PhysicsScene: SKScene {
             // 使用correspondingImageID作為種子
             let randomGen = createRandomGenerator(from: todoItem.correspondingImageID)
             
-            // 根據種子產生確定性的隨機大小 (20~40)
-            let diameterRange: ClosedRange<CGFloat> = 20...maxBallDiameter
+            // 根據種子和優先級產生確定性的隨機大小
+            // 高優先級項目生成更大的球體
+            let diameterRange: ClosedRange<CGFloat>
+            
+            // 根據優先級調整直徑範圍
+            if todoItem.isPinned {
+                // 置頂項目使用較大尺寸範圍
+                diameterRange = (maxBallDiameter * 0.7)...maxBallDiameter
+            } else {
+                switch todoItem.priority {
+                    case 1: // 優先級1：較小
+                        diameterRange = minBallDiameter...(minBallDiameter + (maxBallDiameter - minBallDiameter) * 0.4)
+                    case 2: // 優先級2：中等
+                        diameterRange = (minBallDiameter + (maxBallDiameter - minBallDiameter) * 0.3)...(minBallDiameter + (maxBallDiameter - minBallDiameter) * 0.7)
+                    case 3: // 優先級3：較大
+                        diameterRange = (minBallDiameter + (maxBallDiameter - minBallDiameter) * 0.6)...maxBallDiameter
+                    default: // 預設或優先級0：較小
+                        diameterRange = minBallDiameter...(minBallDiameter + (maxBallDiameter - minBallDiameter) * 0.4)
+                }
+            }
+            
             let diameter = randomGen.randomCGFloat(in: diameterRange)
             
             // 根據優先級調整bumps數量，並使用種子產生確定性隨機值
@@ -154,15 +177,32 @@ class PhysicsScene: SKScene {
             // 設置最終位置
             node.position = CGPoint(x: baseX + randomXOffset, y: baseY + randomYOffset)
             
-            // 設置物理屬性
+            // 設置物理屬性 - 增強防止球體跳出的特性
             node.physicsBody = SKPhysicsBody(polygonFrom: circlePath.cgPath)
-            node.physicsBody?.restitution = 0.2  // 降低彈性，原始值是 0.3
-            node.physicsBody?.friction = 0.7
-            node.physicsBody?.linearDamping = 0.8  // 增加阻尼，原始值是 0.6
             
-            // 減小初始力量，避免球體迅速下落或亂動
-            let impulseX = randomGen.randomCGFloat(in: -0.1...0.1)  // 原始值是 -0.3...0.3
-            let impulseY = randomGen.randomCGFloat(in: -0.3...0.0)  // 原始值是 -0.8...0.0
+            // 根據球體大小調整物理屬性，較大的球體需要更高的阻尼和較低的彈性
+            let sizeRatio = (diameter - minBallDiameter) / (maxBallDiameter - minBallDiameter)
+            
+            // 調整彈性 - 大球更低的彈性防止彈出
+            let restitution = max(0.05, 0.2 - sizeRatio * 0.15)  // 彈性範圍: 0.05-0.2
+            node.physicsBody?.restitution = restitution
+            
+            // 調整摩擦 - 大球更高的摩擦以穩定運動
+            let friction = min(0.9, 0.7 + sizeRatio * 0.2)  // 摩擦範圍: 0.7-0.9
+            node.physicsBody?.friction = friction
+            
+            // 調整阻尼 - 大球更高的阻尼以降低動能
+            let damping = min(1.0, 0.8 + sizeRatio * 0.2)  // 阻尼範圍: 0.8-1.0
+            node.physicsBody?.linearDamping = damping
+            
+            // 調整密度 - 較大的球體需要更高的密度以模擬真實物理效果
+            let density = 1.0 + sizeRatio * 0.5  // 密度範圍: 1.0-1.5
+            node.physicsBody?.density = density
+            
+            // 根據球體大小調整初始力量 - 較大的球體力量更小以避免跳出
+            let maxForce = 0.1 * (1.0 - sizeRatio * 0.7)  // 較大的球體使用更小的力
+            let impulseX = randomGen.randomCGFloat(in: -maxForce...maxForce)
+            let impulseY = randomGen.randomCGFloat(in: -(maxForce * 2)...0.0)
             node.physicsBody?.applyImpulse(CGVector(dx: impulseX, dy: impulseY))
             
             // 將待辦事項信息存儲在節點的userData中

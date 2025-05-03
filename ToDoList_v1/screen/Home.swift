@@ -15,6 +15,36 @@ struct Home: View {
             taskDate: Date(), note: "備註 1", status: .toBeStarted,
             createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
         ),
+        TodoItem(
+            id: UUID(), userID: "user123", title: "市場研究", priority: 1, isPinned: true,
+            taskDate: Date(), note: "備註 1", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+        ),
+        TodoItem(
+            id: UUID(), userID: "user123", title: "市場研究", priority: 1, isPinned: true,
+            taskDate: Date(), note: "備註 1", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+        ),
+        TodoItem(
+            id: UUID(), userID: "user123", title: "市場研究", priority: 1, isPinned: true,
+            taskDate: Date(), note: "備註 1", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+        ),
+        TodoItem(
+            id: UUID(), userID: "user123", title: "市場研究", priority: 3, isPinned: false,
+            taskDate: Date(), note: "備註 1", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+        ),
+        TodoItem(
+            id: UUID(), userID: "user123", title: "市場研究", priority: 2, isPinned: false,
+            taskDate: Date(), note: "備註 1", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+        ),
+        TodoItem(
+            id: UUID(), userID: "user123", title: "市場研究", priority: 3, isPinned: false,
+            taskDate: Date(), note: "備註 1", status: .toBeStarted,
+            createdAt: Date(), updatedAt: Date(), correspondingImageID: "333"
+        ),
         // 一般優先級2的項目
         TodoItem(
             id: UUID(), userID: "user123", title: "Prepare tomorrow's", priority: 2, isPinned: false,
