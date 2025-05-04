@@ -25,7 +25,7 @@ struct CalendarView: View {
                 
         // 指定當月的測試日期
         let date26 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 26))!
-        let date27 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 27))!
+        let date3 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 3))!
         let date28 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 28))!
 
         let date30 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: min(30, calendar.range(of: .day, in: .month, for: currentDate)!.upperBound - 1)))!
@@ -33,19 +33,19 @@ struct CalendarView: View {
         // 創建預設事項（使用動態日期）
         let meetingReport = TodoItem(
             id: UUID(), userID: "user123", title: "meeting report", priority: 1, isPinned: true,
-            taskDate: date30, note: "\(currentMonth)/30 Meeting Report", status: .toBeStarted,
+            taskDate: date3, note: "\(currentMonth)/3 Meeting Report", status: .toBeStarted,
             createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
         )
         
         let meetingReport2 = TodoItem(
             id: UUID(), userID: "user123", title: "meeting report2", priority: 1, isPinned: true,
-            taskDate: date30, note: "\(currentMonth)/30 Meeting Report2", status: .toBeStarted,
+            taskDate: date3, note: "\(currentMonth)/3 Meeting Report2", status: .toBeStarted,
             createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
         )
         
         let meetingReport3 = TodoItem(
             id: UUID(), userID: "user123", title: "meeting report3", priority: 1, isPinned: true,
-            taskDate: date30, note: "\(currentMonth)/30 Meeting Report3", status: .toBeStarted,
+            taskDate: date3, note: "\(currentMonth)/3 Meeting Report3", status: .toBeStarted,
             createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
         )
         
@@ -57,7 +57,7 @@ struct CalendarView: View {
         
         let meetingReport5 = TodoItem(
             id: UUID(), userID: "user123", title: "meeting report5", priority: 1, isPinned: true,
-            taskDate: date27, note: "\(currentMonth)/27 Meeting Report5", status: .toBeStarted,
+            taskDate: date3, note: "\(currentMonth)/3 Meeting Report5", status: .toBeStarted,
             createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
         )
         
@@ -303,6 +303,32 @@ struct CalendarView: View {
         return "\(title.prefix(7))..."
     }
     
+    // 計算當週所需的高度
+    func calculateWeekHeight(for week: [(day: Int, month: Int, year: Int, isCurrentMonth: Bool)], isCurrentWeek: Bool) -> CGFloat {
+        var maxEvents = 0
+        
+        for dayInfo in week {
+            let events = eventsForDate(dayInfo.day, month: dayInfo.month, year: dayInfo.year)
+            maxEvents = max(maxEvents, events.count)
+        }
+        
+        if isCurrentWeek {
+            // 當週：日期高度 + 待辦事項高度（根據事項數量）
+            let dateHeight: CGFloat = 45
+            let eventBaseHeight: CGFloat = 20  // 每個事項基本高度
+            let eventSpacing: CGFloat = 3      // 事項間距
+            let padding: CGFloat = 10          // 增加下方padding
+            
+            let eventsToShow = min(maxEvents, 3)
+            let extraText: CGFloat = maxEvents > 3 ? 20 : 0  // 增加 "+x more" 文字高度空間
+            
+            return dateHeight + CGFloat(eventsToShow) * eventBaseHeight + CGFloat(max(0, eventsToShow - 1)) * eventSpacing + extraText + padding + 5 // 增加額外的5點空間
+        } else {
+            // 非當週：固定較小高度
+            return 69
+        }
+    }
+    
     var body: some View {
         ZStack {
             // 背景
@@ -433,63 +459,77 @@ struct CalendarView: View {
                         // 檢查這一週是否包含今天（即當前週）
                         let containsToday = week.contains { isToday(day: $0.day, month: $0.month, year: $0.year) }
                         
+                        // 計算當週所需高度
+                        let weekHeight = calculateWeekHeight(for: week, isCurrentWeek: containsToday)
+                        
                         // 整週容器
                         ZStack(alignment: .top) {
                             // 如果是當前週，添加背景色
                             if containsToday {
                                 Rectangle()
                                     .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 180)
+                                    .frame(height: weekHeight) // 修改：使用計算得到的weekHeight
                             }
                             
-                            // 週內容 - 使用VStack確保內容從上到下排列
-                            VStack(spacing: 0) {
+                            // 週內容 - 使用VStack確保內容從上到下排列，但使用ZStack進行重疊佈局
+                            ZStack(alignment: .top) {
                                 // 日期行 - 固定高度
                                 HStack(spacing: 0) {
                                     ForEach(0..<week.count, id: \.self) { dayIndex in
                                         let dayInfo = week[dayIndex]
                                         
                                         // 日期區塊 - 所有日期左對齊
-                                        VStack {
-                                            HStack {
-                                                ZStack {
-                                                    // 如果是今天，顯示綠色圓圈
-                                                    if isToday(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year) {
-                                                        Circle()
-                                                            .fill(Color.green)
-                                                            .frame(width: 36, height: 36)
-                                                    }
-                                                    
-                                                    // 日期文字固定位置
-                                                    Text(String(dayInfo.day))
-                                                        .font(.system(size: 16, weight: .bold))
-                                                        .foregroundColor(
-                                                            isToday(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year)
-                                                            ? .black
-                                                            : (dayInfo.isCurrentMonth
-                                                            ? .white
-                                                            : .gray.opacity(0.7)) // 非當前月份使用淡灰色
-                                                        )
-                                                }
-                                                .frame(width: 36, height: 36) // 確保ZStack有固定大小
-                                                
-                                                Spacer() // 確保日期左對齊
-                                            }
-                                            .padding(.leading, 2) // 統一左側內邊距
+                                        Button(action: {
+                                            // 處理點擊日期的事件
+                                            let date = Calendar.current.date(from: DateComponents(year: dayInfo.year, month: dayInfo.month, day: dayInfo.day))!
+                                            selectedDate = date
+                                            print("選擇了日期: \(dayInfo.day)/\(dayInfo.month)/\(dayInfo.year)")
                                             
-                                            Spacer() // 讓日期位於VStack頂部
+                                            // 在這裡可以添加你需要的其他操作
+                                            // 例如：顯示該日期的詳細事項、打開新增事項表單等
+                                        }) {
+                                            VStack {
+                                                HStack {
+                                                    ZStack {
+                                                        // 如果是今天，顯示綠色圓圈
+                                                        if isToday(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year) {
+                                                            Circle()
+                                                                .fill(Color.green)
+                                                                .frame(width: 36, height: 36)
+                                                        }
+                                                        
+                                                        // 日期文字固定位置
+                                                        Text(String(dayInfo.day))
+                                                            .font(.system(size: 16, weight: .bold))
+                                                            .foregroundColor(
+                                                                isToday(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year)
+                                                                ? .black
+                                                                : (dayInfo.isCurrentMonth
+                                                                ? .white
+                                                                : .gray.opacity(0.7)) // 非當前月份使用淡灰色
+                                                            )
+                                                    }
+                                                    .frame(width: 36, height: 36) // 確保ZStack有固定大小
+                                                    
+                                                    Spacer() // 確保日期左對齊
+                                                }
+                                                .padding(.leading, 2) // 統一左側內邊距
+                                                
+                                                Spacer() // 讓日期位於VStack頂部
+                                            }
                                         }
+                                        .buttonStyle(PlainButtonStyle()) // 使用樸素按鈕樣式，不會有按下效果
                                         .frame(maxWidth: .infinity)
-                                        .frame(height: 45) // 所有日期區塊固定高度
+                                        .frame(height: 45) // 保持日期區塊高度不變
                                     }
                                 }
-                                
-                                // 待辦事項行 - 所有待辦事項統一從日期下方開始，確保對齊
+
+                                // 待辦事項行 - 與日期行重疊，根據是否為當週使用不同的定位方式
                                 HStack(spacing: 0) {
                                     ForEach(0..<week.count, id: \.self) { dayIndex in
                                         let dayInfo = week[dayIndex]
                                         
-                                        // 待辦事項區塊 - 統一使用左對齊
+                                        // 待辦事項區塊 - 統一使用左對齊，無上方間距
                                         VStack(alignment: .leading, spacing: 3) {
                                             let events = eventsForDate(dayInfo.day, month: dayInfo.month, year: dayInfo.year)
                                             let isCurrentWeekDay = isInCurrentWeek(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year)
@@ -498,58 +538,37 @@ struct CalendarView: View {
                                                 // 確定是否為當前週或包含今天的週
                                                 let isActiveWeek = isCurrentWeekDay || containsToday
                                                 
-                                                if !isActiveWeek {
-                                                    // 非當週事件顯示 - 每個事件一行且顯示為省略號形式
-                                                    ForEach(events.prefix(3), id: \.id) { event in
-                                                        Text("\(event.title.prefix(6))...")
-                                                            .font(.system(size: 10))
-                                                            .lineLimit(1)
-                                                            .truncationMode(.tail)
-                                                            .padding(.horizontal, 4)
-                                                            .padding(.vertical, 2)
-                                                            .background(eventColor(for: dayInfo.day, isCurrentMonth: dayInfo.isCurrentMonth, month: dayInfo.month, year: dayInfo.year).opacity(0.7))
-                                                            .cornerRadius(4)
-                                                            .foregroundColor(.white)
-                                                    }
-                                                    
-                                                    // 如果事項超過3個，顯示"+x more"
-                                                    if events.count > 3 {
-                                                        Text("+\(events.count - 3) more")
-                                                            .font(.system(size: 9))
-                                                            .foregroundColor(.gray)
-                                                    }
-                                                } else {
-                                                    // 當前週顯示邏輯保持不變
-                                                    ForEach(events.prefix(3), id: \.id) { event in
-                                                        Text(event.title)
-                                                            .font(.system(size: 10))
-                                                            .lineLimit(3) // 當前週可顯示3行
-                                                            .truncationMode(.tail)
-                                                            .fixedSize(horizontal: false, vertical: true)
-                                                            .padding(.horizontal, 4)
-                                                            .padding(.vertical, 2)
-                                                            .background(eventColor(for: dayInfo.day, isCurrentMonth: dayInfo.isCurrentMonth, month: dayInfo.month, year: dayInfo.year).opacity(0.7))
-                                                            .cornerRadius(4)
-                                                            .foregroundColor(.white)
-                                                    }
-                                                    
-                                                    // 如果事項超過3個，顯示"+x more"
-                                                    if events.count > 3 {
-                                                        Text("+\(events.count - 3) more")
-                                                            .font(.system(size: 9))
-                                                            .foregroundColor(.gray)
-                                                    }
+                                                // 統一顯示邏輯 - 不分當週或非當週
+                                                ForEach(events.prefix(3), id: \.id) { event in
+                                                    Text(isActiveWeek ? event.title : "\(event.title.prefix(6))...")
+                                                        .font(.system(size: 10))
+                                                        .lineLimit(isActiveWeek ? 3 : 1)
+                                                        .truncationMode(.tail)
+                                                        .fixedSize(horizontal: false, vertical: isActiveWeek)
+                                                        .padding(.horizontal, 4)
+                                                        .padding(.vertical, 2)
+                                                        .background(eventColor(for: dayInfo.day, isCurrentMonth: dayInfo.isCurrentMonth, month: dayInfo.month, year: dayInfo.year).opacity(0.7))
+                                                        .cornerRadius(4)
+                                                        .foregroundColor(.white)
+                                                }
+                                                
+                                                // 如果事項超過3個，顯示"+x more"
+                                                if events.count > 3 {
+                                                    Text("+\(events.count - 3) more")
+                                                        .font(.system(size: 9))
+                                                        .foregroundColor(.gray)
                                                 }
                                             }
                                         }
-                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                         .padding(.horizontal, 2)
+                                        .padding(.top, 0) // 確保無上方間距
                                     }
                                 }
-                                .frame(height: containsToday ? 135 : 24) // 調整待辦事項區域高度
+                                .offset(y: 32) // 使待辦事項緊貼日期，不要太靠下
                             }
                         }
-                        .frame(height: containsToday ? 180 : 69) // 整週高度
+                        .frame(height: weekHeight) // 修改：使用計算得到的weekHeight
                     }
                 }
                 .padding(.horizontal)
