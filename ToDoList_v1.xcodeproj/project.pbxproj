@@ -33,6 +33,7 @@
 		7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971C2DAD295100E1A97B /* ToDoSheetView.swift */; };
 		7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */; };
 		792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792297202DAD59DA00E1A97B /* TodoItem.swift */; };
+		792C41742DC9051D005CCE92 /* AddNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C41732DC9051D005CCE92 /* AddNote.swift */; };
 		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
 		793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B412DAE748100E0B653 /* BumpyCircle.swift */; };
@@ -99,6 +100,7 @@
 		7922971C2DAD295100E1A97B /* ToDoSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoSheetView.swift; sourceTree = "<group>"; };
 		7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBlur.swift; sourceTree = "<group>"; };
 		792297202DAD59DA00E1A97B /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
+		792C41732DC9051D005CCE92 /* AddNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddNote.swift; sourceTree = "<group>"; };
 		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
 		793D1B412DAE748100E0B653 /* BumpyCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BumpyCircle.swift; sourceTree = "<group>"; };
@@ -240,6 +242,7 @@
 				7922971C2DAD295100E1A97B /* ToDoSheetView.swift */,
 				79C66A322DB40B7300BF8703 /* Add.swift */,
 				791217BC2DC7B92F00E22FF6 /* AddTime.swift */,
+				792C41732DC9051D005CCE92 /* AddNote.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -415,6 +418,7 @@
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
 				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
+				792C41742DC9051D005CCE92 /* AddNote.swift in Sources */,
 				791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */,
 				793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */,
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,

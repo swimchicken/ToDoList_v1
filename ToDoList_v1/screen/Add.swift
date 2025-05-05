@@ -11,19 +11,90 @@ struct Add: View {
     @State private var currentBlockIndex: Int = 0
     @State private var priorityLevel: Int = 0  // 預設為0，新增：追踪優先級 (0-3)
     
+    // Add state for time selection
+    @State private var isDateEnabled: Bool = false
+    @State private var isTimeEnabled: Bool = false
+    @State private var selectedDate: Date = Date()
+    @State private var showAddTimeView: Bool = false
+    
+    // Add state to track keyboard visibility
+    @State private var isKeyboardVisible = false
+    // Add focus state for the text field
+    @FocusState private var isTextFieldFocused: Bool
+    // Add state to track if we should refocus after returning from AddTimeView
+    @State private var shouldRefocusAfterReturn = false
+    
+    // Add state for AddNote view
+    @State private var showAddNoteView: Bool = false
+    
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
     
     // 區塊標題列表，模擬多個區塊
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
     
+    // Format the time button text based on selected date/time
+    var timeButtonText: String {
+        if !isDateEnabled && !isTimeEnabled {
+            return "time"
+        }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeStyle = .short
+        let timeString = timeFormatter.string(from: selectedDate)
+        
+        // Date part
+        var dateText = ""
+        if calendar.isDate(selectedDay, inSameDayAs: today) {
+            dateText = "Today"
+        } else if calendar.isDate(selectedDay, inSameDayAs: tomorrow) {
+            dateText = "Tomorrow"
+        } else if calendar.isDate(selectedDay, inSameDayAs: yesterday) {
+            dateText = "Yesterday"
+        } else {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "MMM d"
+            dateText = dateFormatter.string(from: selectedDate)
+        }
+        
+        // Combine date and time if both are enabled
+        if isDateEnabled && isTimeEnabled {
+            return "\(dateText) \(timeString)"
+        } else if isDateEnabled {
+            return dateText
+        } else if isTimeEnabled {
+            return timeString
+        }
+        
+        return "time"
+    }
+    
+    // Determine if we should use green text color based on selection
+    var shouldUseGreenColor: Bool {
+        return isDateEnabled || isTimeEnabled
+    }
+    
+    // Determine if note button should use green color
+    var shouldUseGreenColorForNote: Bool {
+        return !note.isEmpty
+    }
+    
     var body: some View {
         // 使用ZStack作為根視圖
         ZStack {
-            // 背景使用透明色，不會阻擋Home.swift的模糊效果
+            // Background that dismisses keyboard when tapped
             Color.clear
-                .contentShape(Rectangle())  // 重要：定義可點擊的形狀
-                .onTapGesture {} // 空的點擊處理器，阻止事件穿透
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Dismiss keyboard when tapping outside the text field
+                    isTextFieldFocused = false
+                }
             
             VStack(alignment: .leading, spacing: 0) {
                 
@@ -57,6 +128,45 @@ struct Add: View {
                                 .foregroundColor(.white)
                                 .keyboardType(.default)
                                 .colorScheme(.dark)
+                                .focused($isTextFieldFocused)
+                                .onChange(of: isTextFieldFocused) { newValue in
+                                    // Update keyboard visibility state when focus changes
+                                    // This is in addition to the notification center observers
+                                    // for better reliability
+                                    isKeyboardVisible = newValue
+                                }
+                                .onAppear {
+                                    // Set up keyboard notification observers
+                                    NotificationCenter.default.addObserver(
+                                        forName: UIResponder.keyboardWillShowNotification,
+                                        object: nil,
+                                        queue: .main
+                                    ) { _ in
+                                        isKeyboardVisible = true
+                                    }
+                                    
+                                    NotificationCenter.default.addObserver(
+                                        forName: UIResponder.keyboardWillHideNotification,
+                                        object: nil,
+                                        queue: .main
+                                    ) { _ in
+                                        isKeyboardVisible = false
+                                    }
+                                }
+                                .onDisappear {
+                                    // Remove keyboard notification observers
+                                    NotificationCenter.default.removeObserver(
+                                        self,
+                                        name: UIResponder.keyboardWillShowNotification,
+                                        object: nil
+                                    )
+                                    
+                                    NotificationCenter.default.removeObserver(
+                                        self,
+                                        name: UIResponder.keyboardWillHideNotification,
+                                        object: nil
+                                    )
+                                }
                                 .toolbar{
                                     ToolbarItemGroup(placement: .keyboard){
                                         ZStack {
@@ -106,18 +216,41 @@ struct Add: View {
                                                         .cornerRadius(12)
                                                     }
                                                     
-                                                    Button(action: {}) {
-                                                        Text("time")
-                                                            .foregroundColor(.white.opacity(0.65))
-                                                            .font(.system(size: 18))
-                                                            .frame(width: 110, height: 33.7)
-                                                            .background(Color.white.opacity(0.15))
-                                                            .cornerRadius(12)
+                                                    // 修改後的Time按鈕 - 顯示選擇的時間
+                                                    Button(action: {
+                                                        // Set flag to restore focus when returning from AddTimeView
+                                                        shouldRefocusAfterReturn = true
+                                                        
+                                                        // Hide keyboard first
+                                                        isTextFieldFocused = false
+                                                        
+                                                        // Show the AddTimeView when time button is clicked
+                                                        showAddTimeView = true
+                                                    }) {
+                                                        // Use GeometryReader to get available width
+                                                        GeometryReader { geometry in
+                                                            Text(timeButtonText)
+                                                                .lineLimit(1)
+                                                                .minimumScaleFactor(0.7)
+                                                                .foregroundColor(shouldUseGreenColor ? .green : .white.opacity(0.65))
+                                                                .font(.system(size: 18))
+                                                                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                                                        }
+                                                        .frame(width: 110, height: 33.7)
+                                                        .background(Color.white.opacity(0.15))
+                                                        .cornerRadius(12)
                                                     }
                                                     
-                                                    Button(action: {}) {
+                                                    // Modified Note button to navigate to AddNote
+                                                    Button(action: {
+                                                        // Hide keyboard first
+                                                        isTextFieldFocused = false
+                                                        
+                                                        // Show AddNote view
+                                                        showAddNoteView = true
+                                                    }) {
                                                         Text("note")
-                                                            .foregroundColor(.white.opacity(0.65))
+                                                            .foregroundColor(shouldUseGreenColorForNote ? .green : .white.opacity(0.65))
                                                             .font(.system(size: 18))
                                                             .frame(width: 110, height: 33.7)
                                                             .background(Color.white.opacity(0.15))
@@ -136,46 +269,108 @@ struct Add: View {
                     }
                     .padding(.horizontal, 24)
                     
-                    HStack {
-                        Button(action: {
-                            if let onClose = onClose {
-                                onClose()
+                    // Only show the buttons when keyboard is not visible
+                    if !isKeyboardVisible {
+                        HStack {
+                            Button(action: {
+                                if let onClose = onClose {
+                                    onClose()
+                                }
+                            }) {
+                                Text("Back")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .frame(width: 80, height: 46)
+                                    .background(Color.black.opacity(0.5))
+                                    .cornerRadius(25)
                             }
-                        }) {
-                            Text("Back")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(width: 80, height: 46)
-                                .background(Color.black.opacity(0.5))
-                                .cornerRadius(25)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                addNewTask()
+                                if let onClose = onClose {
+                                    onClose()
+                                }
+                            }) {
+                                Text("ADD")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.black)
+                                    .frame(width: 250, height: 46)
+                                    .background(Color.white)
+                                    .cornerRadius(25)
+                            }
                         }
-                        
+                        .padding(.top, 16)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                        .transition(.opacity) // Add a transition for smooth appearance/disappearance
+                    } else {
+                        // Add some bottom padding when keyboard is visible
                         Spacer()
-                        
-                        Button(action: {
-                            addNewTask()
-                            if let onClose = onClose {
-                                onClose()
-                            }
-                        }) {
-                            Text("ADD")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.black)
-                                .frame(width: 250, height: 46)
-                                .background(Color.white)
-                                .cornerRadius(25)
-                        }
+                            .frame(height: 16)
                     }
-                    .padding(.top, 16)   // origin 20
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
                 }
                 .padding(.horizontal, 16)
             }
+            .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible) // Animate changes based on keyboard visibility
             .improvedKeyboardAdaptive()
+            
+            // Add full-screen cover for AddTimeView
+            .fullScreenCover(isPresented: $showAddTimeView) {
+                AddTimeView(
+                    isDateEnabled: $isDateEnabled,
+                    isTimeEnabled: $isTimeEnabled,
+                    selectedDate: $selectedDate,
+                    onSave: {
+                        // This will be called when Save is tapped in AddTimeView
+                        showAddTimeView = false
+                        // Update the task date with the selected date/time
+                        taskDate = selectedDate
+                        
+                        // Refocus the text field after a short delay if needed
+                        if shouldRefocusAfterReturn {
+                            // Use a slight delay to ensure the view is fully visible
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                isTextFieldFocused = true
+                                shouldRefocusAfterReturn = false
+                            }
+                        }
+                    },
+                    onBack: {
+                        // This will be called when Back is tapped in AddTimeView
+                        showAddTimeView = false
+                        
+                        // Refocus the text field after a short delay if needed
+                        if shouldRefocusAfterReturn {
+                            // Use a slight delay to ensure the view is fully visible
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                isTextFieldFocused = true
+                                shouldRefocusAfterReturn = false
+                            }
+                        }
+                    }
+                )
+            }
+            
+            // Add full-screen cover for AddNote view
+            // We use fullScreenCover as a separate view, not inside the text field toolbar
+            // This way it won't inherit the keyboard toolbar
         }
         .background(Color(red: 0.22, green: 0.22, blue: 0.22).opacity(0.7))
-//        .blur(radius: 13.5)
+        // Move the fullScreenCover for AddNote outside the main view structure
+        .fullScreenCover(isPresented: $showAddNoteView) {
+            AddNote(noteText: note) { savedNote in
+                // Update the note with the value from AddNote
+                note = savedNote
+                showAddNoteView = false
+                
+                // Refocus the text field after a short delay to ensure the view is fully visible
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isTextFieldFocused = true
+                }
+            }
+        }
     }
     
     // 添加新任務
@@ -188,7 +383,7 @@ struct Add: View {
             title: title,
             priority: priority,
             isPinned: isPinned,
-            taskDate: taskDate,
+            taskDate: isDateEnabled || isTimeEnabled ? selectedDate : taskDate, // Use the selected date/time if enabled
             note: note,
             status: .toBeStarted,
             createdAt: Date(),
@@ -200,7 +395,10 @@ struct Add: View {
     }
 }
 
-// 以下輔助組件保持不變...
+// MARK: - Keep existing helper components and extensions
+
+// Keep existing helper components...
+
 // MARK: - 輔助組件
 
 // 工具欄按鈕

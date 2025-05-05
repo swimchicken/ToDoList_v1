@@ -1,17 +1,25 @@
 import SwiftUI
 
 struct AddTimeView: View {
-    @State private var isDateEnabled = false
-    @State private var isTimeEnabled = false
-    @State private var selectedDate = Date()
-    @State private var selectedHour = 8
-    @State private var selectedMinute = 0
-    @State private var selectedAMPM = 1 // 0 for AM, 1 for PM
+    // Add bindings to receive and send data back to Add.swift
+    @Binding var isDateEnabled: Bool
+    @Binding var isTimeEnabled: Bool
+    @Binding var selectedDate: Date
+    
+    // Add callbacks for Save and Back buttons
+    var onSave: () -> Void
+    var onBack: () -> Void
+    
     @State private var calendarDays: [Int] = []
     @State private var currentMonth = ""
     @State private var showDatePicker = false
     @State private var tempSelectedDate = Date()
     @State private var scrollOffset: CGFloat = 0
+    
+    // State for the time picker
+    @State private var selectedHour = 8
+    @State private var selectedMinute = 0
+    @State private var selectedAMPM = 1 // 0 for AM, 1 for PM
     
     private let weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
     private let calendar = Calendar.current
@@ -179,6 +187,12 @@ struct AddTimeView: View {
                                 Toggle("", isOn: $isTimeEnabled)
                                     .labelsHidden()
                                     .toggleStyle(SwitchToggleStyle(tint: Color.green))
+                                    .onChange(of: isTimeEnabled) { newValue in
+                                        if newValue {
+                                            // When enabling time, update the selectedDate with the current time settings
+                                            updateTimeInSelectedDate()
+                                        }
+                                    }
                             }
                         }
                         .padding(16)
@@ -201,6 +215,9 @@ struct AddTimeView: View {
                                                 ampm: $selectedAMPM
                                             )
                                             .frame(width: 240, height: 160)
+                                            .onChange(of: selectedHour) { _ in updateTimeInSelectedDate() }
+                                            .onChange(of: selectedMinute) { _ in updateTimeInSelectedDate() }
+                                            .onChange(of: selectedAMPM) { _ in updateTimeInSelectedDate() }
                                         }
                                         Spacer()
                                     }
@@ -227,7 +244,8 @@ struct AddTimeView: View {
             VStack(spacing: 0) {
                 HStack {
                     Button(action: {
-                        // Handle back action
+                        // Call the onBack callback
+                        onBack()
                     }) {
                         Text("返回")
                             .foregroundColor(.white)
@@ -238,7 +256,13 @@ struct AddTimeView: View {
                     Spacer()
                     
                     Button(action: {
-                        // Handle save action
+                        // Update the final time before saving
+                        if isTimeEnabled {
+                            updateTimeInSelectedDate()
+                        }
+                        
+                        // Call the onSave callback
+                        onSave()
                     }) {
                         Text("Save")
                             .foregroundColor(.black)
@@ -266,6 +290,9 @@ struct AddTimeView: View {
         .background(Color.black)
         .onAppear {
             updateMonthDisplay()
+            
+            // Initialize the selectedHour, selectedMinute, and selectedAMPM from the current selectedDate
+            initializeTimeComponentsFromSelectedDate()
         }
         .sheet(isPresented: $showDatePicker) {
             YearMonthPicker(selectedDate: $tempSelectedDate, isPresented: $showDatePicker, onSave: {
@@ -277,7 +304,56 @@ struct AddTimeView: View {
         }
     }
     
-    // Helper functions (unchanged)
+    // Initialize time components based on the selectedDate
+    private func initializeTimeComponentsFromSelectedDate() {
+        let components = calendar.dateComponents([.hour, .minute], from: selectedDate)
+        if let hour = components.hour {
+            // Convert 24-hour to 12-hour format
+            if hour == 0 {
+                selectedHour = 12
+                selectedAMPM = 0 // AM
+            } else if hour < 12 {
+                selectedHour = hour
+                selectedAMPM = 0 // AM
+            } else if hour == 12 {
+                selectedHour = 12
+                selectedAMPM = 1 // PM
+            } else {
+                selectedHour = hour - 12
+                selectedAMPM = 1 // PM
+            }
+        }
+        
+        if let minute = components.minute {
+            selectedMinute = minute
+        }
+    }
+    
+    // Update the selectedDate with the current time settings
+    private func updateTimeInSelectedDate() {
+        var components = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+        
+        // Convert 12-hour format to 24-hour format
+        var hour = selectedHour
+        if selectedAMPM == 1 { // PM
+            if hour < 12 {
+                hour += 12
+            }
+        } else { // AM
+            if hour == 12 {
+                hour = 0
+            }
+        }
+        
+        components.hour = hour
+        components.minute = selectedMinute
+        
+        if let newDate = calendar.date(from: components) {
+            selectedDate = newDate
+        }
+    }
+    
+    // Helper functions
     private func updateMonthDisplay() {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
@@ -315,17 +391,60 @@ struct AddTimeView: View {
     private func selectDay(_ day: Int) {
         let components = calendar.dateComponents([.year, .month], from: selectedDate)
         if let newDate = calendar.date(from: DateComponents(year: components.year, month: components.month, day: day)) {
-            selectedDate = newDate
+            // Preserve the time when changing the day
+            var timeComponents = calendar.dateComponents([.hour, .minute, .second], from: selectedDate)
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
+            dateComponents.hour = timeComponents.hour
+            dateComponents.minute = timeComponents.minute
+            dateComponents.second = timeComponents.second
+            
+            if let combinedDate = calendar.date(from: dateComponents) {
+                selectedDate = combinedDate
+            } else {
+                selectedDate = newDate
+            }
         }
     }
     
     private func changeMonth(by value: Int) {
         if let newDate = calendar.date(byAdding: .month, value: value, to: selectedDate) {
-            selectedDate = newDate
+            // Preserve the day as much as possible when changing months
+            let day = calendar.component(.day, from: selectedDate)
+            let month = calendar.component(.month, from: newDate)
+            let year = calendar.component(.year, from: newDate)
+            
+            // Check how many days are in the new month
+            guard let lastDayOfMonth = calendar.range(of: .day, in: .month, for: newDate)?.upperBound else {
+                selectedDate = newDate
+                updateCalendarDays()
+                return
+            }
+            
+            // Make sure we don't exceed the days in the month
+            let targetDay = min(day, lastDayOfMonth - 1)
+            
+            if let adjustedDate = calendar.date(from: DateComponents(year: year, month: month, day: targetDay)) {
+                // Preserve the time
+                var timeComponents = calendar.dateComponents([.hour, .minute, .second], from: selectedDate)
+                var dateComponents = calendar.dateComponents([.year, .month, .day], from: adjustedDate)
+                dateComponents.hour = timeComponents.hour
+                dateComponents.minute = timeComponents.minute
+                dateComponents.second = timeComponents.second
+                
+                if let combinedDate = calendar.date(from: dateComponents) {
+                    selectedDate = combinedDate
+                } else {
+                    selectedDate = adjustedDate
+                }
+            } else {
+                selectedDate = newDate
+            }
+            
             updateCalendarDays()
         }
     }
 }
+
 
 // YearMonthPicker 保持不變
 struct YearMonthPicker: View {
@@ -416,6 +535,13 @@ struct YearMonthPicker: View {
 
 struct AddTimeView_Previews: PreviewProvider {
     static var previews: some View {
-        AddTimeView()
+        // Create dummy binding values for preview
+        AddTimeView(
+            isDateEnabled: .constant(true),
+            isTimeEnabled: .constant(true),
+            selectedDate: .constant(Date()),
+            onSave: {},
+            onBack: {}
+        )
     }
 }
