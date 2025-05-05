@@ -3,7 +3,8 @@ import SwiftUI
 struct Add: View {
     @Binding var toDoItems: [TodoItem]
     @State private var title: String = ""
-    @State private var note: String = ""
+    @State private var displayText: String = "" // 用於顯示在輸入框
+    @State private var note: String = "" // 用於儲存 AddNote 的內容，不顯示在輸入框
     @State private var priority: Int = 0  // 預設為0
     @State private var isPinned: Bool = false
     @State private var taskDate: Date = Date()
@@ -26,6 +27,7 @@ struct Add: View {
     
     // Add state for AddNote view
     @State private var showAddNoteView: Bool = false
+    @State private var hasNote: Bool = false // 用於追踪是否有筆記內容
     
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
@@ -82,7 +84,7 @@ struct Add: View {
     
     // Determine if note button should use green color
     var shouldUseGreenColorForNote: Bool {
-        return !note.isEmpty
+        return hasNote
     }
     
     var body: some View {
@@ -124,7 +126,7 @@ struct Add: View {
                         HStack{
                             Image("Check_Rec_Group 1000004070")
                             
-                            TextField("", text: $note)
+                            TextField("", text: $displayText)
                                 .foregroundColor(.white)
                                 .keyboardType(.default)
                                 .colorScheme(.dark)
@@ -361,13 +363,17 @@ struct Add: View {
         // Move the fullScreenCover for AddNote outside the main view structure
         .fullScreenCover(isPresented: $showAddNoteView) {
             AddNote(noteText: note) { savedNote in
-                // Update the note with the value from AddNote
+                // 只保存note資料，但不顯示在輸入框中
                 note = savedNote
+                
+                // 更新筆記狀態標記
+                hasNote = !note.isEmpty
+                
                 showAddNoteView = false
                 
-                // Refocus the text field after a short delay to ensure the view is fully visible
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    isTextFieldFocused = true
+                // 調試信息
+                if hasNote {
+                    print("成功設置筆記內容，資料長度: \(note.count)字")
                 }
             }
         }
@@ -375,16 +381,16 @@ struct Add: View {
     
     // 添加新任務
     func addNewTask() {
-        guard !title.isEmpty else { return }
+        guard !displayText.isEmpty else { return } // 使用displayText而不是title
         
         let newTask = TodoItem(
             id: UUID(),
             userID: "user123",
-            title: title,
+            title: displayText, // 使用顯示在輸入欄位的文本作為標題
             priority: priority,
             isPinned: isPinned,
             taskDate: isDateEnabled || isTimeEnabled ? selectedDate : taskDate, // Use the selected date/time if enabled
-            note: note,
+            note: note, // 使用從AddNote獲取的筆記內容，不會顯示在界面上
             status: .toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),
