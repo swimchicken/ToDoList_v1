@@ -1,4 +1,5 @@
 import SwiftUI
+import CloudKit
 
 struct Add: View {
     @Binding var toDoItems: [TodoItem]
@@ -28,6 +29,11 @@ struct Add: View {
     // Add state for AddNote view
     @State private var showAddNoteView: Bool = false
     @State private var hasNote: Bool = false // 用於追踪是否有筆記內容
+    
+    // 新增：用於處理 CloudKit 保存狀態
+    @State private var isSaving: Bool = false
+    @State private var saveError: String? = nil
+    @State private var showSaveAlert: Bool = false
     
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
@@ -289,19 +295,27 @@ struct Add: View {
                             
                             Spacer()
                             
+                            // 修改ADD按鈕，加入保存到CloudKit的邏輯
                             Button(action: {
-                                addNewTask()
-                                if let onClose = onClose {
-                                    onClose()
-                                }
+                                saveToCloudKit()
                             }) {
-                                Text("ADD")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.black)
-                                    .frame(width: 250, height: 46)
-                                    .background(Color.white)
-                                    .cornerRadius(25)
+                                // 根據保存狀態顯示不同文字
+                                if isSaving {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                        .frame(width: 250, height: 46)
+                                        .background(Color.white)
+                                        .cornerRadius(25)
+                                } else {
+                                    Text("ADD")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.black)
+                                        .frame(width: 250, height: 46)
+                                        .background(Color.white)
+                                        .cornerRadius(25)
+                                }
                             }
+                            .disabled(displayText.isEmpty || isSaving)
                         }
                         .padding(.top, 16)
                         .padding(.horizontal, 16)
@@ -317,6 +331,25 @@ struct Add: View {
             }
             .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible) // Animate changes based on keyboard visibility
             .improvedKeyboardAdaptive()
+            .alert(isPresented: $showSaveAlert) {
+                if let error = saveError {
+                    return Alert(
+                        title: Text("儲存失敗"),
+                        message: Text(error),
+                        dismissButton: .default(Text("OK"))
+                    )
+                } else {
+                    return Alert(
+                        title: Text("儲存成功"),
+                        message: Text("任務已成功儲存到雲端"),
+                        dismissButton: .default(Text("OK")) {
+                            if let onClose = onClose {
+                                onClose()
+                            }
+                        }
+                    )
+                }
+            }
             
             // Add full-screen cover for AddTimeView
             .fullScreenCover(isPresented: $showAddTimeView) {
@@ -379,33 +412,55 @@ struct Add: View {
         }
     }
     
-    // 添加新任務
-    func addNewTask() {
-        guard !displayText.isEmpty else { return } // 使用displayText而不是title
+    // 添加新任務並保存到 CloudKit
+    func saveToCloudKit() {
+        guard !displayText.isEmpty else { return }
         
+        // 設置保存中狀態
+        isSaving = true
+        
+        // 創建新的 TodoItem
         let newTask = TodoItem(
             id: UUID(),
-            userID: "user123",
-            title: displayText, // 使用顯示在輸入欄位的文本作為標題
+            userID: "user123", // 這裡可以使用實際的使用者ID
+            title: displayText,
             priority: priority,
             isPinned: isPinned,
-            taskDate: isDateEnabled || isTimeEnabled ? selectedDate : taskDate, // Use the selected date/time if enabled
-            note: note, // 使用從AddNote獲取的筆記內容，不會顯示在界面上
+            taskDate: isDateEnabled || isTimeEnabled ? selectedDate : taskDate,
+            note: note,
             status: .toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),
             correspondingImageID: "new_task"
         )
         
-        toDoItems.append(newTask)
+        // 調用 CloudKitService 保存到雲端
+        CloudKitService.shared.saveTodoItem(newTask) { result in
+            // 回到主線程處理結果
+            DispatchQueue.main.async {
+                // 結束保存中狀態
+                isSaving = false
+                
+                switch result {
+                case .success(let savedItem):
+                    // 保存成功，添加到本地列表
+                    toDoItems.append(savedItem)
+                    saveError = nil
+                    showSaveAlert = true
+                    
+                case .failure(let error):
+                    // 保存失敗，顯示錯誤
+                    saveError = error.localizedDescription
+                    showSaveAlert = true
+                    print("保存到 CloudKit 失敗: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 }
 
 // MARK: - Keep existing helper components and extensions
 
-// Keep existing helper components...
-
-// MARK: - 輔助組件
 
 // 工具欄按鈕
 struct ToolbarButton: View {
