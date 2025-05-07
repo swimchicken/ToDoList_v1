@@ -12,7 +12,6 @@ struct Home: View {
     @State private var toDoItems: [TodoItem] = []
     @State private var isLoading: Bool = true
     @State private var loadingError: String? = nil
-//    @State private var isShowingModel=false
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
@@ -291,7 +290,6 @@ struct Home: View {
                             Button {
                                 withAnimation(.easeInOut) {
                                     showAddTaskSheet = true
-                                    //                                isShowingModal = false
                                 }
                             } label: {
                                 ZStack {
