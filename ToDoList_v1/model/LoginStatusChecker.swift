@@ -22,6 +22,7 @@ class LoginStatusChecker {
         let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
         let defaultZoneID = CKRecordZone.default().zoneID
+        print("\(query)")
         
         // 採用預設 zone，inZoneWith 傳 nil
         privateDatabase.fetch(withQuery: query, inZoneWith: defaultZoneID, desiredKeys: nil, resultsLimit: 1) { result in

@@ -15,6 +15,7 @@ class CloudKitService {
     // 設定公開資料庫及識別碼
     private let container: CKContainer
     private let publicDatabase: CKDatabase
+    private let privateDatabase: CKDatabase
     private let defaultZoneID = CKRecordZone.default().zoneID
     
     
@@ -24,6 +25,7 @@ class CloudKitService {
         print("DEBUG: 正在初始化 CloudKitService")
         self.container = CKContainer(identifier: "iCloud.com.fcu.ToDolist1")
         self.publicDatabase = container.publicCloudDatabase
+        self.privateDatabase = container.privateCloudDatabase // 添加私有數據庫
         print("DEBUG: CloudKit container 已初始化 - ID: \(container.containerIdentifier ?? "未知")")
         
         // 檢查 iCloud 狀態
@@ -82,7 +84,7 @@ class CloudKitService {
         print("DEBUG: CloudKit container identifier: \(container.containerIdentifier ?? "未知")")
         
         // 儲存到 CloudKit
-        publicDatabase.save(record) { (savedRecord, error) in
+        privateDatabase.save(record) { (savedRecord, error) in
             if let error = error {
                 let nsError = error as NSError
                 print("ERROR: 儲存待辦事項失敗 - 錯誤代碼: \(nsError.code), 域: \(nsError.domain)")
@@ -171,96 +173,77 @@ class CloudKitService {
         )
     }
     
+    
     /// 從 CloudKit 獲取所有待辦事項
     /// - Parameter completion: 完成後的回調，返回結果或錯誤
     func fetchAllTodoItems(completion: @escaping (Result<[TodoItem], Error>) -> Void) {
-        print("DEBUG: 開始從 CloudKit 獲取所有待辦事項")
-        print("DEBUG: 使用的 container ID: \(container.containerIdentifier ?? "未知")")
+        print("DEBUG: 開始從 CloudKit 獲取所有待辦事項（修改版）")
         
-        // 創建查詢 - 避免使用 recordName 作為查詢條件
-        let query = CKQuery(recordType: "TodoItem", predicate: NSPredicate(value: true))
+        // 使用簡單查詢，但避免依賴 recordName
+        // 改用 userID 欄位作為查詢條件
+        let predicate = NSPredicate(format: "id != %@", "NONEXISTENT_ID")
+        let query = CKQuery(recordType: "TodoItem", predicate: predicate)
         
-        // 添加排序規則
-        let creationDateSort = NSSortDescriptor(key: "createdAt", ascending: false)
-        query.sortDescriptors = [creationDateSort]
+        print("DEBUG: 使用基於 id 欄位的查詢條件")
+        print("DEBUG: 明確指定使用默認區域 zoneID: \(defaultZoneID.zoneName)")
         
-        print("DEBUG: 查詢已配置排序規則: createdAt (降序)")
-        print("DEBUG: 直接使用簡單的 perform 方法查詢，不指定 zoneID")
-        
-        // 使用最基本的 perform 方法，不指定 zoneID 參數（設為 nil）
-        // 這可以避免 "Field 'recordName' is not marked queryable" 錯誤
-        publicDatabase.perform(query, inZoneWith: nil) { (records, error) in
-            if let error = error {
-                let nsError = error as NSError
-                print("ERROR: 獲取待辦事項失敗 - 錯誤代碼: \(nsError.code), 域: \(nsError.domain)")
-                print("ERROR: 詳細錯誤: \(error.localizedDescription)")
-                
-                // 檢查是否是常見錯誤
-                if nsError.domain == CKErrorDomain {
-                    switch nsError.code {
-                    case CKError.networkFailure.rawValue:
-                        print("ERROR: 網絡連接失敗")
-                    case CKError.networkUnavailable.rawValue:
-                        print("ERROR: 網絡不可用")
-                    case CKError.serverRejectedRequest.rawValue:
-                        print("ERROR: 服務器拒絕請求")
-                    case CKError.notAuthenticated.rawValue:
-                        print("ERROR: 用戶未驗證，請確保已登入 iCloud 帳戶")
-                    default:
-                        print("ERROR: 其他 CloudKit 錯誤，代碼: \(nsError.code)")
-                    }
+        // 明確指定使用與儲存相同的默認區域
+        privateDatabase.perform(query, inZoneWith: defaultZoneID) { (records, error) in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("ERROR: 查詢失敗 - \(error.localizedDescription)")
+                    completion(.success([self.createDummyErrorItem(error: error)]))
+                    return
                 }
                 
-                // 創建一個測試項目返回，而不是讓 UI 顯示空白
-                let dummyItem = TodoItem(
-                    id: UUID(),
-                    userID: "error_user",
-                    title: "錯誤: 無法讀取待辦事項",
-                    priority: 1,
-                    isPinned: true,
-                    taskDate: Date(),
-                    note: "發生錯誤: \(error.localizedDescription)",
-                    status: .toDoList,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    correspondingImageID: "error"
-                )
+                guard let records = records, !records.isEmpty else {
+                    print("INFO: 沒有找到記錄")
+                    completion(.success([self.createWelcomeItem()]))
+                    return
+                }
                 
-                completion(.success([dummyItem]))
-                return
-            }
-            
-            guard let records = records, !records.isEmpty else {
-                print("INFO: 沒有找到任何記錄，返回測試項目")
+                print("SUCCESS: 查詢成功! 記錄數: \(records.count)")
+                if !records.isEmpty {
+                    print("INFO: 第一條記錄 ID: \(records.first?.recordID.recordName ?? "無")")
+                }
                 
-                // 創建一個測試項目，以便 UI 有內容顯示
-                let dummyItem = TodoItem(
-                    id: UUID(),
-                    userID: "test_user",
-                    title: "歡迎使用待辦事項",
-                    priority: 1,
-                    isPinned: true,
-                    taskDate: Date(),
-                    note: "點擊加號按鈕添加您的第一個待辦事項",
-                    status: .toDoList,
-                    createdAt: Date(),
-                    updatedAt: Date(),
-                    correspondingImageID: "welcome"
-                )
-                
-                completion(.success([dummyItem]))
-                return
+                // 轉換記錄
+                let todoItems = records.compactMap { self.todoItemFromRecord($0) }
+                completion(.success(todoItems))
             }
-            
-            print("SUCCESS: 成功從 CloudKit 獲取記錄: \(records.count) 個")
-            if !records.isEmpty {
-                print("INFO: 第一條記錄 ID: \(records.first?.recordID.recordName ?? "無")")
-            }
-            
-            // 將記錄轉換為 TodoItem
-            let todoItems = records.compactMap { self.todoItemFromRecord($0) }
-            completion(.success(todoItems))
         }
+    }
+    
+    private func createDummyErrorItem(error: Error) -> TodoItem {
+        return TodoItem(
+            id: UUID(),
+            userID: "error_user",
+            title: "查詢錯誤",
+            priority: 1,
+            isPinned: true,
+            taskDate: Date(),
+            note: "錯誤: \(error.localizedDescription)",
+            status: .toDoList,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: "error"
+        )
+    }
+    
+    private func createWelcomeItem() -> TodoItem {
+        return TodoItem(
+            id: UUID(),
+            userID: "test_user",
+            title: "歡迎使用待辦事項",
+            priority: 1,
+            isPinned: true,
+            taskDate: Date(),
+            note: "點擊加號按鈕添加您的第一個待辦事項",
+            status: .toDoList,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: "welcome"
+        )
     }
     
     /// 使用 CKQueryOperation 作為備選查詢方式

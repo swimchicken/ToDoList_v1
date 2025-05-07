@@ -332,23 +332,11 @@ struct Add: View {
             .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible) // Animate changes based on keyboard visibility
             .improvedKeyboardAdaptive()
             .alert(isPresented: $showSaveAlert) {
-                if let error = saveError {
-                    return Alert(
-                        title: Text("儲存失敗"),
-                        message: Text(error),
-                        dismissButton: .default(Text("OK"))
-                    )
-                } else {
-                    return Alert(
-                        title: Text("儲存成功"),
-                        message: Text("任務已成功儲存到雲端"),
-                        dismissButton: .default(Text("OK")) {
-                            if let onClose = onClose {
-                                onClose()
-                            }
-                        }
-                    )
-                }
+                Alert(
+                    title: Text("儲存失敗"),
+                    message: Text(saveError ?? "未知錯誤"),
+                    dismissButton: .default(Text("OK"))
+                )
             }
             
             // Add full-screen cover for AddTimeView
@@ -444,14 +432,17 @@ struct Add: View {
                 
                 switch result {
                 case .success(let savedItem):
-                    // 保存成功，添加到本地列表
+                    // 保存成功，添加到本地列表並直接關閉視圖
                     print("成功保存待辦事項! ID: \(savedItem.id)")
                     toDoItems.append(savedItem)
-                    saveError = nil
-                    showSaveAlert = true
+                    
+                    // 直接關閉視圖，不顯示成功提示
+                    if let onClose = onClose {
+                        onClose()
+                    }
                     
                 case .failure(let error):
-                    // 保存失敗，顯示錯誤
+                    // 保存失敗時才顯示錯誤警告
                     let nsError = error as NSError
                     print("保存到 CloudKit 失敗: \(error.localizedDescription)")
                     print("錯誤代碼: \(nsError.code), 域: \(nsError.domain)")
@@ -473,11 +464,12 @@ struct Add: View {
                         saveError = error.localizedDescription
                     }
                     
+                    // 顯示錯誤警告
+                    showSaveAlert = true
+                    
                     // 即使保存失敗，也將項目添加到本地列表，以便用戶可以看到他們的項目
-                    // 這樣可以提供更好的用戶體驗，特別是在網絡問題的情況下
                     print("儘管 CloudKit 保存失敗，仍添加項目到本地列表")
                     toDoItems.append(newTask)
-                    showSaveAlert = true
                 }
             }
         }

@@ -58,6 +58,8 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
         let defaultZoneID = CKRecordZone.default().zoneID
         
+        
+        
         // 採用預設 zone，故 inZoneWith 傳入 nil
         privateDatabase.fetch(withQuery: query, inZoneWith: defaultZoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
             switch result {
