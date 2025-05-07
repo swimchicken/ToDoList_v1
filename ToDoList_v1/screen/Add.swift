@@ -419,7 +419,7 @@ struct Add: View {
         // 設置保存中狀態
         isSaving = true
         
-        // 創建新的 TodoItem
+        // 創建新的 TodoItem，將狀態設為 toDoList
         let newTask = TodoItem(
             id: UUID(),
             userID: "user123", // 這裡可以使用實際的使用者ID
@@ -428,13 +428,14 @@ struct Add: View {
             isPinned: isPinned,
             taskDate: isDateEnabled || isTimeEnabled ? selectedDate : taskDate,
             note: note,
-            status: .toBeStarted,
+            status: .toDoList, // 設置為 toDoList 狀態
             createdAt: Date(),
             updatedAt: Date(),
             correspondingImageID: "new_task"
         )
         
         // 調用 CloudKitService 保存到雲端
+        print("嘗試保存待辦事項到 CloudKit...")
         CloudKitService.shared.saveTodoItem(newTask) { result in
             // 回到主線程處理結果
             DispatchQueue.main.async {
@@ -444,15 +445,39 @@ struct Add: View {
                 switch result {
                 case .success(let savedItem):
                     // 保存成功，添加到本地列表
+                    print("成功保存待辦事項! ID: \(savedItem.id)")
                     toDoItems.append(savedItem)
                     saveError = nil
                     showSaveAlert = true
                     
                 case .failure(let error):
                     // 保存失敗，顯示錯誤
-                    saveError = error.localizedDescription
-                    showSaveAlert = true
+                    let nsError = error as NSError
                     print("保存到 CloudKit 失敗: \(error.localizedDescription)")
+                    print("錯誤代碼: \(nsError.code), 域: \(nsError.domain)")
+                    
+                    if nsError.domain == CKErrorDomain {
+                        switch nsError.code {
+                        case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
+                            saveError = "網絡連接問題，請檢查您的網絡連接後重試。"
+                        case CKError.notAuthenticated.rawValue:
+                            saveError = "未登入 iCloud，請在設置中登入您的 iCloud 帳戶。"
+                        case CKError.quotaExceeded.rawValue:
+                            saveError = "已超出 iCloud 儲存配額，請清理空間後重試。"
+                        case CKError.serverRejectedRequest.rawValue:
+                            saveError = "iCloud 伺服器拒絕請求: \(error.localizedDescription)"
+                        default:
+                            saveError = "iCloud 錯誤 (\(nsError.code)): \(error.localizedDescription)"
+                        }
+                    } else {
+                        saveError = error.localizedDescription
+                    }
+                    
+                    // 即使保存失敗，也將項目添加到本地列表，以便用戶可以看到他們的項目
+                    // 這樣可以提供更好的用戶體驗，特別是在網絡問題的情況下
+                    print("儘管 CloudKit 保存失敗，仍添加項目到本地列表")
+                    toDoItems.append(newTask)
+                    showSaveAlert = true
                 }
             }
         }
