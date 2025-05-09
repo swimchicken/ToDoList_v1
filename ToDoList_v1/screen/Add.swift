@@ -432,13 +432,14 @@ struct Add: View {
                 
                 switch result {
                 case .success(let savedItem):
-                    // 保存成功，添加到本地列表並直接關閉視圖
                     print("成功保存待辦事項! ID: \(savedItem.id)")
                     toDoItems.append(savedItem)
                     
-                    // 直接關閉視圖，不顯示成功提示
-                    if let onClose = onClose {
-                        onClose()
+                    // 等待短暂时间让 CloudKit 处理数据
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if let onClose = onClose {
+                            onClose()
+                        }
                     }
                     
                 case .failure(let error):

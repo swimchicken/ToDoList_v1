@@ -375,9 +375,11 @@ struct Home: View {
                     
                     // Add視圖，在模糊背景之上
                     Add(toDoItems: $toDoItems, onClose: {
-                        withAnimation(.easeInOut) {
-                            showAddTaskSheet = false
-                            // 刷新從 CloudKit 加載的事項
+                        // 先将showAddTaskSheet设为false
+                        showAddTaskSheet = false
+                        
+                        // 然后延迟一点时间再刷新数据
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             loadTodoItems()
                         }
                     })
