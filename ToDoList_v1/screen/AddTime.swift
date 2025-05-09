@@ -21,6 +21,9 @@ struct AddTimeView: View {
     @State private var selectedMinute = 0
     @State private var selectedAMPM = 1 // 0 for AM, 1 for PM
     
+    // 添加今天的日期作为参考
+    private let today = Date()
+    
     private let weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
     private let calendar = Calendar.current
     private var columns: [GridItem] {
@@ -64,6 +67,8 @@ struct AddTimeView: View {
                                     .toggleStyle(SwitchToggleStyle(tint: Color.green))
                                     .onChange(of: isDateEnabled) { _ in
                                         if isDateEnabled {
+                                            // 确保选中日期不在过去
+                                            ensureDateNotInPast()
                                             updateCalendarDays()
                                         }
                                     }
@@ -107,6 +112,8 @@ struct AddTimeView: View {
                                                 .foregroundColor(.green)
                                                 .font(.system(size: 24))
                                         }
+                                        .disabled(isCurrentMonthOrBeforeToday()) // 禁用按钮如果向前导航会到达过去的月份
+                                        .opacity(isCurrentMonthOrBeforeToday() ? 0.4 : 1) // 视觉反馈
                                         
                                         Button(action: {
                                             changeMonth(by: 1)
@@ -143,13 +150,15 @@ struct AddTimeView: View {
                                         let day = calendarDays[index]
                                         if day > 0 {
                                             Button(action: {
-                                                selectDay(day)
+                                                if !isPastDate(day: day) {
+                                                    selectDay(day)
+                                                }
                                             }) {
                                                 Text("\(day)")
                                                     .font(Font.custom("SF Pro Display", size: 20))
                                                     .kerning(0.38)
                                                     .multilineTextAlignment(.center)
-                                                    .foregroundColor(.white)
+                                                    .foregroundColor(isPastDate(day: day) ? Color.gray.opacity(0.5) : .white)
                                                     .frame(width: 40, height: 32, alignment: .center)
                                                     .background(
                                                         Circle()
@@ -157,6 +166,7 @@ struct AddTimeView: View {
                                                             .frame(width: 40, height: 40)
                                                     )
                                             }
+                                            .disabled(isPastDate(day: day)) // 禁用过去的日期
                                         } else {
                                             Text("")
                                                 .frame(width: 40, height: 32)
@@ -170,6 +180,7 @@ struct AddTimeView: View {
                             .background(Color(red: 0.12, green: 0.12, blue: 0.12))
                             .cornerRadius(12)
                             .onAppear {
+                                ensureDateNotInPast()
                                 updateCalendarDays()
                             }
                         }
@@ -289,6 +300,7 @@ struct AddTimeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .onAppear {
+            ensureDateNotInPast() // 确保初始日期不在过去
             updateMonthDisplay()
             
             // Initialize the selectedHour, selectedMinute, and selectedAMPM from the current selectedDate
@@ -296,12 +308,55 @@ struct AddTimeView: View {
         }
         .sheet(isPresented: $showDatePicker) {
             YearMonthPicker(selectedDate: $tempSelectedDate, isPresented: $showDatePicker, onSave: {
-                selectedDate = tempSelectedDate
-                updateCalendarDays()
+                if !isDateInPast(date: tempSelectedDate) {
+                    selectedDate = tempSelectedDate
+                    updateCalendarDays()
+                }
             })
             .presentationDetents([.height(400)])
             .presentationBackground(Color(red: 0.12, green: 0.12, blue: 0.12))
         }
+    }
+    
+    // 确保日期不在过去
+    private func ensureDateNotInPast() {
+        let todayStart = calendar.startOfDay(for: today)
+        if selectedDate < todayStart {
+            selectedDate = todayStart
+        }
+    }
+    
+    // 检查日期是否在过去
+    private func isDateInPast(date: Date) -> Bool {
+        return date < calendar.startOfDay(for: today)
+    }
+    
+    // 检查日期是否在过去
+    private func isPastDate(day: Int) -> Bool {
+        let todayComponents = calendar.dateComponents([.year, .month, .day], from: today)
+        let currentComponents = calendar.dateComponents([.year, .month], from: selectedDate)
+        
+        // 如果当前查看的年和月已经在过去，则所有日期都在过去
+        if currentComponents.year! < todayComponents.year! ||
+           (currentComponents.year! == todayComponents.year! && currentComponents.month! < todayComponents.month!) {
+            return true
+        }
+        
+        // 如果是当前月份，则只有今天之前的日期在过去
+        if currentComponents.year! == todayComponents.year! && currentComponents.month! == todayComponents.month! {
+            return day < todayComponents.day!
+        }
+        
+        // 否则，如果是将来的月份，则没有日期在过去
+        return false
+    }
+    
+    // 检查当前显示的是否为今天所在的月份或更早的月份
+    private func isCurrentMonthOrBeforeToday() -> Bool {
+        let todayComponents = calendar.dateComponents([.year, .month], from: today)
+        let currentComponents = calendar.dateComponents([.year, .month], from: selectedDate)
+        
+        return currentComponents.year! == todayComponents.year! && currentComponents.month! == todayComponents.month!
     }
     
     // Initialize time components based on the selectedDate
@@ -349,7 +404,13 @@ struct AddTimeView: View {
         components.minute = selectedMinute
         
         if let newDate = calendar.date(from: components) {
-            selectedDate = newDate
+            // 检查是否在过去，如果是则更新到当前时间
+            if isDateInPast(date: newDate) {
+                selectedDate = today
+                initializeTimeComponentsFromSelectedDate()
+            } else {
+                selectedDate = newDate
+            }
         }
     }
     
@@ -391,23 +452,36 @@ struct AddTimeView: View {
     private func selectDay(_ day: Int) {
         let components = calendar.dateComponents([.year, .month], from: selectedDate)
         if let newDate = calendar.date(from: DateComponents(year: components.year, month: components.month, day: day)) {
-            // Preserve the time when changing the day
-            var timeComponents = calendar.dateComponents([.hour, .minute, .second], from: selectedDate)
-            var dateComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
-            dateComponents.hour = timeComponents.hour
-            dateComponents.minute = timeComponents.minute
-            dateComponents.second = timeComponents.second
-            
-            if let combinedDate = calendar.date(from: dateComponents) {
-                selectedDate = combinedDate
-            } else {
-                selectedDate = newDate
+            // 确保不选择过去的日期
+            if !isDateInPast(date: newDate) {
+                // Preserve the time when changing the day
+                var timeComponents = calendar.dateComponents([.hour, .minute, .second], from: selectedDate)
+                var dateComponents = calendar.dateComponents([.year, .month, .day], from: newDate)
+                dateComponents.hour = timeComponents.hour
+                dateComponents.minute = timeComponents.minute
+                dateComponents.second = timeComponents.second
+                
+                if let combinedDate = calendar.date(from: dateComponents) {
+                    selectedDate = combinedDate
+                } else {
+                    selectedDate = newDate
+                }
             }
         }
     }
     
     private func changeMonth(by value: Int) {
         if let newDate = calendar.date(byAdding: .month, value: value, to: selectedDate) {
+            // 检查新月份是否会在过去
+            let todayComponents = calendar.dateComponents([.year, .month], from: today)
+            let newComponents = calendar.dateComponents([.year, .month], from: newDate)
+            
+            // 如果新月份在过去，不允许改变
+            if newComponents.year! < todayComponents.year! ||
+               (newComponents.year! == todayComponents.year! && newComponents.month! < todayComponents.month!) {
+                return
+            }
+            
             // Preserve the day as much as possible when changing months
             let day = calendar.component(.day, from: selectedDate)
             let month = calendar.component(.month, from: newDate)
@@ -446,7 +520,7 @@ struct AddTimeView: View {
 }
 
 
-// YearMonthPicker 保持不變
+// 修改 YearMonthPicker 以限制过去的年月选择
 struct YearMonthPicker: View {
     @Binding var selectedDate: Date
     @Binding var isPresented: Bool
@@ -457,6 +531,7 @@ struct YearMonthPicker: View {
     
     private let calendar = Calendar.current
     private let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    private let today = Date()
     
     init(selectedDate: Binding<Date>, isPresented: Binding<Bool>, onSave: @escaping () -> Void) {
         self._selectedDate = selectedDate
@@ -467,6 +542,12 @@ struct YearMonthPicker: View {
         let components = calendar.dateComponents([.year, .month], from: selectedDate.wrappedValue)
         self._selectedYear = State(initialValue: components.year ?? 2022)
         self._selectedMonth = State(initialValue: (components.month ?? 1) - 1)
+    }
+    
+    // 获取当前月份和年份
+    private var currentYearMonth: (year: Int, month: Int) {
+        let components = calendar.dateComponents([.year, .month], from: today)
+        return (components.year ?? 2022, components.month ?? 1)
     }
     
     var body: some View {
@@ -486,8 +567,21 @@ struct YearMonthPicker: View {
                 Spacer()
                 
                 Button("確認") {
+                    // 确保所选日期不在过去
                     if let newDate = calendar.date(from: DateComponents(year: selectedYear, month: selectedMonth + 1, day: 1)) {
-                        selectedDate = newDate
+                        let todayComponents = calendar.dateComponents([.year, .month], from: today)
+                        
+                        // 如果所选年月在过去，则选择当前月份
+                        if selectedYear < todayComponents.year! ||
+                           (selectedYear == todayComponents.year! && selectedMonth + 1 < todayComponents.month!) {
+                            if let currentDate = calendar.date(from: DateComponents(year: todayComponents.year, month: todayComponents.month, day: 1)) {
+                                selectedDate = currentDate
+                            } else {
+                                selectedDate = today
+                            }
+                        } else {
+                            selectedDate = newDate
+                        }
                     }
                     onSave()
                     isPresented = false
@@ -500,9 +594,9 @@ struct YearMonthPicker: View {
                 .background(Color.gray.opacity(0.3))
             
             HStack {
-                // 年份選擇器
+                // 年份选择器 - 只显示当前年份及以后
                 Picker("年份", selection: $selectedYear) {
-                    ForEach((2000...2040), id: \.self) { year in
+                    ForEach(currentYearMonth.year...2040, id: \.self) { year in
                         Text("\(year)年")
                             .foregroundColor(.white)
                             .tag(year)
@@ -512,17 +606,25 @@ struct YearMonthPicker: View {
                 .frame(width: UIScreen.main.bounds.width / 2)
                 .clipped()
                 
-                // 月份選擇器
+                // 月份选择器 - 如果是当前年份，只显示当前月份及以后
                 Picker("月份", selection: $selectedMonth) {
                     ForEach(0..<12, id: \.self) { index in
-                        Text(months[index])
-                            .foregroundColor(.white)
-                            .tag(index)
+                        if selectedYear > currentYearMonth.year || index >= (currentYearMonth.month - 1) {
+                            Text(months[index])
+                                .foregroundColor(.white)
+                                .tag(index)
+                        }
                     }
                 }
                 .pickerStyle(WheelPickerStyle())
                 .frame(width: UIScreen.main.bounds.width / 2)
                 .clipped()
+                .onChange(of: selectedYear) { _ in
+                    // 如果改变了年份，检查并调整月份
+                    if selectedYear == currentYearMonth.year && selectedMonth < (currentYearMonth.month - 1) {
+                        selectedMonth = currentYearMonth.month - 1
+                    }
+                }
             }
             .padding(.vertical)
             

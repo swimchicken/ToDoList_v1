@@ -436,7 +436,7 @@ struct Add: View {
                     toDoItems.append(savedItem)
                     
                     // 等待短暂时间让 CloudKit 处理数据
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                         if let onClose = onClose {
                             onClose()
                         }
