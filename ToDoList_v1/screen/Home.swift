@@ -118,7 +118,12 @@ struct Home: View {
             todoItems: items // 只在今天顯示球體
         )
     }
-    
+    // 添加一個計算屬性來動態計算底部 padding
+    private var bottomPaddingForTaskList: CGFloat {
+        // 當天顯示物理場景時需要更多間距
+        // 非當天只顯示按鈕時需要較少間距
+        return isCurrentDay ? 170 : 90
+    }
     
     
     var body: some View {
@@ -204,14 +209,14 @@ struct Home: View {
                                             state = value.translation.width
                                         }
                                         .onEnded { value in
-                                            // 計算拖動結束後應該移動的方向
+                                                // 計算拖動結束後應該移動的方向
                                             let threshold = geometry.size.width * 0.2
                                             let predictedEndTranslation = value.predictedEndTranslation.width
-                                            
-                                            // 根據拖動距離和方向更新日期偏移量
+                                                
+                                                // 根據拖動距離和方向更新日期偏移量
                                             withAnimation(.easeOut) {
                                                 if predictedEndTranslation < -threshold {
-                                                    // 向左滑動 -> 增加日期
+                                                        // 向左滑動 -> 增加日期
                                                     currentDateOffset += 1
                                                 } else if predictedEndTranslation > threshold {
                                                     // 向右滑動 -> 減少日期
@@ -222,7 +227,8 @@ struct Home: View {
                                 )
                             }
                         }
-                        .padding(.bottom, 170)
+                        .padding(.bottom, bottomPaddingForTaskList)  // 使用動態值
+                        .animation(.easeInOut, value: isCurrentDay)  // 添加動畫效果
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 24)
