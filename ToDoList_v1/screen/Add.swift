@@ -1,6 +1,9 @@
 import SwiftUI
 import CloudKit
 
+// 導入本地數據和同步管理器
+import Combine
+
 struct Add: View {
     @Binding var toDoItems: [TodoItem]
     @State private var title: String = ""
@@ -400,7 +403,7 @@ struct Add: View {
         }
     }
     
-    // 添加新任務並保存到 CloudKit
+    // 添加新任務並保存到本地和雲端
     func saveToCloudKit() {
         guard !displayText.isEmpty else { return }
         
@@ -422,9 +425,9 @@ struct Add: View {
             correspondingImageID: "new_task"
         )
         
-        // 調用 CloudKitService 保存到雲端
-        print("嘗試保存待辦事項到 CloudKit...")
-        CloudKitService.shared.saveTodoItem(newTask) { result in
+        // 使用 DataSyncManager 保存（先本地，後雲端）
+        print("嘗試保存待辦事項...")
+        DataSyncManager.shared.addTodoItem(newTask) { result in
             // 回到主線程處理結果
             DispatchQueue.main.async {
                 // 結束保存中狀態
@@ -432,11 +435,12 @@ struct Add: View {
                 
                 switch result {
                 case .success(let savedItem):
-                    print("成功保存待辦事項! ID: \(savedItem.id)")
+                    print("成功保存待辦事項到本地! ID: \(savedItem.id)")
+                    print("正在後台同步到雲端...")
                     toDoItems.append(savedItem)
                     
-                    // 等待短暂时间让 CloudKit 处理数据
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    // 短暫延遲確保 UI 更新
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         if let onClose = onClose {
                             onClose()
                         }
@@ -445,32 +449,39 @@ struct Add: View {
                 case .failure(let error):
                     // 保存失敗時才顯示錯誤警告
                     let nsError = error as NSError
-                    print("保存到 CloudKit 失敗: \(error.localizedDescription)")
-                    print("錯誤代碼: \(nsError.code), 域: \(nsError.domain)")
+                    print("保存失敗: \(error.localizedDescription)")
                     
                     if nsError.domain == CKErrorDomain {
                         switch nsError.code {
                         case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                            saveError = "網絡連接問題，請檢查您的網絡連接後重試。"
+                            saveError = "網絡連接問題，但項目已保存到本地"
                         case CKError.notAuthenticated.rawValue:
-                            saveError = "未登入 iCloud，請在設置中登入您的 iCloud 帳戶。"
+                            saveError = "未登入 iCloud，項目已保存到本地"
                         case CKError.quotaExceeded.rawValue:
-                            saveError = "已超出 iCloud 儲存配額，請清理空間後重試。"
+                            saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
                         case CKError.serverRejectedRequest.rawValue:
-                            saveError = "iCloud 伺服器拒絕請求: \(error.localizedDescription)"
+                            saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
                         default:
-                            saveError = "iCloud 錯誤 (\(nsError.code)): \(error.localizedDescription)"
+                            saveError = "iCloud 錯誤，項目已保存到本地"
                         }
                     } else {
-                        saveError = error.localizedDescription
+                        saveError = "保存錯誤: \(error.localizedDescription)"
                     }
                     
                     // 顯示錯誤警告
                     showSaveAlert = true
                     
-                    // 即使保存失敗，也將項目添加到本地列表，以便用戶可以看到他們的項目
-                    print("儘管 CloudKit 保存失敗，仍添加項目到本地列表")
+                    // 嘗試只保存到本地
+                    print("發生錯誤，嘗試只保存到本地")
+                    LocalDataManager.shared.addTodoItem(newTask)
                     toDoItems.append(newTask)
+                    
+                    // 短暫延遲關閉視圖
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        if let onClose = onClose {
+                            onClose()
+                        }
+                    }
                 }
             }
         }

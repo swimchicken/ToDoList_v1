@@ -11,6 +11,9 @@
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
 		7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */; };
+		790BFDC62DCF83ED00AFD044 /* LocalDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */; };
+		790BFDC82DCF83FB00AFD044 /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */; };
+		790BFDCA2DCF841200AFD044 /* DataSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC92DCF841200AFD044 /* DataSyncManager.swift */; };
 		790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */; };
 		790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1AB2DC6205500FDFC6D /* AddItem.swift */; };
 		790FF7942DCA499200B9C70B /* CloudKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790FF7932DCA499200B9C70B /* CloudKitService.swift */; };
@@ -76,6 +79,9 @@
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
+		790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDataManager.swift; sourceTree = "<group>"; };
+		790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
+		790BFDC92DCF841200AFD044 /* DataSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSyncManager.swift; sourceTree = "<group>"; };
 		790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollCalendarView.swift; sourceTree = "<group>"; };
 		790DD1AB2DC6205500FDFC6D /* AddItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddItem.swift; sourceTree = "<group>"; };
 		790FF7932DCA499200B9C70B /* CloudKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitService.swift; sourceTree = "<group>"; };
@@ -226,6 +232,9 @@
 				792297202DAD59DA00E1A97B /* TodoItem.swift */,
 				791E53AC2DB3F4470096F3B2 /* TodoStatus.swift */,
 				790DD1AB2DC6205500FDFC6D /* AddItem.swift */,
+				790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */,
+				790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */,
+				790BFDC92DCF841200AFD044 /* DataSyncManager.swift */,
 			);
 			path = model;
 			sourceTree = "<group>";
@@ -420,11 +429,13 @@
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
 				79C66A332DB40B7300BF8703 /* Add.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
+				790BFDCA2DCF841200AFD044 /* DataSyncManager.swift in Sources */,
 				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
 				792C41742DC9051D005CCE92 /* AddNote.swift in Sources */,
 				791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */,
 				793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */,
+				790BFDC82DCF83FB00AFD044 /* CoreDataManager.swift in Sources */,
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
@@ -435,6 +446,7 @@
 				7911CE262D6B086D0034BEE6 /* guide.swift in Sources */,
 				79F7C25F2D9415EF00B2E19E /* guide5.swift in Sources */,
 				79F7C2492D94060100B2E19E /* codefield.swift in Sources */,
+				790BFDC62DCF83ED00AFD044 /* LocalDataManager.swift in Sources */,
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
 				793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */,
 				790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */,

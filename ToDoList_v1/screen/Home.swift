@@ -12,13 +12,14 @@ struct Home: View {
     @State private var toDoItems: [TodoItem] = []
     @State private var isLoading: Bool = true
     @State private var loadingError: String? = nil
+    @State private var isSyncing: Bool = false // 新增：同步狀態標記
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
     @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量
     
-    // CloudKit 服務
-    private let cloudKitService = CloudKitService.shared
+    // 數據同步管理器 - 處理本地存儲和雲端同步
+    private let dataSyncManager = DataSyncManager.shared
     
     // 修改後的taiwanTime，基於currentDate和日期偏移量
     var taiwanTime: (monthDay: String, weekday: String, timeStatus: String) {
@@ -94,13 +95,13 @@ struct Home: View {
                 if let index = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
                     self.toDoItems[index] = newValue
                     
-                    // 同步到 CloudKit
-                    self.cloudKitService.updateTodoItem(newValue) { result in
+                    // 使用 DataSyncManager 更新項目 - 它會先更新本地然後同步到雲端
+                    self.dataSyncManager.updateTodoItem(newValue) { result in
                         switch result {
                         case .success(_):
-                            print("成功更新 CloudKit 中的待辦事項")
+                            print("成功更新待辦事項")
                         case .failure(let error):
-                            print("更新 CloudKit 中的待辦事項失敗: \(error.localizedDescription)")
+                            print("更新待辦事項失敗: \(error.localizedDescription)")
                         }
                     }
                 }
@@ -110,9 +111,11 @@ struct Home: View {
 
     // 只在當前為今天時顯示物理場景
     private var physicsScene: PhysicsScene {
-        PhysicsScene(
+        let items = isCurrentDay ? sortedToDoItems : []
+        print("PhysicsScene 創建: 當前是今天=\(isCurrentDay), 項目數量=\(items.count)")
+        return PhysicsScene(
             size: CGSize(width: 369, height: 100),
-            todoItems: isCurrentDay ? sortedToDoItems : [] // 只在今天顯示球體
+            todoItems: items // 只在今天顯示球體
         )
     }
     
@@ -155,8 +158,17 @@ struct Home: View {
                             
                             Spacer()
                             
-                            Image(systemName: "ellipsis")
-                                .foregroundColor(.white)
+                            // 更多選項按鈕（新增同步功能）
+                            Menu {
+                                Button(action: {
+                                    performManualSync()
+                                }) {
+                                    Label("同步數據", systemImage: "arrow.triangle.2.circlepath")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .foregroundColor(.white)
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 60)
@@ -232,13 +244,30 @@ struct Home: View {
                                 .frame(width: 369, height: 100)
                                 .clipShape(RoundedRectangle(cornerRadius: 32))
                                 .background(Color.clear)
+                                .id(sortedToDoItems.count) // 強制重新創建場景當項目數量改變時
                             
                             // 2. 底下兩個按鈕
                             HStack(spacing: 10) {
                                 // end today 按鈕
-                                Button("end today") {
-                                    // 重新從 CloudKit 載入資料
-                                    loadTodoItems()
+                                Button(action: {
+                                    // 根據同步狀態執行不同操作
+                                    if isSyncing {
+                                        // 如果正在同步，則只顯示進度（不執行操作）
+                                    } else {
+                                        // 默認行為 - 重新加載數據
+                                        loadTodoItems()
+                                    }
+                                }) {
+                                    // 根據同步狀態顯示不同文字
+                                    if isSyncing {
+                                        HStack {
+                                            Text("同步中...")
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                        }
+                                    } else {
+                                        Text("end today")
+                                    }
                                 }
                                 .font(.custom("Inria Sans", size: 20).weight(.bold))
                                 .foregroundColor(.black)
@@ -273,11 +302,26 @@ struct Home: View {
                         // 非當天只顯示按鈕
                         HStack(spacing: 10) {
                             // return to today 按鈕
-                            Button("return to today") {
+                            Button(action: {
                                 withAnimation(.easeInOut) {
                                     currentDateOffset = 0 // 返回到當天
-                                    // 刷新資料
-                                    loadTodoItems()
+                                    
+                                    // 根據同步狀態執行不同操作
+                                    if !isSyncing {
+                                        // 如果不在同步中，才刷新數據
+                                        loadTodoItems()
+                                    }
+                                }
+                            }) {
+                                // 根據同步狀態顯示不同文字
+                                if isSyncing {
+                                    HStack {
+                                        Text("同步中...")
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                    }
+                                } else {
+                                    Text("return to today")
                                 }
                             }
                             .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -438,6 +482,11 @@ struct Home: View {
             // 從 CloudKit 載入待辦事項
             loadTodoItems()
             
+            // 在主線程延遲0.5秒後再次載入，確保視圖更新
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                loadTodoItems()  // 再次載入以確保物理場景正確顯示
+            }
+            
             if let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") {
                 SaveLast.updateLastLoginDate(forUserId: appleUserID) { result in
                     switch result {
@@ -506,71 +555,111 @@ struct Home: View {
         .scrollIndicators(.hidden)
     }
     
-    // 從 CloudKit 載入所有待辦事項
+    // 執行手動同步
+    private func performManualSync() {
+        // 如果正在同步，直接返回
+        guard !isSyncing else {
+            return
+        }
+        
+        // 設置同步中狀態
+        isSyncing = true
+        
+        // 使用 DataSyncManager 執行同步
+        dataSyncManager.performSync { result in
+            // 回到主線程更新UI
+            DispatchQueue.main.async {
+                // 完成同步
+                isSyncing = false
+                
+                switch result {
+                case .success(let syncCount):
+                    print("手動同步完成! 同步了 \(syncCount) 個項目")
+                    
+                    // 重新加載 todoItems 以顯示最新數據
+                    loadTodoItems()
+                    
+                case .failure(let error):
+                    print("手動同步失敗: \(error.localizedDescription)")
+                    
+                    // 顯示錯誤提示（這裡可以使用更好的UI來顯示錯誤）
+                    loadingError = "同步失敗: \(error.localizedDescription)"
+                    
+                    // 依然重新加載本地數據
+                    loadTodoItems()
+                }
+            }
+        }
+    }
+    
+    // 載入所有待辦事項 - 優先從本地載入，然後在後台同步雲端數據
     private func loadTodoItems() {
+        print("開始載入待辦事項: 當前是今天=\(isCurrentDay), 當前toDoItems數量=\(toDoItems.count)")
         isLoading = true
         loadingError = nil
         
-        // 创建一些本地测试数据，防止CloudKit连接问题时UI为空
-        let fallbackData = [
-            TodoItem(
-                id: UUID(), userID: "user123", title: "本地测试项目", priority: 1, isPinned: true,
-                taskDate: Date(), note: "当CloudKit连接失败时显示的本地项目", status: .toDoList,
-                createdAt: Date(), updatedAt: Date(), correspondingImageID: "local"
-            )
-        ]
-        
-        // 首先尝试从CloudKit加载
-        cloudKitService.fetchAllTodoItems { result in
-            // 在主執行緒上更新 UI
+        // 使用 DataSyncManager 獲取數據 - 它會優先返回本地數據，然後在後台同步雲端數據
+        dataSyncManager.fetchTodoItems { result in
+            // 在主線程更新 UI
             DispatchQueue.main.async {
-                self.isLoading = false
-                
                 switch result {
                 case .success(let items):
-                    // 成功獲取項目，更新模型
+                    self.isLoading = false
+                    
+                    // 檢查是否接收到數據
                     if items.isEmpty {
-                        // 如果返回空数组但没有错误，使用本地数据
-                        self.toDoItems = fallbackData
-                        print("CloudKit没有待办事项，使用本地测试数据")
+                        // 如果本地和雲端都沒有數據，創建一個歡迎項目
+                        let welcomeItem = TodoItem(
+                            id: UUID(), 
+                            userID: "user123", 
+                            title: "歡迎使用待辦事項", 
+                            priority: 1, 
+                            isPinned: true,
+                            taskDate: Date(), 
+                            note: "添加您的第一個待辦事項以開始使用", 
+                            status: .toDoList,
+                            createdAt: Date(), 
+                            updatedAt: Date(), 
+                            correspondingImageID: "welcome"
+                        )
+                        self.toDoItems = [welcomeItem]
+                        print("本地和雲端都沒有待辦事項，創建歡迎項目")
                     } else {
+                        // 更新模型
                         self.toDoItems = items
-                        print("成功從 CloudKit 載入 \(items.count) 個待辦事項")
+                        print("成功載入 \(items.count) 個待辦事項")
                     }
+                    
+                    // 打印當前狀態以便調試
+                    print("待辦事項載入完成: 今天=\(self.isCurrentDay), 篩選後的項目數量=\(self.sortedToDoItems.count)")
                     
                 case .failure(let error):
-                    // 处理特定的CloudKit错误
-                    let nsError = error as NSError
-                    
-                    // 检查是否是常见的网络或CloudKit服务错误
-                    if nsError.domain == CKErrorDomain {
-                        switch nsError.code {
-                        case CKError.networkFailure.rawValue, 
-                             CKError.networkUnavailable.rawValue,
-                             CKError.serviceUnavailable.rawValue:
-                            // 网络或服务暂时不可用，使用本地数据
-                            self.toDoItems = fallbackData
-                            self.loadingError = "CloudKit暂不可用，显示本地数据: \(error.localizedDescription)"
-                            
-                        case CKError.serverRejectedRequest.rawValue:
-                            if nsError.localizedDescription.contains("not marked queryable") {
-                                // 特殊处理"recordName not marked queryable"错误
-                                self.toDoItems = fallbackData
-                                self.loadingError = "CloudKit查询配置问题，显示本地数据"
-                            } else {
-                                // 其他服务器拒绝问题
-                                self.loadingError = "服务器拒绝请求: \(error.localizedDescription)"
-                            }
-                            
-                        default:
-                            self.loadingError = "CloudKit错误: \(error.localizedDescription)"
-                        }
-                    } else {
-                        // 其他一般错误
-                        self.loadingError = "載入待辦事項時發生錯誤: \(error.localizedDescription)"
-                    }
-                    
+                    self.isLoading = false
+                    self.loadingError = "載入待辦事項時發生錯誤: \(error.localizedDescription)"
                     print("載入待辦事項時發生錯誤: \(error.localizedDescription)")
+                    
+                    // 如果發生錯誤，仍然嘗試從本地獲取數據
+                    let localItems = LocalDataManager.shared.getAllTodoItems()
+                    if !localItems.isEmpty {
+                        self.toDoItems = localItems
+                        print("從本地緩存加載了 \(localItems.count) 個項目")
+                    } else {
+                        // 創建一個錯誤提示項目
+                        let errorItem = TodoItem(
+                            id: UUID(), 
+                            userID: "error_user", 
+                            title: "無法載入數據", 
+                            priority: 1, 
+                            isPinned: true,
+                            taskDate: Date(), 
+                            note: "發生錯誤: \(error.localizedDescription)", 
+                            status: .toDoList,
+                            createdAt: Date(), 
+                            updatedAt: Date(), 
+                            correspondingImageID: "error"
+                        )
+                        self.toDoItems = [errorItem]
+                    }
                 }
             }
         }
