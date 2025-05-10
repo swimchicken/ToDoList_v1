@@ -1,4 +1,6 @@
 import SwiftUI
+import Combine
+import CloudKit
 
 struct CalendarView: View {
     @Binding var toDoItems: [TodoItem]
@@ -9,113 +11,42 @@ struct CalendarView: View {
     @State private var showAddEventSheet = false
     @State private var newEventTitle = ""
     @State private var newEventTime = Date()
+    @State private var isLoading = false // 添加加載狀態
+    @State private var loadingError: String? = nil // 添加加載錯誤信息
+    
+    // 新增：用於傳遞所選日期偏移到Home視圖
+    var onDateSelected: ((Int) -> Void)?
     
     // 每週日期標題
     let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     
-    // 初始化添加必做事項
-    init(toDoItems: Binding<[TodoItem]>) {
+    // 初始化，從本地數據管理器讀取待辦事項
+    init(toDoItems: Binding<[TodoItem]>, onDateSelected: ((Int) -> Void)? = nil) {
+        // 直接使用傳入的綁定
         self._toDoItems = toDoItems
+        self.onDateSelected = onDateSelected
         
-        // 自動獲取當前月份
-        let calendar = Calendar.current
-        let currentDate = Date()
-        let currentYear = calendar.component(.year, from: currentDate)
-        let currentMonth = calendar.component(.month, from: currentDate)
-                
-        // 指定當月的測試日期
-        let date26 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 26))!
-        let date3 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 3))!
-        let date28 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: 28))!
-
-        let date30 = calendar.date(from: DateComponents(year: currentYear, month: currentMonth, day: min(30, calendar.range(of: .day, in: .month, for: currentDate)!.upperBound - 1)))!
-                
-        // 創建預設事項（使用動態日期）
-        let meetingReport = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report", priority: 1, isPinned: true,
-            taskDate: date3, note: "\(currentMonth)/3 Meeting Report", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
+        print("日曆視圖初始化，傳入了 \(toDoItems.wrappedValue.count) 個待辦事項")
+    }
+    
+    // 新增：從本地數據加載待辦事項
+    private func loadFromLocalDataManager() {
+        isLoading = true
+        loadingError = nil
         
-        let meetingReport2 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report2", priority: 1, isPinned: true,
-            taskDate: date3, note: "\(currentMonth)/3 Meeting Report2", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
+        // 獲取本地數據
+        let localItems = LocalDataManager.shared.getAllTodoItems()
         
-        let meetingReport3 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report3", priority: 1, isPinned: true,
-            taskDate: date3, note: "\(currentMonth)/3 Meeting Report3", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-        
-        let meetingReport4 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report4", priority: 1, isPinned: true,
-            taskDate: date30, note: "\(currentMonth)/30 Meeting Report4", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-        
-        let meetingReport5 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report5", priority: 1, isPinned: true,
-            taskDate: date3, note: "\(currentMonth)/3 Meeting Report5", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-        
-        let meetingReport6 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report6", priority: 1, isPinned: true,
-            taskDate: date28, note: "\(currentMonth)/28 Meeting Report6", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-        
-        let meetingReport7 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting report7", priority: 1, isPinned: true,
-            taskDate: date28, note: "\(currentMonth)/28 Meeting Report7", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-                
-        let jamOpeningParty = TodoItem(
-            id: UUID(), userID: "user123", title: "jam opening party", priority: 1, isPinned: true,
-            taskDate: date26, note: "\(currentMonth)/26 Jam Opening Party", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-                
-        let shiroBithdayPartyOpening = TodoItem(
-            id: UUID(), userID: "user123", title: "shiro bithday party opening", priority: 1, isPinned: true,
-            taskDate: date26, note: "\(currentMonth)/26 shiro bithday party opening", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-        
-        let shiroBithdayPartyEnding = TodoItem(
-            id: UUID(), userID: "user123", title: "shiro bithday party ending", priority: 1, isPinned: true,
-            taskDate: date26, note: "\(currentMonth)/26 shiro bithday party ending", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-                
-        let meeting27 = TodoItem(
-            id: UUID(), userID: "user123", title: "meeting", priority: 1, isPinned: true,
-            taskDate: date26, note: "\(currentMonth)/26 meeting", status: .toBeStarted,
-            createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
-        )
-        
-        // 將預設事項添加到列表中
-        var initialItems = toDoItems.wrappedValue
-        
-        // 創建所有預設事項的陣列
-        let allDefaultItems = [meetingReport, meetingReport2, meetingReport3, meetingReport4,meetingReport5,meetingReport6,meetingReport7, jamOpeningParty, shiroBithdayPartyOpening,shiroBithdayPartyEnding, meeting27]
-
-        // 自動添加不存在的預設事項
-        for item in allDefaultItems {
-            if !initialItems.contains(where: {
-                calendar.isDate($0.taskDate, inSameDayAs: item.taskDate) && $0.title == item.title
-            }) {
-                initialItems.append(item)
+        // 更新狀態
+        DispatchQueue.main.async {
+            if !localItems.isEmpty {
+                self.toDoItems = localItems
+                print("從本地數據載入了 \(localItems.count) 個待辦事項")
+            } else {
+                print("本地數據為空")
             }
+            self.isLoading = false
         }
-
-        _toDoItems = Binding(
-            get: { initialItems },
-            set: { toDoItems.wrappedValue = $0 }
-        )
     }
     
     // 獲取月份名稱
@@ -370,7 +301,6 @@ struct CalendarView: View {
                                 .fill(Color.gray.opacity(0.3))
                                 .frame(width: 50, height: 50)
                             
-                            // 使用系統內建圖標 - 方形勾選符號
                             Image(systemName: "checkmark.square")
                                 .font(.system(size: 20))
                                 .foregroundColor(.white)
@@ -471,6 +401,19 @@ struct CalendarView: View {
                                     .frame(height: weekHeight) // 修改：使用計算得到的weekHeight
                             }
                             
+                            // 在當前週顯示加載指示器
+                            if containsToday && isLoading {
+                                VStack {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(1.5)
+                                    Text("載入中...")
+                                        .foregroundColor(.white)
+                                        .padding(.top, 8)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                            
                             // 週內容 - 使用VStack確保內容從上到下排列，但使用ZStack進行重疊佈局
                             ZStack(alignment: .top) {
                                 // 日期行 - 固定高度
@@ -485,17 +428,33 @@ struct CalendarView: View {
                                             selectedDate = date
                                             print("選擇了日期: \(dayInfo.day)/\(dayInfo.month)/\(dayInfo.year)")
                                             
-                                            // 在這裡可以添加你需要的其他操作
-                                            // 例如：顯示該日期的詳細事項、打開新增事項表單等
+                                            // 計算選擇的日期與當前日期的偏移量
+                                            let calendar = Calendar.current
+                                            let today = calendar.startOfDay(for: Date())
+                                            let selectedDay = calendar.startOfDay(for: date)
+                                            let components = calendar.dateComponents([.day], from: today, to: selectedDay)
+                                            
+                                            // 獲取偏移量（天數差）
+                                            if let dayOffset = components.day {
+                                                print("日期偏移量: \(dayOffset)天")
+                                                
+                                                // 調用回調函數，傳遞日期偏移量
+                                                if let onDateSelected = onDateSelected {
+                                                    onDateSelected(dayOffset)
+                                                    
+                                                    // 關閉日曆視圖
+                                                    dismiss()
+                                                }
+                                            }
                                         }) {
                                             VStack {
                                                 HStack {
                                                     ZStack {
-                                                        // 如果是今天，顯示綠色圓圈
+                                                        // 如果是今天，顯示綠色圓圈，尺寸縮小
                                                         if isToday(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year) {
                                                             Circle()
                                                                 .fill(Color.green)
-                                                                .frame(width: 36, height: 36)
+                                                                .frame(width: 28, height: 28) // 從36x36縮小到28x28
                                                         }
                                                         
                                                         // 日期文字固定位置
@@ -578,12 +537,23 @@ struct CalendarView: View {
             .padding(.top, 40)
         }
         .navigationBarHidden(true)
+        .onAppear {
+            // 如果傳入的toDoItems為空，則從本地數據加載
+            if toDoItems.isEmpty {
+                loadFromLocalDataManager()
+            }
+        }
     }
 }
 
 // 預覽
 struct CalendarView_Previews: PreviewProvider {
     static var previews: some View {
-        CalendarView(toDoItems: .constant([]))
+        CalendarView(
+            toDoItems: .constant([]),
+            onDateSelected: { offset in
+                print("預覽模式中選擇了日期偏移: \(offset)")
+            }
+        )
     }
 }

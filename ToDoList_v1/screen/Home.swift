@@ -453,12 +453,21 @@ struct Home: View {
                         }
                     }
                         
-                    // 顯示 CalendarView，傳入 toDoItems 的綁定
-                    CalendarView(toDoItems: $toDoItems)
-                        .onDisappear {
-                            // 視圖關閉時刷新數據
+                    // 顯示 CalendarView，傳入 toDoItems 的綁定以及日期選擇回調
+                    CalendarView(toDoItems: $toDoItems, onDateSelected: { dayOffset in
+                        // 接收來自CalendarView的日期偏移量並設置
+                        withAnimation(.easeInOut) {
+                            currentDateOffset = dayOffset
+                            print("設置日期偏移量為: \(dayOffset)")
+                            
+                            // 更新視圖
                             loadTodoItems()
                         }
+                    })
+                    .onDisappear {
+                        // 視圖關閉時刷新數據
+                        loadTodoItems()
+                    }
                         .transition(.move(edge: .bottom))
                 }
                 .animation(.easeInOut(duration: 0.3), value: showCalendarView)
