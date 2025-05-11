@@ -11,22 +11,38 @@ struct CalendarView: View {
     @State private var showAddEventSheet = false
     @State private var newEventTitle = ""
     @State private var newEventTime = Date()
-    @State private var isLoading = false // 添加加載狀態
-    @State private var loadingError: String? = nil // 添加加載錯誤信息
+    @State private var isLoading = false
+    @State private var loadingError: String? = nil
+    
+    // 新增：跟蹤用戶點擊的日期
+    @State private var clickedDate: Date? = nil
     
     // 新增：用於傳遞所選日期偏移到Home視圖
     var onDateSelected: ((Int) -> Void)?
+    
+    // 新增：用於處理導航到home
+    var onNavigateToHome: (() -> Void)?
     
     // 每週日期標題
     let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     
     // 初始化，從本地數據管理器讀取待辦事項
-    init(toDoItems: Binding<[TodoItem]>, onDateSelected: ((Int) -> Void)? = nil) {
+    init(toDoItems: Binding<[TodoItem]>,
+         onDateSelected: ((Int) -> Void)? = nil,
+         onNavigateToHome: (() -> Void)? = nil) {
         // 直接使用傳入的綁定
         self._toDoItems = toDoItems
         self.onDateSelected = onDateSelected
+        self.onNavigateToHome = onNavigateToHome
         
         print("日曆視圖初始化，傳入了 \(toDoItems.wrappedValue.count) 個待辦事項")
+    }
+    
+    // 新增：重置到當週
+    private func resetToCurrentWeek() {
+        withAnimation {
+            clickedDate = nil
+        }
     }
     
     // 新增：從本地數據加載待辦事項
@@ -47,6 +63,14 @@ struct CalendarView: View {
             }
             self.isLoading = false
         }
+    }
+    
+    // 新增：計算週開始日期（以週一為開始）
+    private func getWeekStart(for date: Date) -> Date {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: date) // 1=週日, 2=週一, ..., 7=週六
+        let daysFromMonday = (weekday + 5) % 7 // 計算距離週一的天數
+        return calendar.date(byAdding: .day, value: -daysFromMonday, to: date)!
     }
     
     // 獲取月份名稱
@@ -193,19 +217,17 @@ struct CalendarView: View {
         return isToday(day: day, month: selectedMonth, year: selectedYear)
     }
     
-    // 檢查日期是否在當前週
+    // 修改：檢查日期是否在當前選擇的週（基於點擊的日期或今天）
     func isInCurrentWeek(day: Int, month: Int, year: Int) -> Bool {
         let calendar = Calendar.current
-        let today = Date()
+        let referenceDate = clickedDate ?? Date() // 使用點擊的日期或今天作為參考
         let targetDate = calendar.date(from: DateComponents(year: year, month: month, day: day))!
         
-        let todayWeek = calendar.component(.weekOfYear, from: today)
-        let todayYear = calendar.component(.yearForWeekOfYear, from: today)
+        // 使用 getWeekStart 方法計算週開始日期
+        let referenceWeekStart = getWeekStart(for: referenceDate)
+        let targetWeekStart = getWeekStart(for: targetDate)
         
-        let targetWeek = calendar.component(.weekOfYear, from: targetDate)
-        let targetYear = calendar.component(.yearForWeekOfYear, from: targetDate)
-        
-        return todayWeek == targetWeek && todayYear == targetYear
+        return calendar.isDate(referenceWeekStart, inSameDayAs: targetWeekStart)
     }
     
     // 顏色函數 - 根據事件數量返回顏色
@@ -234,7 +256,7 @@ struct CalendarView: View {
         return "\(title.prefix(7))..."
     }
     
-    // 計算當週所需的高度
+    // 修改：計算當週所需的高度（基於點擊的日期或今天）
     func calculateWeekHeight(for week: [(day: Int, month: Int, year: Int, isCurrentMonth: Bool)], isCurrentWeek: Bool) -> CGFloat {
         var maxEvents = 0
         
@@ -292,9 +314,15 @@ struct CalendarView: View {
                     
                     Spacer()
                     
-                    // 關閉按鈕
+                    // 關閉按鈕 - 修改為支持導航
                     Button {
-                        dismiss()
+                        // 如果有導航到 Home 的回調，就調用它
+                        if let onNavigateToHome = onNavigateToHome {
+                            onNavigateToHome()
+                        } else {
+                            // 否則使用默認的關閉動作
+                            dismiss()
+                        }
                     } label: {
                         ZStack {
                             RoundedRectangle(cornerRadius: 8)
@@ -386,23 +414,41 @@ struct CalendarView: View {
                     ForEach(0..<weeks.count, id: \.self) { weekIndex in
                         let week = weeks[weekIndex]
                         
-                        // 檢查這一週是否包含今天（即當前週）
-                        let containsToday = week.contains { isToday(day: $0.day, month: $0.month, year: $0.year) }
+                        // 修改：使用一致的週判斷邏輯
+                        let calendar = Calendar.current
+                        let referenceDate = clickedDate ?? Date()
+                        
+                        // 獲取參考日期的週一日期
+                        let referenceWeekStart = getWeekStart(for: referenceDate)
+                        
+                        // 檢查這一週是否包含參考日期
+                        let containsReferenceWeek: Bool = {
+                            // 檢查週的第一天（週一）是否屬於同一週
+                            let weekFirstDate = calendar.date(from: DateComponents(
+                                year: week[0].year,
+                                month: week[0].month,
+                                day: week[0].day
+                            ))!
+                            
+                            let weekDateStart = getWeekStart(for: weekFirstDate)
+                            
+                            return calendar.isDate(referenceWeekStart, inSameDayAs: weekDateStart)
+                        }()
                         
                         // 計算當週所需高度
-                        let weekHeight = calculateWeekHeight(for: week, isCurrentWeek: containsToday)
+                        let weekHeight = calculateWeekHeight(for: week, isCurrentWeek: containsReferenceWeek)
                         
                         // 整週容器
                         ZStack(alignment: .top) {
-                            // 如果是當前週，添加背景色
-                            if containsToday {
+                            // 如果是選擇的週，添加背景色
+                            if containsReferenceWeek {
                                 Rectangle()
                                     .fill(Color.gray.opacity(0.2))
-                                    .frame(height: weekHeight) // 修改：使用計算得到的weekHeight
+                                    .frame(height: weekHeight)
                             }
                             
-                            // 在當前週顯示加載指示器
-                            if containsToday && isLoading {
+                            // 在選擇的週顯示加載指示器
+                            if containsReferenceWeek && isLoading {
                                 VStack {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -428,22 +474,60 @@ struct CalendarView: View {
                                             selectedDate = date
                                             print("選擇了日期: \(dayInfo.day)/\(dayInfo.month)/\(dayInfo.year)")
                                             
-                                            // 計算選擇的日期與當前日期的偏移量
-                                            let calendar = Calendar.current
-                                            let today = calendar.startOfDay(for: Date())
-                                            let selectedDay = calendar.startOfDay(for: date)
-                                            let components = calendar.dateComponents([.day], from: today, to: selectedDay)
+                                            // 修改：判斷是否再次點擊同一日期
+                                            withAnimation(.easeInOut) {
+                                                if let currentClickedDate = clickedDate {
+                                                    let calendar = Calendar.current
+                                                    let sameDay = calendar.isDate(currentClickedDate, inSameDayAs: date)
+                                                    if sameDay {
+                                                        // 再次點擊同一日期，重置到當週
+                                                        clickedDate = nil
+                                                        print("重置到當週")
+                                                    } else {
+                                                        // 點擊不同日期，更新選擇的日期
+                                                        clickedDate = date
+                                                        print("切換到 \(date) 所在的週")
+                                                    }
+                                                } else {
+                                                    // 第一次點擊，設置選擇的日期
+                                                    clickedDate = date
+                                                    print("第一次選擇，切換到 \(date) 所在的週")
+                                                }
+                                            }
                                             
-                                            // 獲取偏移量（天數差）
-                                            if let dayOffset = components.day {
-                                                print("日期偏移量: \(dayOffset)天")
+                                            // 延遲執行日期選擇回調和關閉
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                // 計算選擇的日期與當前日期的偏移量
+                                                let calendar = Calendar.current
+                                                let today = calendar.startOfDay(for: Date())
+                                                let selectedDay = calendar.startOfDay(for: date)
+                                                let components = calendar.dateComponents([.day], from: today, to: selectedDay)
                                                 
-                                                // 調用回調函數，傳遞日期偏移量
-                                                if let onDateSelected = onDateSelected {
-                                                    onDateSelected(dayOffset)
+                                                // 獲取偏移量（天數差）
+                                                if let dayOffset = components.day {
+                                                    print("日期偏移量: \(dayOffset)天")
                                                     
-                                                    // 關閉日曆視圖
-                                                    dismiss()
+                                                    // 優先使用導航回調
+                                                    if let onNavigateToHome = self.onNavigateToHome {
+                                                        // 先執行日期選擇回調
+                                                        self.onDateSelected?(dayOffset)
+                                                        
+                                                        // 延遲執行導航回調
+                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                            onNavigateToHome()
+                                                        }
+                                                    } else if let onDateSelected = self.onDateSelected {
+                                                        // 先執行日期選擇回調
+                                                        onDateSelected(dayOffset)
+                                                        
+                                                        // 延遲關閉視圖
+                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                            self.dismiss()
+                                                        }
+                                                    } else {
+                                                        // 如果沒有回調，直接關閉
+                                                        self.dismiss()
+                                                    }
                                                 }
                                             }
                                         }) {
@@ -495,7 +579,7 @@ struct CalendarView: View {
                                             
                                             if !events.isEmpty {
                                                 // 確定是否為當前週或包含今天的週
-                                                let isActiveWeek = isCurrentWeekDay || containsToday
+                                                let isActiveWeek = isCurrentWeekDay || containsReferenceWeek
                                                 
                                                 // 統一顯示邏輯 - 不分當週或非當週
                                                 ForEach(events.prefix(3), id: \.id) { event in
@@ -538,6 +622,9 @@ struct CalendarView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
+            // 視圖出現時重置到當週
+            resetToCurrentWeek()
+            
             // 如果傳入的toDoItems為空，則從本地數據加載
             if toDoItems.isEmpty {
                 loadFromLocalDataManager()
@@ -553,6 +640,9 @@ struct CalendarView_Previews: PreviewProvider {
             toDoItems: .constant([]),
             onDateSelected: { offset in
                 print("預覽模式中選擇了日期偏移: \(offset)")
+            },
+            onNavigateToHome: {
+                print("預覽模式中導航到 Home")
             }
         )
     }

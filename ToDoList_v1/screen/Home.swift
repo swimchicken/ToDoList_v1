@@ -387,8 +387,8 @@ struct Home: View {
                         
                         // 中央弹出视图
                         ToDoSheetView(toDoItems: toDoItems) {
-                            withAnimation(.easeInOut) { 
-                                showToDoSheet = false 
+                            withAnimation(.easeInOut) {
+                                showToDoSheet = false
                                 // 關閉時刷新數據
                                 loadTodoItems()
                             }
@@ -459,22 +459,37 @@ struct Home: View {
                         }
                     }
                         
-                    // 顯示 CalendarView，傳入 toDoItems 的綁定以及日期選擇回調
-                    CalendarView(toDoItems: $toDoItems, onDateSelected: { dayOffset in
-                        // 接收來自CalendarView的日期偏移量並設置
-                        withAnimation(.easeInOut) {
-                            currentDateOffset = dayOffset
-                            print("設置日期偏移量為: \(dayOffset)")
+                    // 顯示 CalendarView，傳入 toDoItems 的綁定以及日期選擇和導航回調
+                    CalendarView(
+                        toDoItems: $toDoItems,
+                        onDateSelected: { dayOffset in
+                            // 接收來自CalendarView的日期偏移量並設置
+                            withAnimation(.easeInOut) {
+                                currentDateOffset = dayOffset
+                                print("設置日期偏移量為: \(dayOffset)")
+                                
+                                // 關閉日曆
+                                showCalendarView = false
+                                
+                                // 更新視圖
+                                loadTodoItems()
+                            }
+                        },
+                        onNavigateToHome: {
+                            // 關閉日曆並返回 Home
+                            withAnimation(.easeInOut) {
+                                showCalendarView = false
+                            }
                             
-                            // 更新視圖
+                            // 刷新數據
                             loadTodoItems()
                         }
-                    })
+                    )
                     .onDisappear {
                         // 視圖關閉時刷新數據
                         loadTodoItems()
                     }
-                        .transition(.move(edge: .bottom))
+                    .transition(.move(edge: .bottom))
                 }
                 .animation(.easeInOut(duration: 0.3), value: showCalendarView)
                 .zIndex(200) // 確保顯示在最上層
@@ -625,16 +640,16 @@ struct Home: View {
                     if items.isEmpty {
                         // 如果本地和雲端都沒有數據，創建一個歡迎項目
                         let welcomeItem = TodoItem(
-                            id: UUID(), 
-                            userID: "user123", 
-                            title: "歡迎使用待辦事項", 
-                            priority: 1, 
+                            id: UUID(),
+                            userID: "user123",
+                            title: "歡迎使用待辦事項",
+                            priority: 1,
                             isPinned: true,
-                            taskDate: Date(), 
-                            note: "添加您的第一個待辦事項以開始使用", 
+                            taskDate: Date(),
+                            note: "添加您的第一個待辦事項以開始使用",
                             status: .toDoList,
-                            createdAt: Date(), 
-                            updatedAt: Date(), 
+                            createdAt: Date(),
+                            updatedAt: Date(),
                             correspondingImageID: "welcome"
                         )
                         self.toDoItems = [welcomeItem]
@@ -661,16 +676,16 @@ struct Home: View {
                     } else {
                         // 創建一個錯誤提示項目
                         let errorItem = TodoItem(
-                            id: UUID(), 
-                            userID: "error_user", 
-                            title: "無法載入數據", 
-                            priority: 1, 
+                            id: UUID(),
+                            userID: "error_user",
+                            title: "無法載入數據",
+                            priority: 1,
                             isPinned: true,
-                            taskDate: Date(), 
-                            note: "發生錯誤: \(error.localizedDescription)", 
+                            taskDate: Date(),
+                            note: "發生錯誤: \(error.localizedDescription)",
                             status: .toDoList,
-                            createdAt: Date(), 
-                            updatedAt: Date(), 
+                            createdAt: Date(),
+                            updatedAt: Date(),
                             correspondingImageID: "error"
                         )
                         self.toDoItems = [errorItem]
