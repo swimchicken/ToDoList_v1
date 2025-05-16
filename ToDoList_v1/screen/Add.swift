@@ -5,6 +5,13 @@ import CloudKit
 import Combine
 
 struct Add: View {
+    // 使用與 Home.swift 相同的 enum
+    enum AddMode {
+        case memo      // 備忘錄模式（從待辦事項佇列添加）
+        case today     // 今天模式（從今天添加）
+        case future    // 未來日期模式（從未來日期添加）
+    }
+    
     @Binding var toDoItems: [TodoItem]
     
     @State private var title: String = ""
@@ -39,11 +46,121 @@ struct Add: View {
     @State private var saveError: String? = nil
     @State private var showSaveAlert: Bool = false
     
+    // 用於記住初始模式
+    var mode: AddMode = .today
+    var offset: Int = 0
+    
+    // 新增：明確標記是否來自待辦事項佇列
+    var isFromTodoSheet: Bool = false
+    
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
     
     // 區塊標題列表，模擬多個區塊
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
+    
+    // 新的初始化方法，使用枚舉，並增加來源標記
+    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, onClose: (() -> Void)? = nil) {
+        print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 日期偏移 = \(currentDateOffset), 來自待辦事項佇列 = \(fromTodoSheet)")
+        
+        self._toDoItems = toDoItems
+        self.onClose = onClose
+        self.isFromTodoSheet = fromTodoSheet
+        
+        // 如果來自待辦事項佇列，強制設置為備忘錄模式
+        if fromTodoSheet {
+            self.mode = .memo
+            print("🔴 來自待辦事項佇列，強制設置為備忘錄模式")
+        } else {
+            // 否則根據 initialMode 設置
+            switch initialMode {
+            case .memo:
+                self.mode = .memo
+            case .today:
+                self.mode = .today
+            case .future:
+                self.mode = .future
+            }
+        }
+        
+        self.offset = currentDateOffset
+        
+        // 根據模式設置初始狀態
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        // 根據模式決定初始設置
+        switch initialMode {
+        case .memo:
+            // 備忘錄模式 - 設置索引為0，不啟用日期
+            self._currentBlockIndex = State(initialValue: 0)
+            self._isDateEnabled = State(initialValue: false)
+            self._isTimeEnabled = State(initialValue: false)
+            self._selectedDate = State(initialValue: today)
+            
+            print("初始化為備忘錄模式")
+            
+        case .today:
+            // 今天模式 - 設置索引為1，啟用日期
+            self._currentBlockIndex = State(initialValue: 1)
+            self._isDateEnabled = State(initialValue: true)
+            self._isTimeEnabled = State(initialValue: false)
+            self._selectedDate = State(initialValue: today)
+            
+            print("初始化為今天模式")
+            
+        case .future:
+            // 未來日期模式 - 設置索引為日期偏移+1，啟用日期
+            self._currentBlockIndex = State(initialValue: currentDateOffset + 1)
+            self._isDateEnabled = State(initialValue: true)
+            self._isTimeEnabled = State(initialValue: false)
+            
+            // 計算未來日期
+            let futureDate = calendar.date(byAdding: .day, value: currentDateOffset, to: today) ?? today
+            self._selectedDate = State(initialValue: futureDate)
+            
+            print("初始化為未來日期模式，日期為：\(futureDate)")
+        }
+        
+        print("Add.swift 初始化完成")
+    }
+    
+    // 設置初始狀態的方法 - 抽取為函數以便重複使用
+    private func setupInitialState() {
+        // 首先檢查是否來自待辦事項佇列
+        if isFromTodoSheet {
+            // 如果來自待辦事項佇列，強制設置為備忘錄模式
+            isDateEnabled = false
+            isTimeEnabled = false
+            currentBlockIndex = 0
+            print("🔴 來自待辦事項佇列，強制設置為備忘錄模式：isDateEnabled=false, isTimeEnabled=false, currentBlockIndex=0")
+            return
+        }
+        
+        // 否則根據模式設置不同的初始狀態
+        switch mode {
+        case .memo:
+            // 備忘錄模式 - 關閉日期和時間
+            isDateEnabled = false
+            isTimeEnabled = false
+            currentBlockIndex = 0
+            print("🔧 設置為備忘錄模式：isDateEnabled=false, isTimeEnabled=false, currentBlockIndex=0")
+            
+        case .today:
+            // 今天模式 - 啟用日期
+            isDateEnabled = true
+            isTimeEnabled = false
+            currentBlockIndex = 1
+            print("🔧 設置為今天模式：isDateEnabled=true, currentBlockIndex=1")
+            
+        case .future:
+            // 未來日期模式 - 啟用日期，設置為相應的日期偏移
+            isDateEnabled = true
+            isTimeEnabled = false
+            currentBlockIndex = offset + 1
+            print("🔧 設置為未來日期模式：isDateEnabled=true, currentBlockIndex=\(offset+1)")
+        }
+    }
     
     // Format the time button text based on selected date/time
     var timeButtonText: String {
@@ -120,7 +237,9 @@ struct Add: View {
                         .padding(.leading, 20)
                     
                     // 自定義滑動區域，讓兩邊可以看到一部分下一個/上一個區塊
-                    ScrollCalendarView()
+                    // 根據模式和來源設定初始選擇的日期
+                    ScrollCalendarView(initialSelectedDay: isFromTodoSheet ? 0 : (mode == .memo ? 0 : (mode == .today ? 1 : offset + 1)))
+                        .id("calendar_view_\(isFromTodoSheet ? "todosheet" : String(describing: mode))") // 將 mode 轉換為字串
                         .padding(.top, 9)
                         .padding(.leading, 16)
                     
@@ -385,6 +504,30 @@ struct Add: View {
             // This way it won't inherit the keyboard toolbar
         }
         .background(Color(red: 0.22, green: 0.22, blue: 0.22).opacity(0.7))
+        // 添加 onAppear 處理，確保根據初始模式設置正確的狀態
+        .onAppear {
+            // 在視圖出現時打印當前狀態以進行調試
+            print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 目前塊索引: \(currentBlockIndex)")
+            
+            // 立即設置
+            setupInitialState()
+            
+            // 使用 DispatchQueue.main.async 確保在 UI 更新後執行
+            DispatchQueue.main.async {
+                // 再次調用設置
+                setupInitialState()
+                
+                // 延遲設置第三次
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    setupInitialState()
+                    
+                    // 最終檢查
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🔄 最終狀態檢查：mode=\(mode), isDateEnabled=\(isDateEnabled), currentBlockIndex=\(currentBlockIndex)")
+                    }
+                }
+            }
+        }
         // Move the fullScreenCover for AddNote outside the main view structure
         .fullScreenCover(isPresented: $showAddNoteView) {
             AddNote(noteText: note) { savedNote in
@@ -411,6 +554,27 @@ struct Add: View {
         // 設置保存中狀態
         isSaving = true
         
+        // 根據當前模式選擇正確的日期
+        let finalTaskDate: Date
+        
+        switch mode {
+        case .memo:
+            // 備忘錄模式，使用當前日期
+            finalTaskDate = Date()
+            print("使用當前日期保存備忘錄任務")
+            
+        case .today, .future:
+            if isDateEnabled || isTimeEnabled {
+                // 如果日期已啟用，使用選擇的日期
+                finalTaskDate = selectedDate
+                print("使用選擇的日期保存任務: \(selectedDate)")
+            } else {
+                // 默認情況下使用預設日期
+                finalTaskDate = taskDate
+                print("使用預設日期保存任務")
+            }
+        }
+        
         // 創建新的 TodoItem，將狀態設為 toDoList
         let newTask = TodoItem(
             id: UUID(),
@@ -418,7 +582,7 @@ struct Add: View {
             title: displayText,
             priority: priority,
             isPinned: isPinned,
-            taskDate: isDateEnabled || isTimeEnabled ? selectedDate : taskDate,
+            taskDate: finalTaskDate,
             note: note,
             status: .toDoList, // 設置為 toDoList 狀態
             createdAt: Date(),
@@ -550,9 +714,12 @@ struct Add_Previews: PreviewProvider {
     @State static var mockItems: [TodoItem] = []
     
     static var previews: some View {
-        Add(toDoItems: $mockItems)
-            .background(Color.black)
-            .edgesIgnoringSafeArea(.all)
+        Add(toDoItems: $mockItems, initialMode: Home.AddTaskMode.today, currentDateOffset: 0, fromTodoSheet: false) {
+            // 空的關閉回調
+            print("預覽關閉")
+        }
+        .background(Color.black)
+        .edgesIgnoringSafeArea(.all)
     }
 }
 

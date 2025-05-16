@@ -11,6 +11,20 @@ struct Home: View {
     @State private var showToDoSheet: Bool = false
     @State private var showAddTaskSheet: Bool = false
     @State private var currentDate: Date = Date()  // 添加當前時間狀態
+    
+    // 明確的 Add 視圖模式枚舉
+    enum AddTaskMode {
+        case memo      // 備忘錄模式（從待辦事項佇列添加）
+        case today     // 今天模式（從今天添加）
+        case future    // 未來日期模式（從未來日期添加）
+    }
+    
+    // 直接使用枚舉來追踪 Add 視圖的模式
+    @State private var addTaskMode: AddTaskMode = .today
+    
+    // 新增：一個全局標記，用於確保從待辦事項佇列添加時一定是備忘錄模式
+    // 也需要標記為 @State，因為 struct 中的屬性默認是不可變的
+    @State private var isFromTodoSheet: Bool = false
     @State private var timer: Timer?  // 添加定時器
     @State private var toDoItems: [TodoItem] = []
     @State private var isLoading: Bool = true
@@ -288,6 +302,10 @@ struct Home: View {
                                 
                                 // plus 按鈕 - 新增任務
                                 Button {
+                                    // 設置為今天模式
+                                    addTaskMode = .today
+                                    print("今天頁面的Plus按鈕被點擊，設置模式為: today")
+                                    
                                     withAnimation(.easeInOut) {
                                         showAddTaskSheet = true
                                     }
@@ -343,6 +361,10 @@ struct Home: View {
                             
                             // plus 按鈕 - 新增任務
                             Button {
+                                // 設置為未來日期模式
+                                addTaskMode = .future
+                                print("未來日期頁面的Plus按鈕被點擊，設置模式為: future")
+                                
                                 withAnimation(.easeInOut) {
                                     showAddTaskSheet = true
                                 }
@@ -392,13 +414,40 @@ struct Home: View {
                             Spacer().frame(height: geometry.size.height * 0.15)
                             
                             // 中央弹出视图 - 设置最大高度以避免遮挡底部按钮
-                            ToDoSheetView(toDoItems: toDoItems) {
-                                withAnimation(.easeInOut) {
-                                    showToDoSheet = false
-                                    // 關閉時刷新數據
-                                    loadTodoItems()
+                            ToDoSheetView(
+                                toDoItems: toDoItems,
+                                onDismiss: {
+                                    withAnimation(.easeInOut) {
+                                        showToDoSheet = false
+                                        // 關閉時刷新數據
+                                        loadTodoItems()
+                                    }
+                                },
+                                onAddButtonPressed: {
+                                    // 設置全局標記為 true
+                                    isFromTodoSheet = true
+                                    
+                                    // 明確設置為備忘錄模式
+                                    addTaskMode = .memo
+                                    print("⚠️ 待辦事項佇列的加號按鈕被點擊，設置模式為: memo，isFromTodoSheet = \(isFromTodoSheet)")
+                                    
+                                    // 使用主線程確保UI更新正確
+                                    DispatchQueue.main.async {
+                                        // 再次確認全局標記
+                                        isFromTodoSheet = true
+                                        
+                                        withAnimation(.easeInOut) {
+                                            // 先關閉待辦事項視圖
+                                            showToDoSheet = false
+                                            // 然後顯示添加任務視圖
+                                            showAddTaskSheet = true
+                                            
+                                            // 打印調試信息
+                                            print("⚠️ 從待辦事項佇列添加任務，當前模式 = \(addTaskMode)，isFromTodoSheet = \(isFromTodoSheet)")
+                                        }
+                                    }
                                 }
-                            }
+                            )
                             .frame(maxHeight: geometry.size.height - 180) // 限制最大高度
                             
                             Spacer()
@@ -434,9 +483,22 @@ struct Home: View {
                     }
                     
                     // Add視圖，在模糊背景之上
-                    Add(toDoItems: $toDoItems, onClose: {
+                    Add(toDoItems: $toDoItems, 
+                        // 首先判斷是否來自待辦事項佇列，如果是則強制為備忘錄模式
+                        // 否則再根據當前日期偏移決定模式
+                        initialMode: isFromTodoSheet ? .memo : (currentDateOffset == 0 ? .today : .future),
+                        currentDateOffset: currentDateOffset,
+                        fromTodoSheet: isFromTodoSheet, // 傳遞這個標記
+                        onClose: {
+                        // 打印調試信息
+                        print("⚠️ 關閉Add視圖，最終模式 = \(addTaskMode)，isFromTodoSheet = \(isFromTodoSheet)")
+                        
                         // 先将showAddTaskSheet设为false
                         showAddTaskSheet = false
+                        // 重置為默認模式
+                        addTaskMode = .today
+                        // 重置標記
+                        isFromTodoSheet = false
                         
                         // 然后延迟一点时间再刷新数据
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

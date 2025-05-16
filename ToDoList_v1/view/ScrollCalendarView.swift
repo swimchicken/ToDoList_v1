@@ -6,7 +6,18 @@ struct ScrollCalendarView: View {
 
     // 動態管理天數的狀態
     @State private var totalDays = 60
-    @State private var selectedDay = 0 // 0=備忘錄, 1=TODAY, 2=Tomorrow...
+    @State private var selectedDay: Int = 0 // 預設為備忘錄
+    
+    // 使用更簡潔的初始化方法
+    init() {
+        // 使用默認值 0 (備忘錄)
+        self._selectedDay = State(initialValue: 0)
+    }
+    
+    // 帶參數的初始化方法
+    init(initialSelectedDay: Int) {
+        self._selectedDay = State(initialValue: initialSelectedDay)
+    }
     
     var body: some View {
         // 主視圖容器
@@ -32,8 +43,36 @@ struct ScrollCalendarView: View {
                     .padding(.horizontal, 20)
                 }
                 .onAppear {
-                    // 初始顯示「備忘錄」區塊
-                    proxy.scrollTo(0, anchor: .center)
+                    // 根據初始選擇日期滾動到相應位置
+                    print("📜 ScrollCalendarView onAppear: 正準備滾動到 \(selectedDay) 位置")
+                    
+                    // 強制更新 selectedDay 為當前指定的初始值
+                    // 這裡我們不需要再引用 initialSelectedDay 了，因為 selectedDay 值已經在初始化時設置好
+                    
+                    // 使用多層延遲確保視圖已經完全加載並刷新
+                    DispatchQueue.main.async {
+                        print("📜 第一層異步: selectedDay = \(selectedDay)")
+                        // 這裡不需要再設置 selectedDay
+                        
+                        // 延遲 0.1 秒滾動（確保視圖已經完全加載）
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            print("📜 第二層延遲: 正在滾動到 \(selectedDay) 位置")
+                            
+                            // 直接滾動到 selectedDay 位置
+                            withAnimation {
+                                proxy.scrollTo(selectedDay, anchor: .center)
+                            }
+                            
+                            // 延遲 0.3 秒再次檢查
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                print("📜 最終確認: selectedDay = \(selectedDay)")
+                                // 最後一次確認滾動位置
+                                withAnimation {
+                                    proxy.scrollTo(selectedDay, anchor: .center)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -50,14 +89,17 @@ struct ScrollCalendarView: View {
             // 取得區塊內容
             let blockInfo = getBlockInfo(for: dayIndex)
             
+            // 確保備忘錄區塊更明顯區分
+            let isMemoBLock = dayIndex == 0
+            
             return ZStack {
-                // 背景矩形
+                // 背景矩形 - 備忘錄區塊使用不同的顏色
                 Rectangle()
                     .foregroundColor(.clear)
                     .frame(width: 329, height: 51)
-                    .background(Color(red: 0.85, green: 0.85, blue: 0.85))
+                    .background(isMemoBLock ? Color(red: 0, green: 0.72, blue: 0.41).opacity(0.3) : Color(red: 0.85, green: 0.85, blue: 0.85))
                     .cornerRadius(8)
-                    .opacity(0.15)
+                    .opacity(isMemoBLock ? 0.4 : 0.15)
                 
                 // 內容
                 HStack {
@@ -143,7 +185,7 @@ struct HorizontalCalendarView_Previews: PreviewProvider {
     static var previews: some View {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
-            ScrollCalendarView()
+            ScrollCalendarView(initialSelectedDay: 0) // 使用明確的參數
         }
     }
 }
