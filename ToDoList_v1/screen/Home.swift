@@ -2,6 +2,9 @@ import SwiftUI
 import SpriteKit
 import CloudKit
 
+
+
+
 struct Home: View {
     @State private var showCalendarView: Bool = false
     @State private var updateStatus: String = ""
@@ -13,6 +16,8 @@ struct Home: View {
     @State private var isLoading: Bool = true
     @State private var loadingError: String? = nil
     @State private var isSyncing: Bool = false // 新增：同步狀態標記
+    
+    
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
@@ -367,39 +372,44 @@ struct Home: View {
                 .zIndex(2) // 設置底部容器的層級
                 
             }
-            .blur(radius: showAddTaskSheet ? 13.5 : 0)
+            .blur(radius: showAddTaskSheet || showAddTaskSheet ? 13.5 : 0)
 
-            // 4. ToDoSheetView 彈窗 - 使用半透明背景覆盖整个屏幕
+            // 4. ToDoSheetView 彈窗 - 僅覆蓋部分屏幕而非整個屏幕
             if showToDoSheet {
-                // 半透明背景
-                Color.black.opacity(0.5)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        withAnimation(.easeInOut) { showToDoSheet = false }
-                    }
-                    .zIndex(9)
-                
-                // 弹出视图位置调整 - 进一步降低位置
                 GeometryReader { geometry in
-                    VStack {
-                        // 调整上方空间，显示在更下方
-                        Spacer().frame(height: geometry.size.height * 0.15)
-                        
-                        // 中央弹出视图
-                        ToDoSheetView(toDoItems: toDoItems) {
-                            withAnimation(.easeInOut) {
-                                showToDoSheet = false
-                                // 關閉時刷新數據
-                                loadTodoItems()
+                    ZStack(alignment: .top) {
+                        // 半透明背景 - 只覆蓋上方部分，保留底部按鈕區域可點擊
+                        Color.black.opacity(0.5)
+                            .frame(height: geometry.size.height - 180) // 保留底部空間給按鈕
+                            .onTapGesture {
+                                withAnimation(.easeInOut) { showToDoSheet = false }
                             }
-                        }
+                            .zIndex(9)
                         
-                        // 预留更多空间给底部
-                        Spacer()
+                        // 弹出视图位置调整 - 确保不会遮挡底部按钮
+                        VStack {
+                            // 调整上方空间
+                            Spacer().frame(height: geometry.size.height * 0.15)
+                            
+                            // 中央弹出视图 - 设置最大高度以避免遮挡底部按钮
+                            ToDoSheetView(toDoItems: toDoItems) {
+                                withAnimation(.easeInOut) {
+                                    showToDoSheet = false
+                                    // 關閉時刷新數據
+                                    loadTodoItems()
+                                }
+                            }
+                            .frame(maxHeight: geometry.size.height - 180) // 限制最大高度
+                            
+                            Spacer()
+                        }
+                        .frame(width: geometry.size.width)
+                        .zIndex(10)
                     }
-                    .frame(width: geometry.size.width)
+                    // 添加模糊效果 - 當 Add 視窗打開時
+                    .blur(radius: showAddTaskSheet ? 13.5 : 0)
                 }
-                .zIndex(10) // 設置ToDoSheetView在最上層
+                .ignoresSafeArea()
             }
             
             // 5. 添加 Add.swift 彈出視圖

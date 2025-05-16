@@ -9,15 +9,19 @@ enum ToDoCategory: Int {
 
 struct ToDoSheetView: View {
     let toDoItems: [TodoItem]
-    let onDismiss: () -> Void  // 用來從外部關閉此視圖
+    let onDismiss: () -> Void          // 用來從外部關閉此視圖
+    let onAddButtonPressed: () -> Void // 新增：用來通知外部加號按鈕被點擊
     
     // 創建一個內部可修改的副本
     @State private var mutableItems: [TodoItem]
     
     // 構造器，初始化可變副本
-    init(toDoItems: [TodoItem], onDismiss: @escaping () -> Void) {
+    init(toDoItems: [TodoItem],
+        onDismiss: @escaping () -> Void,
+        onAddButtonPressed: @escaping () -> Void = {}) { // 默認為空函數
         self.toDoItems = toDoItems
         self.onDismiss = onDismiss
+        self.onAddButtonPressed = onAddButtonPressed
         // 初始化內部副本
         _mutableItems = State(initialValue: toDoItems)
     }
@@ -73,8 +77,10 @@ struct ToDoSheetView: View {
                         categoryButton(.all, title: "全部")
                         categoryButton(.memo, title: "備忘錄")
                         categoryButton(.incomplete, title: "未完成")
+                        // 修改為
                         Button {
-                            // 新增分類按鈕的功能
+                            // 通知外部加號按鈕被點擊
+                            onAddButtonPressed()
                         } label: {
                             Image(systemName: "plus")
                                 .foregroundColor(Color(red: 0.53, green: 0.53, blue: 0.53))
@@ -111,8 +117,8 @@ struct ToDoSheetView: View {
                 .padding(.bottom, 20)
             }
         }
-        // 圓角和尺寸
-        .frame(width: UIScreen.main.bounds.width - 40, height: 530)
+        // 修改尺寸，確保不會過長遮擋底部按鈕
+        .frame(width: UIScreen.main.bounds.width - 40, height: 450) // 降低高度從530降至450
         .cornerRadius(30)
         // 动画和偏移 - 默认位置不设置，由容器控制
         .offset(y: (animateSheetUp ? 0 : 800) + currentDragOffset)
@@ -169,7 +175,6 @@ struct ToDoSheetView: View {
         }
     }
 }
-
 struct ToDoSheetView_Previews: PreviewProvider {
     @State static var previewItems: [TodoItem] = [
         TodoItem(

@@ -6,6 +6,7 @@ import Combine
 
 struct Add: View {
     @Binding var toDoItems: [TodoItem]
+    
     @State private var title: String = ""
     @State private var displayText: String = "" // 用於顯示在輸入框
     @State private var note: String = "" // 用於儲存 AddNote 的內容，不顯示在輸入框
