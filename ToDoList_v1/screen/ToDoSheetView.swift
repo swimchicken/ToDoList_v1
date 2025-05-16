@@ -8,22 +8,22 @@ enum ToDoCategory: Int {
 }
 
 struct ToDoSheetView: View {
-    let toDoItems: [TodoItem]
-    let onDismiss: () -> Void          // 用來從外部關閉此視圖
-    let onAddButtonPressed: () -> Void // 新增：用來通知外部加號按鈕被點擊
+    @Binding var toDoItems: [TodoItem]            // 使用 Binding 讓更新可以傳遞回父視圖
+    let onDismiss: () -> Void                     // 用來從外部關閉此視圖
+    var onAddButtonPressed: () -> Void = {}       // 回調函數，通知 Home 顯示 Add 視圖
     
     // 創建一個內部可修改的副本
     @State private var mutableItems: [TodoItem]
     
     // 構造器，初始化可變副本
-    init(toDoItems: [TodoItem],
-        onDismiss: @escaping () -> Void,
-        onAddButtonPressed: @escaping () -> Void = {}) { // 默認為空函數
-        self.toDoItems = toDoItems
+    init(toDoItems: Binding<[TodoItem]>,
+         onDismiss: @escaping () -> Void,
+         onAddButtonPressed: @escaping () -> Void = {}) {
+        self._toDoItems = toDoItems                 // 初始化繫結
         self.onDismiss = onDismiss
         self.onAddButtonPressed = onAddButtonPressed
         // 初始化內部副本
-        _mutableItems = State(initialValue: toDoItems)
+        _mutableItems = State(initialValue: toDoItems.wrappedValue)
     }
 
     @State private var selectedCategory: ToDoCategory = .all
@@ -77,10 +77,18 @@ struct ToDoSheetView: View {
                         categoryButton(.all, title: "全部")
                         categoryButton(.memo, title: "備忘錄")
                         categoryButton(.incomplete, title: "未完成")
-                        // 修改為
+                        // 分類列中的加號按鈕
                         Button {
-                            // 通知外部加號按鈕被點擊
-                            onAddButtonPressed()
+                            // 通知 Home 顯示 Add 視圖
+                            print("🚨 ToDoSheetView - 分類列加號按鈕被點擊")
+                            // 先關閉待辦事項視圖
+                            withAnimation {
+                                onDismiss()
+                            }
+                            // 然後通知 Home 顯示 Add 視圖
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                onAddButtonPressed()
+                            }
                         } label: {
                             Image(systemName: "plus")
                                 .foregroundColor(Color(red: 0.53, green: 0.53, blue: 0.53))
@@ -115,6 +123,33 @@ struct ToDoSheetView: View {
                     }
                 }
                 .padding(.bottom, 20)
+                
+                // 底部添加按鈕 - 固定在底部
+                Button(action: {
+                    // 通知 Home 顯示 Add 視圖
+                    print("🚨 ToDoSheetView - 底部加號按鈕被點擊")
+                    // 先關閉待辦事項視圖
+                    withAnimation {
+                        onDismiss()
+                    }
+                    // 然後通知 Home 顯示 Add 視圖
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        onAddButtonPressed()
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 20))
+                        Text("新增待辦事項")
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 20)
+                    .foregroundColor(.black)
+                    .background(Color.white)
+                    .cornerRadius(25)
+                }
+                .padding(.bottom, 16)
             }
         }
         // 修改尺寸，確保不會過長遮擋底部按鈕
@@ -222,7 +257,7 @@ struct ToDoSheetView_Previews: PreviewProvider {
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             ToDoSheetView(
-                toDoItems: previewItems,
+                toDoItems: .constant(previewItems),
                 onDismiss: {}
             )
         }

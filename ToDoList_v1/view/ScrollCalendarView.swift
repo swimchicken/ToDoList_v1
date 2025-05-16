@@ -97,7 +97,7 @@ struct ScrollCalendarView: View {
                 Rectangle()
                     .foregroundColor(.clear)
                     .frame(width: 329, height: 51)
-                    .background(isMemoBLock ? Color(red: 0, green: 0.72, blue: 0.41).opacity(0.3) : Color(red: 0.85, green: 0.85, blue: 0.85))
+                    .background(isMemoBLock ? Color.gray : Color(red: 0.85, green: 0.85, blue: 0.85))
                     .cornerRadius(8)
                     .opacity(isMemoBLock ? 0.4 : 0.15)
                 

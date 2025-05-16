@@ -70,7 +70,7 @@ struct Add: View {
         // 如果來自待辦事項佇列，強制設置為備忘錄模式
         if fromTodoSheet {
             self.mode = .memo
-            print("🔴 來自待辦事項佇列，強制設置為備忘錄模式")
+            print("🚨 初始化 - 來自待辦事項佇列，強制設置為備忘錄模式 (isFromTodoSheet=\(fromTodoSheet))")
         } else {
             // 否則根據 initialMode 設置
             switch initialMode {
@@ -133,7 +133,7 @@ struct Add: View {
             isDateEnabled = false
             isTimeEnabled = false
             currentBlockIndex = 0
-            print("🔴 來自待辦事項佇列，強制設置為備忘錄模式：isDateEnabled=false, isTimeEnabled=false, currentBlockIndex=0")
+            print("🚨 setupInitialState - 來自待辦事項佇列，強制設置為備忘錄模式：isFromTodoSheet=\(isFromTodoSheet), isDateEnabled=\(isDateEnabled), isTimeEnabled=\(isTimeEnabled), currentBlockIndex=\(currentBlockIndex)")
             return
         }
         
