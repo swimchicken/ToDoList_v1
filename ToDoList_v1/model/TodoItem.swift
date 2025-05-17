@@ -8,7 +8,7 @@ struct TodoItem: Identifiable, Codable {
     var title: String
     var priority: Int
     var isPinned: Bool
-    var taskDate: Date
+    var taskDate: Date? // 修改為可選類型，允許 null 值
     var note: String
     var status: TodoStatus
     var createdAt: Date

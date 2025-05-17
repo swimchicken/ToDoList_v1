@@ -79,9 +79,13 @@ struct Home: View {
         let startOfDay = calendar.startOfDay(for: dateWithOffset)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
-        // 篩選當天的項目
+        // 篩選當天的項目（只包含有時間的項目）
         let filteredItems = toDoItems.filter { item in
-            return item.taskDate >= startOfDay && item.taskDate < endOfDay
+            // 先過濾有任務日期的項目，再進行日期比較
+            guard let taskDate = item.taskDate else {
+                return false // 沒有日期的項目（備忘錄）不包含在指定日期內
+            }
+            return taskDate >= startOfDay && taskDate < endOfDay
         }
         
         // 排序：首先按置頂狀態排序，其次按任務日期排序
@@ -95,7 +99,10 @@ struct Home: View {
             }
                     
             // 如果置頂狀態相同，按任務日期排序（由早到晚）
-            return item1.taskDate < item2.taskDate
+            // 因為這個階段的項目都已經通過了前面的過濾，所以已經確保它們都有任務日期
+            let date1 = item1.taskDate ?? Date.distantFuture
+            let date2 = item2.taskDate ?? Date.distantFuture
+            return date1 < date2
         }
     }
 

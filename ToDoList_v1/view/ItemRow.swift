@@ -69,10 +69,18 @@ struct ItemRow: View {
                 .background(Color.clear) // 用於調試布局的顏色，可以移除
 
                 // 4. 時間：固定大小，最右
-                Text("\(item.taskDate, formatter: ItemRow.timeFormatter)")
-                    .font(.subheadline)
-                    .fixedSize(horizontal: true, vertical: false) // 確保時間寬度固定
-                    .foregroundColor(item.status == .completed ? doneColor : .white)
+                if let taskDate = item.taskDate {
+                    Text("\(taskDate, formatter: ItemRow.timeFormatter)")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: true, vertical: false) // 確保時間寬度固定
+                        .foregroundColor(item.status == .completed ? doneColor : .white)
+                } else {
+                    // 如果沒有時間（nil），顯示空白占位符
+                    Text("--:--")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .foregroundColor(.gray.opacity(0.7))
+                }
             }
             .padding(.vertical, 13) // 增加垂直內距使內容更舒適
             .padding(.horizontal, 2) // 微調水平內距
@@ -124,6 +132,13 @@ struct ItemRow_Previews: PreviewProvider {
         taskDate: Date().addingTimeInterval(10800), note: "", status: .completed,
         createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
+    // 新增一個無時間的項目
+    @State static var todo5 = TodoItem(
+        id: UUID(), userID: "u",
+        title: "備忘錄項目（無時間）", priority: 0, isPinned: false,
+        taskDate: nil, note: "測試無時間項目的顯示方式", status: .toBeStarted,
+        createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
+    )
 
     static var previews: some View {
         VStack(spacing: 0) { // 使用 VStack 顯示多個預覽
@@ -134,6 +149,8 @@ struct ItemRow_Previews: PreviewProvider {
             ItemRow(item: $todo2)
             Rectangle().fill(Color.white.opacity(0.2)).frame(height: 2) // 模擬分隔線
             ItemRow(item: $todo4)
+            Rectangle().fill(Color.white.opacity(0.2)).frame(height: 2) // 模擬分隔線
+            ItemRow(item: $todo5) // 新增無時間項目預覽
         }
         .padding() // 給 VStack 一點邊距
         .background(Color.black) // 設定背景色

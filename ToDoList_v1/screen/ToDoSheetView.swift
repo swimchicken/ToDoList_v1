@@ -26,7 +26,7 @@ struct ToDoSheetView: View {
         _mutableItems = State(initialValue: toDoItems.wrappedValue)
     }
 
-    @State private var selectedCategory: ToDoCategory = .all
+    @State private var selectedCategory: ToDoCategory = .memo // 默認顯示備忘錄項目
     @State private var animateSheetUp: Bool = false
     @State private var currentDragOffset: CGFloat = 0  // 拖曳時累計的垂直偏移量
 
@@ -36,8 +36,8 @@ struct ToDoSheetView: View {
         case .all:
             return mutableItems
         case .memo:
-            // 這裡以 priority == 2 作為篩選「備忘錄」的條件，可依需求修改
-            return mutableItems.filter { $0.priority == 2 }
+            // 篩選沒有時間的項目 (備忘錄項目)
+            return mutableItems.filter { $0.taskDate == nil }
         case .incomplete:
             // 過濾出狀態不是 .completed 的待辦事項
             return mutableItems.filter { $0.status != .completed }
@@ -111,13 +111,30 @@ struct ToDoSheetView: View {
                 // 待辦事項列表 - 使用TodoSheetItemRow
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(filteredItems.indices, id: \.self) { index in
-                            let item = filteredItems[index]
-                            if let originalIndex = mutableItems.firstIndex(where: { $0.id == item.id }) {
-                                TodoSheetItemRow(item: $mutableItems[originalIndex])
-                                Divider()
-                                    .background(Color.white.opacity(0.1))
-                                    .padding(.leading, 60)
+                        if filteredItems.isEmpty && selectedCategory == .memo {
+                            VStack(spacing: 8) {
+                                Text("還沒有備忘錄項目")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .padding(.top, 30)
+                                
+                                Text("點擊加號來添加一個沒有時間的備忘錄項目")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray.opacity(0.7))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                        } else {
+                            ForEach(filteredItems.indices, id: \.self) { index in
+                                let item = filteredItems[index]
+                                if let originalIndex = mutableItems.firstIndex(where: { $0.id == item.id }) {
+                                    TodoSheetItemRow(item: $mutableItems[originalIndex])
+                                    Divider()
+                                        .background(Color.white.opacity(0.1))
+                                        .padding(.leading, 60)
+                                }
                             }
                         }
                     }

@@ -73,7 +73,14 @@ class CloudKitService {
         record.setValue(todoItem.title, forKey: "title")
         record.setValue(todoItem.priority, forKey: "priority")
         record.setValue(todoItem.isPinned, forKey: "isPinned")
-        record.setValue(todoItem.taskDate, forKey: "taskDate")
+        
+        // 處理可選的任務日期
+        if let taskDate = todoItem.taskDate {
+            record.setValue(taskDate, forKey: "taskDate")
+        } else {
+            record.setValue(nil, forKey: "taskDate")
+        }
+        
         record.setValue(todoItem.note, forKey: "note")
         record.setValue(todoItem.status.rawValue, forKey: "status")
         record.setValue(todoItem.createdAt, forKey: "createdAt")
@@ -149,7 +156,10 @@ class CloudKitService {
         let title = record.value(forKey: "title") as? String ?? ""
         let priority = record.value(forKey: "priority") as? Int ?? 0
         let isPinned = record.value(forKey: "isPinned") as? Bool ?? false
-        let taskDate = record.value(forKey: "taskDate") as? Date ?? Date()
+        
+        // 讀取可選的任務日期
+        let taskDate = record.value(forKey: "taskDate") as? Date
+        
         let note = record.value(forKey: "note") as? String ?? ""
         let statusRawValue = record.value(forKey: "status") as? String ?? TodoStatus.toDoList.rawValue
         let status = TodoStatus(rawValue: statusRawValue) ?? .toDoList
@@ -221,7 +231,7 @@ class CloudKitService {
             title: "查詢錯誤",
             priority: 1,
             isPinned: true,
-            taskDate: Date(),
+            taskDate: Date(), // 保留日期，這是一個錯誤提示項目
             note: "錯誤: \(error.localizedDescription)",
             status: .toDoList,
             createdAt: Date(),
@@ -237,7 +247,7 @@ class CloudKitService {
             title: "歡迎使用待辦事項",
             priority: 1,
             isPinned: true,
-            taskDate: Date(),
+            taskDate: Date(), // 保留日期，這是一個歡迎項目
             note: "點擊加號按鈕添加您的第一個待辦事項",
             status: .toDoList,
             createdAt: Date(),
@@ -289,7 +299,7 @@ class CloudKitService {
                         title: "測試項目 - 請嘗試添加新項目",
                         priority: 1,
                         isPinned: true,
-                        taskDate: Date(),
+                        taskDate: Date(), // 保留日期，這是一個測試項目
                         note: "這是一個測試項目，表示CloudKit可能初始化成功但沒有數據",
                         status: .toDoList,
                         createdAt: Date(),
@@ -319,7 +329,7 @@ class CloudKitService {
                         title: "iCloud 登入錯誤 - 請檢查登入狀態",
                         priority: 1,
                         isPinned: true,
-                        taskDate: Date(),
+                        taskDate: Date(), // 保留日期，這是一個錯誤提示項目
                         note: "此錯誤表示您可能未登入 iCloud 或應用沒有足夠權限",
                         status: .toDoList,
                         createdAt: Date(),
@@ -336,7 +346,7 @@ class CloudKitService {
                         title: "讀取錯誤 - \(nsError.code)",
                         priority: 1,
                         isPinned: true,
-                        taskDate: Date(),
+                        taskDate: Date(), // 保留日期，這是一個錯誤提示項目
                         note: "無法讀取 CloudKit 數據: \(error.localizedDescription)",
                         status: .toDoList,
                         createdAt: Date(),
@@ -404,7 +414,14 @@ class CloudKitService {
             record.setValue(todoItem.title, forKey: "title")
             record.setValue(todoItem.priority, forKey: "priority")
             record.setValue(todoItem.isPinned, forKey: "isPinned")
-            record.setValue(todoItem.taskDate, forKey: "taskDate")
+            
+            // 處理可選的任務日期
+            if let taskDate = todoItem.taskDate {
+                record.setValue(taskDate, forKey: "taskDate")
+            } else {
+                record.setValue(nil, forKey: "taskDate")
+            }
+            
             record.setValue(todoItem.note, forKey: "note")
             record.setValue(todoItem.status.rawValue, forKey: "status")
             record.setValue(todoItem.updatedAt, forKey: "updatedAt")

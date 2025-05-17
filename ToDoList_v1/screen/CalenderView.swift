@@ -168,7 +168,12 @@ struct CalendarView: View {
         let targetDate = calendar.date(from: DateComponents(year: year, month: month, day: day))!
         
         return toDoItems.filter { item in
-            let itemComponents = calendar.dateComponents([.year, .month, .day], from: item.taskDate)
+            // 檢查 taskDate 是否為 nil
+            guard let taskDate = item.taskDate else {
+                return false // 沒有日期的項目不顯示在日曆中
+            }
+            
+            let itemComponents = calendar.dateComponents([.year, .month, .day], from: taskDate)
             let itemDate = calendar.date(from: itemComponents)!
             return calendar.isDate(itemDate, inSameDayAs: targetDate)
         }

@@ -23,6 +23,7 @@ struct Add: View {
     @State private var showAddSuccess: Bool = false
     @State private var currentBlockIndex: Int = 0
     @State private var priorityLevel: Int = 0  // 預設為0，新增：追踪優先級 (0-3)
+    @State private var totalDays: Int = 60     // 總天數，與 ScrollCalendarView 同步
     
     // Add state for time selection
     @State private var isDateEnabled: Bool = false
@@ -162,6 +163,51 @@ struct Add: View {
         }
     }
     
+    // 根據當前的 blockIndex 更新日期選擇
+    func updateDateFromBlockIndex() {
+        print("根據塊索引更新日期，當前索引: \(currentBlockIndex)")
+        
+        // 根據 currentBlockIndex 更新日期和時間狀態
+        if currentBlockIndex == 0 {
+            // 備忘錄模式 - 清除日期
+            isDateEnabled = false
+            isTimeEnabled = false
+            // 保留原有時間以備之後需要
+            print("切換到備忘錄模式，清除日期設置")
+        } else {
+            // 其他模式 - 設置為相應的日期
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            
+            // 計算目標日期（今天 + (currentBlockIndex - 1)天）
+            let targetDate = calendar.date(byAdding: .day, value: currentBlockIndex - 1, to: today) ?? today
+            
+            // 保留原有的時間部分
+            var timeComponents = calendar.dateComponents([.hour, .minute], from: selectedDate)
+            var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
+            
+            // 如果之前沒有啟用時間，則使用當前時間
+            if !isTimeEnabled {
+                let now = Date()
+                timeComponents = calendar.dateComponents([.hour, .minute], from: now)
+            }
+            
+            // 合併日期和時間
+            dateComponents.hour = timeComponents.hour
+            dateComponents.minute = timeComponents.minute
+            
+            // 建立新的日期對象
+            if let combinedDate = calendar.date(from: dateComponents) {
+                selectedDate = combinedDate
+            }
+            
+            // 啟用日期
+            isDateEnabled = true
+            
+            print("切換到日期模式，設置為日期: \(selectedDate)")
+        }
+    }
+    
     // Format the time button text based on selected date/time
     var timeButtonText: String {
         if !isDateEnabled && !isTimeEnabled {
@@ -238,10 +284,31 @@ struct Add: View {
                     
                     // 自定義滑動區域，讓兩邊可以看到一部分下一個/上一個區塊
                     // 根據模式和來源設定初始選擇的日期
-                    ScrollCalendarView(initialSelectedDay: isFromTodoSheet ? 0 : (mode == .memo ? 0 : (mode == .today ? 1 : offset + 1)))
-                        .id("calendar_view_\(isFromTodoSheet ? "todosheet" : String(describing: mode))") // 將 mode 轉換為字串
+                    ScrollCalendarView(initialSelectedDay: currentBlockIndex)
+                        .id("calendar_view_\(currentBlockIndex)") // 使用 currentBlockIndex 作為識別符，這樣當它改變時視圖會更新
                         .padding(.top, 9)
                         .padding(.leading, 16)
+                        // 添加手勢識別器來捕獲滑匡的變化
+                        .gesture(
+                            DragGesture()
+                                .onEnded { value in
+                                    // 根據滑動方向判斷是向左還是向右滑動
+                                    let threshold: CGFloat = 50
+                                    if value.translation.width < -threshold {
+                                        // 向左滑動（增加索引）
+                                        if currentBlockIndex < totalDays {
+                                            currentBlockIndex += 1
+                                            updateDateFromBlockIndex()
+                                        }
+                                    } else if value.translation.width > threshold {
+                                        // 向右滑動（減少索引）
+                                        if currentBlockIndex > 0 {
+                                            currentBlockIndex -= 1
+                                            updateDateFromBlockIndex()
+                                        }
+                                    }
+                                }
+                        )
                     
                     Image("Vector 81")
                         .resizable()
@@ -265,6 +332,12 @@ struct Add: View {
                                     // This is in addition to the notification center observers
                                     // for better reliability
                                     isKeyboardVisible = newValue
+                                    
+                                    // 確保當文字欄獲得焦點時更新日期/時間顯示
+                                    if newValue == true {
+                                        // 再次調用 updateDateFromBlockIndex() 確保時間按鈕顯示最新狀態
+                                        updateDateFromBlockIndex()
+                                    }
                                 }
                                 .onAppear {
                                     // Set up keyboard notification observers
@@ -354,6 +427,9 @@ struct Add: View {
                                                         
                                                         // Hide keyboard first
                                                         isTextFieldFocused = false
+                                                        
+                                                        // 先再次同步時間與滑匡位置，確保時間正確
+                                                        updateDateFromBlockIndex()
                                                         
                                                         // Show the AddTimeView when time button is clicked
                                                         showAddTimeView = true
@@ -474,6 +550,29 @@ struct Add: View {
                         // Update the task date with the selected date/time
                         taskDate = selectedDate
                         
+                        // 根據選擇的日期更新滑匡的日期視圖位置
+                        // 計算所選日期與當前日期的差異天數
+                        let calendar = Calendar.current
+                        let today = calendar.startOfDay(for: Date())
+                        let selectedDay = calendar.startOfDay(for: selectedDate)
+                        
+                        if let dayDifference = calendar.dateComponents([.day], from: today, to: selectedDay).day {
+                            // 更新當前塊索引以反映選擇的日期
+                            // 0:備忘錄，1:今天，2+:未來日期
+                            if dayDifference == 0 {
+                                currentBlockIndex = 1 // 今天
+                            } else if dayDifference > 0 {
+                                currentBlockIndex = dayDifference + 1 // 未來日期
+                            } else {
+                                currentBlockIndex = 1 // 默認為今天
+                            }
+                            print("設置日期滑匡位置為: \(currentBlockIndex)，日期差異: \(dayDifference) 天")
+                        }
+                        
+                        // 設置日期和時間狀態
+                        isDateEnabled = true
+                        isTimeEnabled = true
+                        
                         // Refocus the text field after a short delay if needed
                         if shouldRefocusAfterReturn {
                             // Use a slight delay to ensure the view is fully visible
@@ -517,9 +616,14 @@ struct Add: View {
                 // 再次調用設置
                 setupInitialState()
                 
+                // 確保時間和日期狀態與當前 currentBlockIndex 保持一致
+                updateDateFromBlockIndex()
+                
                 // 延遲設置第三次
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     setupInitialState()
+                    // 再次確保時間和日期狀態與當前 currentBlockIndex 保持一致
+                    updateDateFromBlockIndex()
                     
                     // 最終檢查
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -554,20 +658,27 @@ struct Add: View {
         // 設置保存中狀態
         isSaving = true
         
-        // 根據當前模式選擇正確的日期
-        let finalTaskDate: Date
+        // 根據當前模式和是否設置了時間來選擇正確的日期
+        var finalTaskDate: Date?
+        var hasTimeData = isDateEnabled || isTimeEnabled
         
         switch mode {
         case .memo:
-            // 備忘錄模式，使用當前日期
-            finalTaskDate = Date()
-            print("使用當前日期保存備忘錄任務")
+            if hasTimeData {
+                // 備忘錄模式但有設置時間 - 使用選擇的日期
+                finalTaskDate = selectedDate
+                print("備忘錄模式但有設置時間，使用所選日期: \(selectedDate)")
+            } else {
+                // 備忘錄模式且沒有設置時間 - 日期設為 nil
+                finalTaskDate = nil
+                print("備忘錄模式且沒有設置時間，日期設為 nil")
+            }
             
         case .today, .future:
-            if isDateEnabled || isTimeEnabled {
+            if hasTimeData {
                 // 如果日期已啟用，使用選擇的日期
                 finalTaskDate = selectedDate
-                print("使用選擇的日期保存任務: \(selectedDate)")
+                print("使用所選日期保存任務: \(selectedDate)")
             } else {
                 // 默認情況下使用預設日期
                 finalTaskDate = taskDate
@@ -575,7 +686,10 @@ struct Add: View {
             }
         }
         
-        // 創建新的 TodoItem，將狀態設為 toDoList
+        // 判斷狀態：如果是從備忘錄添加（沒有時間資料）或有添加時間，都設為 toBeStarted
+        let taskStatus: TodoStatus = .toBeStarted // 將狀態設為 toBeStarted
+        
+        // 創建新的 TodoItem
         let newTask = TodoItem(
             id: UUID(),
             userID: "user123", // 這裡可以使用實際的使用者ID
@@ -584,7 +698,7 @@ struct Add: View {
             isPinned: isPinned,
             taskDate: finalTaskDate,
             note: note,
-            status: .toDoList, // 設置為 toDoList 狀態
+            status: taskStatus,
             createdAt: Date(),
             updatedAt: Date(),
             correspondingImageID: "new_task"
