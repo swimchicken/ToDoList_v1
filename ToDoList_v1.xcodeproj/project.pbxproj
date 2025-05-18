@@ -14,7 +14,6 @@
 		790BFDC62DCF83ED00AFD044 /* LocalDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */; };
 		790BFDC82DCF83FB00AFD044 /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */; };
 		790BFDCA2DCF841200AFD044 /* DataSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC92DCF841200AFD044 /* DataSyncManager.swift */; };
-		790BFDD02DCF972800AFD044 /* Today.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDCF2DCF972800AFD044 /* Today.swift */; };
 		790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */; };
 		790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1AB2DC6205500FDFC6D /* AddItem.swift */; };
 		790FF7942DCA499200B9C70B /* CloudKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790FF7932DCA499200B9C70B /* CloudKitService.swift */; };
@@ -39,6 +38,7 @@
 		7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */; };
 		792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792297202DAD59DA00E1A97B /* TodoItem.swift */; };
 		792C41742DC9051D005CCE92 /* AddNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C41732DC9051D005CCE92 /* AddNote.swift */; };
+		793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793B5C112DDA3A55008F92FC /* SettlementView.swift */; };
 		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
 		793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793D1B412DAE748100E0B653 /* BumpyCircle.swift */; };
@@ -83,7 +83,6 @@
 		790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDataManager.swift; sourceTree = "<group>"; };
 		790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
 		790BFDC92DCF841200AFD044 /* DataSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSyncManager.swift; sourceTree = "<group>"; };
-		790BFDCF2DCF972800AFD044 /* Today.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Today.swift; sourceTree = "<group>"; };
 		790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollCalendarView.swift; sourceTree = "<group>"; };
 		790DD1AB2DC6205500FDFC6D /* AddItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddItem.swift; sourceTree = "<group>"; };
 		790FF7932DCA499200B9C70B /* CloudKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitService.swift; sourceTree = "<group>"; };
@@ -111,6 +110,7 @@
 		7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBlur.swift; sourceTree = "<group>"; };
 		792297202DAD59DA00E1A97B /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		792C41732DC9051D005CCE92 /* AddNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddNote.swift; sourceTree = "<group>"; };
+		793B5C112DDA3A55008F92FC /* SettlementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView.swift; sourceTree = "<group>"; };
 		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
 		793D1B412DAE748100E0B653 /* BumpyCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BumpyCircle.swift; sourceTree = "<group>"; };
@@ -257,7 +257,7 @@
 				79C66A322DB40B7300BF8703 /* Add.swift */,
 				791217BC2DC7B92F00E22FF6 /* AddTime.swift */,
 				792C41732DC9051D005CCE92 /* AddNote.swift */,
-				790BFDCF2DCF972800AFD044 /* Today.swift */,
+				793B5C112DDA3A55008F92FC /* SettlementView.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -416,7 +416,6 @@
 			files = (
 				790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */,
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
-				790BFDD02DCF972800AFD044 /* Today.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
@@ -429,6 +428,7 @@
 				793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
 				7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */,
+				793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */,
 				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
 				79C66A332DB40B7300BF8703 /* Add.swift in Sources */,

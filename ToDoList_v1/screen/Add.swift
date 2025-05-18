@@ -284,8 +284,8 @@ struct Add: View {
                     
                     // 自定義滑動區域，讓兩邊可以看到一部分下一個/上一個區塊
                     // 根據模式和來源設定初始選擇的日期
-                    ScrollCalendarView(initialSelectedDay: currentBlockIndex)
-                        .id("calendar_view_\(currentBlockIndex)") // 使用 currentBlockIndex 作為識別符，這樣當它改變時視圖會更新
+                    ScrollCalendarView(currentDisplayingIndex: $currentBlockIndex)
+//                        .id("calendar_view_\(currentBlockIndex)") // 使用 currentBlockIndex 作為識別符，這樣當它改變時視圖會更新
                         .padding(.top, 9)
                         .padding(.leading, 16)
                         // 添加手勢識別器來捕獲滑匡的變化
@@ -298,12 +298,14 @@ struct Add: View {
                                         // 向左滑動（增加索引）
                                         if currentBlockIndex < totalDays {
                                             currentBlockIndex += 1
+                                            print(currentBlockIndex)
                                             updateDateFromBlockIndex()
                                         }
                                     } else if value.translation.width > threshold {
                                         // 向右滑動（減少索引）
                                         if currentBlockIndex > 0 {
                                             currentBlockIndex -= 1
+                                            print(currentBlockIndex)
                                             updateDateFromBlockIndex()
                                         }
                                     }
@@ -604,32 +606,18 @@ struct Add: View {
         }
         .background(Color(red: 0.22, green: 0.22, blue: 0.22).opacity(0.7))
         // 添加 onAppear 處理，確保根據初始模式設置正確的狀態
+        .onChange(of: currentBlockIndex) { oldValue, newValue in
+            print("Add.swift: currentBlockIndex changed from \(oldValue) to \(newValue). Calling updateDateFromBlockIndex()")
+            updateDateFromBlockIndex()
+        }
         .onAppear {
-            // 在視圖出現時打印當前狀態以進行調試
-            print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 目前塊索引: \(currentBlockIndex)")
-            
-            // 立即設置
-            setupInitialState()
-            
-            // 使用 DispatchQueue.main.async 確保在 UI 更新後執行
+            print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 初始currentBlockIndex: \(currentBlockIndex)")
+            setupInitialState() // 確保初始狀態正確設定
+
+            // 延遲執行 updateDateFromBlockIndex 確保 currentBlockIndex 可能已被 ScrollCalendarView 初始回調更新
+            // 或者在 setupInitialState 後直接調用一次，並依賴 onChange 來處理後續滾動
             DispatchQueue.main.async {
-                // 再次調用設置
-                setupInitialState()
-                
-                // 確保時間和日期狀態與當前 currentBlockIndex 保持一致
                 updateDateFromBlockIndex()
-                
-                // 延遲設置第三次
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    setupInitialState()
-                    // 再次確保時間和日期狀態與當前 currentBlockIndex 保持一致
-                    updateDateFromBlockIndex()
-                    
-                    // 最終檢查
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🔄 最終狀態檢查：mode=\(mode), isDateEnabled=\(isDateEnabled), currentBlockIndex=\(currentBlockIndex)")
-                    }
-                }
             }
         }
         // Move the fullScreenCover for AddNote outside the main view structure
