@@ -27,39 +27,41 @@ struct ScrollCalendarView: View {
         )
     }
 
+    // ScrollCalendarView.swift
     var body: some View {
-        // ScrollViewReader 可能仍然有用於某些特定情況，但 .scrollPosition 會處理主要滾動同步
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 8) {
                     ForEach(0...internalTotalDays, id: \.self) { dayIndex in
                         DayBlock(dayIndex: dayIndex)
-                            .id(dayIndex) // 確保每個子視圖有唯一 ID
+                            .id(dayIndex)
                             .onAppear {
                                 if dayIndex >= internalTotalDays - 5 {
-                                    internalTotalDays += 30 // 動態加載更多天
+                                    internalTotalDays += 30
                                 }
                             }
                     }
                 }
-                .scrollTargetLayout() // 配合 scrollTargetBehavior
+                .scrollTargetLayout()
             }
-            .scrollTargetBehavior(.viewAligned) // 使滾動停止時對齊到子視圖
-            .scrollPosition(id: scrollableID) // << --- 使用橋接的 Binding
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: scrollableID) // 雙向綁定 currentDisplayingIndex
             .onAppear {
-                // .scrollPosition 應該會處理初始視圖的對齊。
-                // 如果在某些情況下初始滾動不符合預期，可以考慮在這裡用 proxy.scrollTo，
-                // 但通常情況下 .scrollPosition 會處理好。
-                print("📜 ScrollCalendarView onAppear: currentDisplayingIndex is \(currentDisplayingIndex). ScrollView should position to this ID via .scrollPosition.")
+                let targetIndex = currentDisplayingIndex // 捕獲初始目標值
+                print("📜 ScrollCalendarView onAppear: currentDisplayingIndex is \(targetIndex). 將使用 proxy.scrollTo 強制滾動到 ID \(targetIndex) with .leading anchor。")
+                DispatchQueue.main.async {
+                    // 使用捕獲的 targetIndex，避免在異步塊執行時 currentDisplayingIndex 可能已被修改
+                    proxy.scrollTo(targetIndex, anchor: .leading) // <--- 嘗試 .leading
+                }
             }
-            // 如果你仍然需要在 currentDisplayingIndex 從外部改變時 (非用戶滾動導致) 強制滾動，
-            // 可以保留 onChange，但要注意與 .scrollPosition 的交互。
+            // 移除或保持註解 onChange，因為 .scrollPosition 已經在處理 currentDisplayingIndex 的更新。
+            // 如果之後發現特定情況下需要，再考慮啟用。
             // .onChange(of: currentDisplayingIndex) { oldValue, newValue in
-            //     print("📜 ScrollCalendarView currentDisplayingIndex changed externally to \(newValue). Scrolling with proxy.")
-            //     proxy.scrollTo(newValue, anchor: .center)
+            //     // print("📜 ScrollCalendarView currentDisplayingIndex changed from \(oldValue) to \(newValue). Forcing scroll.")
+            //     // proxy.scrollTo(newValue, anchor: .center)
             // }
         }
-        .frame(height: 60) // 或你需要的高度
+        .frame(height: 60)
     }
 
     // DayBlock 結構和 getBlockInfo 方法保持不變

@@ -60,70 +60,68 @@ struct Add: View {
     // 區塊標題列表，模擬多個區塊
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
     
-    // 新的初始化方法，使用枚舉，並增加來源標記
+    // Add.swift
     init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, onClose: (() -> Void)? = nil) {
         print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 日期偏移 = \(currentDateOffset), 來自待辦事項佇列 = \(fromTodoSheet)")
-        
+
         self._toDoItems = toDoItems
         self.onClose = onClose
         self.isFromTodoSheet = fromTodoSheet
-        
-        // 如果來自待辦事項佇列，強制設置為備忘錄模式
+        self.offset = currentDateOffset
+
+        // 1. 決定最終的模式和起始索引
+        let calculatedMode: AddMode
+        let startIndex: Int
+        let startIsDateEnabled: Bool
+
         if fromTodoSheet {
-            self.mode = .memo
-            print("🚨 初始化 - 來自待辦事項佇列，強制設置為備忘錄模式 (isFromTodoSheet=\(fromTodoSheet))")
+            calculatedMode = .memo
+            startIndex = 0
+            startIsDateEnabled = false
+            print("🚨 初始化 - 來自待辦事項佇列，強制設置為備忘錄模式。Index = 0")
         } else {
-            // 否則根據 initialMode 設置
             switch initialMode {
             case .memo:
-                self.mode = .memo
+                calculatedMode = .memo
+                startIndex = 0
+                startIsDateEnabled = false
+                print("初始化為備忘錄模式。Index = 0")
             case .today:
-                self.mode = .today
+                calculatedMode = .today
+                startIndex = 1 // <<<<< 當是 .today 時，強制為 1
+                startIsDateEnabled = true
+                print("初始化為今天模式。Index = 1")
             case .future:
-                self.mode = .future
+                calculatedMode = .future
+                startIndex = currentDateOffset + 1
+                startIsDateEnabled = true
+                print("初始化為未來日期模式。Index = \(currentDateOffset + 1)")
             }
         }
-        
-        self.offset = currentDateOffset
-        
-        // 根據模式設置初始狀態
+
+        // 2. 設定常規屬性
+        self.mode = calculatedMode
+
+        // 3. 初始化 @State 屬性 (只做一次！)
+        self._currentBlockIndex = State(initialValue: startIndex) // <<<<< 關鍵！
+        self._isDateEnabled = State(initialValue: startIsDateEnabled)
+        self._isTimeEnabled = State(initialValue: false) // 預設不啟用時間
+
+        // 4. 設定初始日期
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        
-        // 根據模式決定初始設置
-        switch initialMode {
-        case .memo:
-            // 備忘錄模式 - 設置索引為0，不啟用日期
-            self._currentBlockIndex = State(initialValue: 0)
-            self._isDateEnabled = State(initialValue: false)
-            self._isTimeEnabled = State(initialValue: false)
-            self._selectedDate = State(initialValue: today)
-            
-            print("初始化為備忘錄模式")
-            
-        case .today:
-            // 今天模式 - 設置索引為1，啟用日期
-            self._currentBlockIndex = State(initialValue: 1)
-            self._isDateEnabled = State(initialValue: true)
-            self._isTimeEnabled = State(initialValue: false)
-            self._selectedDate = State(initialValue: today)
-            
-            print("初始化為今天模式")
-            
-        case .future:
-            // 未來日期模式 - 設置索引為日期偏移+1，啟用日期
-            self._currentBlockIndex = State(initialValue: currentDateOffset + 1)
-            self._isDateEnabled = State(initialValue: true)
-            self._isTimeEnabled = State(initialValue: false)
-            
-            // 計算未來日期
-            let futureDate = calendar.date(byAdding: .day, value: currentDateOffset, to: today) ?? today
-            self._selectedDate = State(initialValue: futureDate)
-            
-            print("初始化為未來日期模式，日期為：\(futureDate)")
+        let initialDate: Date
+        if startIsDateEnabled {
+            // 如果啟用日期，根據 startIndex 計算日期
+            // (startIndex - 1) 是因為 0 是備忘錄，1 是今天(偏移0)，2 是明天(偏移1)...
+            initialDate = calendar.date(byAdding: .day, value: startIndex - 1, to: today) ?? today
+        } else {
+            // 備忘錄模式下，預設為今天 (但在 updateDateFromBlockIndex 會被清除)
+            initialDate = today
         }
-        
-        print("Add.swift 初始化完成")
+        self._selectedDate = State(initialValue: initialDate)
+
+        print("Add.swift 初始化完成. 初始 currentBlockIndex = \(startIndex)")
     }
     
     // 設置初始狀態的方法 - 抽取為函數以便重複使用
@@ -285,32 +283,31 @@ struct Add: View {
                     // 自定義滑動區域，讓兩邊可以看到一部分下一個/上一個區塊
                     // 根據模式和來源設定初始選擇的日期
                     ScrollCalendarView(currentDisplayingIndex: $currentBlockIndex)
-//                        .id("calendar_view_\(currentBlockIndex)") // 使用 currentBlockIndex 作為識別符，這樣當它改變時視圖會更新
                         .padding(.top, 9)
                         .padding(.leading, 16)
                         // 添加手勢識別器來捕獲滑匡的變化
-                        .gesture(
-                            DragGesture()
-                                .onEnded { value in
-                                    // 根據滑動方向判斷是向左還是向右滑動
-                                    let threshold: CGFloat = 50
-                                    if value.translation.width < -threshold {
-                                        // 向左滑動（增加索引）
-                                        if currentBlockIndex < totalDays {
-                                            currentBlockIndex += 1
-                                            print(currentBlockIndex)
-                                            updateDateFromBlockIndex()
-                                        }
-                                    } else if value.translation.width > threshold {
-                                        // 向右滑動（減少索引）
-                                        if currentBlockIndex > 0 {
-                                            currentBlockIndex -= 1
-                                            print(currentBlockIndex)
-                                            updateDateFromBlockIndex()
-                                        }
-                                    }
-                                }
-                        )
+//                        .gesture(
+//                            DragGesture()
+//                                .onEnded { value in
+//                                    // 根據滑動方向判斷是向左還是向右滑動
+//                                    let threshold: CGFloat = 50
+//                                    if value.translation.width < -threshold {
+//                                        // 向左滑動（增加索引）
+//                                        if currentBlockIndex < totalDays {
+//                                            currentBlockIndex += 1
+//                                            print(currentBlockIndex)
+//                                            updateDateFromBlockIndex()
+//                                        }
+//                                    } else if value.translation.width > threshold {
+//                                        // 向右滑動（減少索引）
+//                                        if currentBlockIndex > 0 {
+//                                            currentBlockIndex -= 1
+//                                            print(currentBlockIndex)
+//                                            updateDateFromBlockIndex()
+//                                        }
+//                                    }
+//                                }
+//                        )
                     
                     Image("Vector 81")
                         .resizable()
@@ -610,14 +607,16 @@ struct Add: View {
             print("Add.swift: currentBlockIndex changed from \(oldValue) to \(newValue). Calling updateDateFromBlockIndex()")
             updateDateFromBlockIndex()
         }
+        // Add.swift
         .onAppear {
             print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 初始currentBlockIndex: \(currentBlockIndex)")
-            setupInitialState() // 確保初始狀態正確設定
+            // 不再呼叫 setupInitialState()
 
-            // 延遲執行 updateDateFromBlockIndex 確保 currentBlockIndex 可能已被 ScrollCalendarView 初始回調更新
-            // 或者在 setupInitialState 後直接調用一次，並依賴 onChange 來處理後續滾動
+            // 確保日期/時間狀態與初始索引同步
+            // 使用 DispatchQueue.main.async 確保在視圖佈局後執行
             DispatchQueue.main.async {
                 updateDateFromBlockIndex()
+                print("🔄 onAppear 後， currentBlockIndex = \(currentBlockIndex)")
             }
         }
         // Move the fullScreenCover for AddNote outside the main view structure
