@@ -40,6 +40,8 @@
 		792C41742DC9051D005CCE92 /* AddNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C41732DC9051D005CCE92 /* AddNote.swift */; };
 		792C74272DE1F9FA00ACF98D /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C74262DE1F9FA00ACF98D /* SettlementView02.swift */; };
 		792C74292DE20E6A00ACF98D /* TobestartedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C74282DE20E6A00ACF98D /* TobestartedView.swift */; };
+		792C742D2DE22D4900ACF98D /* SettlementView03.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C742C2DE22D4900ACF98D /* SettlementView03.swift */; };
+		792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */; };
 		793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793B5C112DDA3A55008F92FC /* SettlementView.swift */; };
 		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
@@ -114,6 +116,8 @@
 		792C41732DC9051D005CCE92 /* AddNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddNote.swift; sourceTree = "<group>"; };
 		792C74262DE1F9FA00ACF98D /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
 		792C74282DE20E6A00ACF98D /* TobestartedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TobestartedView.swift; sourceTree = "<group>"; };
+		792C742C2DE22D4900ACF98D /* SettlementView03.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView03.swift; sourceTree = "<group>"; };
+		792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBarSegment.swift; sourceTree = "<group>"; };
 		793B5C112DDA3A55008F92FC /* SettlementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView.swift; sourceTree = "<group>"; };
 		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
@@ -263,6 +267,7 @@
 				792C41732DC9051D005CCE92 /* AddNote.swift */,
 				793B5C112DDA3A55008F92FC /* SettlementView.swift */,
 				792C74262DE1F9FA00ACF98D /* SettlementView02.swift */,
+				792C742C2DE22D4900ACF98D /* SettlementView03.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -281,6 +286,7 @@
 				792073FE2DB292EC00057A45 /* TodoSheetItemRow.swift */,
 				790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */,
 				792C74282DE20E6A00ACF98D /* TobestartedView.swift */,
+				792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */,
 			);
 			path = view;
 			sourceTree = "<group>";
@@ -427,6 +433,7 @@
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
 				7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */,
+				792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */,
 				790FF7942DCA499200B9C70B /* CloudKitService.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
 				791E53AD2DB3F4470096F3B2 /* TodoStatus.swift in Sources */,
@@ -436,6 +443,7 @@
 				793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
 				7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */,
+				792C742D2DE22D4900ACF98D /* SettlementView03.swift in Sources */,
 				793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */,
 				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,

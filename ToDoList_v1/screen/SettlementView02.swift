@@ -1,32 +1,34 @@
 import SwiftUI
 
-// ProgressBarSegment 結構定義 (保持不變)
-struct ProgressBarSegment: View {
-    let isActive: Bool
+// MARK: - S02ProgressBarSegment (專為 SettlementView02 設計的進度條樣式)
+struct S02ProgressBarSegment: View {
+    let isActive: Bool // true: 帶綠色邊框的灰色; false: 純灰色
     let width: CGFloat
-    let height: CGFloat = 11
-    let cornerRadius: CGFloat = 29
+    private let segmentHeight: CGFloat = 11
+    private let segmentCornerRadius: CGFloat = 29
 
     var body: some View {
         ZStack {
+            // 背景統一為深灰色
             Rectangle()
                 .fill(Color(red: 0.13, green: 0.13, blue: 0.13))
-                .frame(width: width, height: height)
-                .cornerRadius(cornerRadius)
+                .frame(width: width, height: segmentHeight)
+                .cornerRadius(segmentCornerRadius)
 
+            // 如果是 active，才加上綠色邊框
             if isActive {
-                RoundedRectangle(cornerRadius: cornerRadius)
+                RoundedRectangle(cornerRadius: segmentCornerRadius)
+                    .inset(by: 0.5)
                     .stroke(Color(red: 0, green: 0.72, blue: 0.41), lineWidth: 1)
-                    .frame(width: width, height: height)
             }
         }
+        .frame(width: width, height: segmentHeight) // 確保 ZStack 大小正確
     }
 }
 
 // MARK: - SettlementView02.swift
 struct SettlementView02: View {
 
-    // ... (State variables and other functions remain the same) ...
     @State private var dailyTasks: [(title: String, iconName: String, time: String, priority: Int, isPinned: Bool)] = [
         ("完成設計提案初稿", "Vector", "", 2, true),
         ("練習日語聽力", "Vector", "10:00", 3, false),
@@ -42,19 +44,7 @@ struct SettlementView02: View {
     @State private var selectedFilterInSettlement = "全部"
     @State private var showTodoQueue: Bool = false
     
-    private var bottomFixedUIHeight: CGFloat { // 保持這個輔助計算
-        var height: CGFloat = 0
-        height += 50
-        if showTodoQueue {
-            height += 300
-        }
-        height += 70
-        return height
-    }
-    
-    private var tomorrow: Date {
-        return Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-    }
+    private var tomorrow: Date { Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() }
 
     private func formatDateForDisplay(_ date: Date) -> (monthDay: String, weekday: String) {
         let dateFormatterMonthDay = DateFormatter()
@@ -66,26 +56,24 @@ struct SettlementView02: View {
         return (dateFormatterMonthDay.string(from: date), dateFormatterWeekday.string(from: date))
     }
 
-
     var body: some View {
         ZStack(alignment: .bottom) {
-            // --- Layer 1: 主要滾動內容 ---
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 15) {
-                    // ... (頂部固定內容，保持不變) ...
                     HStack(spacing: 8) {
                         GeometryReader { geometry in
                             HStack(spacing: 8) {
                                 let segmentWidth = (geometry.size.width - 8) / 2
-                                ProgressBarSegment(isActive: true, width: segmentWidth)
-                                ProgressBarSegment(isActive: false, width: segmentWidth)
+                                // 第一個是 active (灰底綠框)，第二個是 inactive (純灰色)
+                                S02ProgressBarSegment(isActive: true, width: segmentWidth)
+                                S02ProgressBarSegment(isActive: false, width: segmentWidth)
                             }
                         }
                         .frame(height: 11)
                         Image(systemName: "checkmark").foregroundColor(.gray).padding(5).background(Color.gray.opacity(0.3)).clipShape(Circle())
                     }
                     .padding(.top, 5)
-
+                    // ... (SettlementView02 的其餘頂部內容，如您之前提供)
                     Rectangle().frame(height: 1).foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34)).padding(.vertical, 10)
                     HStack {
                         Text("What do you want to wake up at")
@@ -113,7 +101,6 @@ struct SettlementView02: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 15) {
-                        // ... (任務列表 dailyTasks ForEach，保持不變) ...
                         VStack(spacing: 0) {
                             ForEach(dailyTasks.indices, id: \.self) { index in
                                 let task = dailyTasks[index]
@@ -156,22 +143,22 @@ struct SettlementView02: View {
                                Spacer()
                             }.padding(.top, 12)
                         }
-                        .padding(.top, 10) // 原VStack的padding
+                        .padding(.top, 10)
                     }
-                    .padding(.bottom, bottomFixedUIHeight + 20)
+                     // 估算底部固定UI高度，為ScrollView增加padding，避免遮擋
+                    .padding(.bottom, (showTodoQueue ? 380 : 80) + 70 + 20 ) // (按鈕+展開內容)+底部導航+緩衝
                 }
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, 12)
             }
             .padding(.top, 60)
 
-            // --- Layer 2: 固定在底部的 UI ---
             VStack(spacing: 0) {
                 if showTodoQueue {
                     TobestartedView(
                         items: $todoQueueItems,
                         selectedFilter: $selectedFilterInSettlement,
-                        collapseAction: { // *** 傳遞收合動作 ***
+                        collapseAction: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                                 showTodoQueue = false
                             }
@@ -210,39 +197,22 @@ struct SettlementView02: View {
                         removal: .opacity.animation(.easeInOut(duration: 0.05))
                     ))
                 }
-
                 HStack {
-                    Button(action: {}) {
-                        Text("返回")
-                            .font(Font.custom("Inria Sans", size: 20))
-                            .foregroundColor(.white)
-                    }
-                    .padding()
+                    Button(action: {}) { Text("返回").font(Font.custom("Inria Sans", size: 20)).foregroundColor(.white) }.padding()
                     Spacer()
-                    Button(action: {}) {
-                        Text("Next")
-                            .font(Font.custom("Inria Sans", size: 20).weight(.bold))
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.black)
-                            .frame(width: 87.68571, alignment: .top)
-                    }
-                    .frame(width: 279, height: 60)
-                    .background(.white)
-                    .cornerRadius(40.5)
+                    Button(action: {}) { Text("Next").font(Font.custom("Inria Sans", size: 20).weight(.bold)).multilineTextAlignment(.center).foregroundColor(.black).frame(width: 87.68571, alignment: .top) }
+                    .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
                 }
                 .padding(.horizontal, 12)
             }
             .padding(.bottom, 60)
             .background(Color.black)
-            
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.ignoresSafeArea())
         .edgesIgnoringSafeArea(.bottom)
     }
 }
-
-// Preview
 struct SettlementView02_Previews: PreviewProvider {
     static var previews: some View {
         SettlementView02()
