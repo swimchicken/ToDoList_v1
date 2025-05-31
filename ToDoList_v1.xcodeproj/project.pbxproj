@@ -42,6 +42,8 @@
 		792C74292DE20E6A00ACF98D /* TobestartedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C74282DE20E6A00ACF98D /* TobestartedView.swift */; };
 		792C742D2DE22D4900ACF98D /* SettlementView03.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C742C2DE22D4900ACF98D /* SettlementView03.swift */; };
 		792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */; };
+		793451EE2DEAD9BD00898474 /* Sleep01.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793451ED2DEAD9BD00898474 /* Sleep01.swift */; };
+		793451F22DEB439E00898474 /* CompleteDayDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793451F12DEB439E00898474 /* CompleteDayDataManager.swift */; };
 		793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793B5C112DDA3A55008F92FC /* SettlementView.swift */; };
 		793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AA72DA2872400C76125 /* EmailAccountManager.swift */; };
 		793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793C4AAB2DA6789000C76125 /* ItemRow.swift */; };
@@ -118,6 +120,8 @@
 		792C74282DE20E6A00ACF98D /* TobestartedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TobestartedView.swift; sourceTree = "<group>"; };
 		792C742C2DE22D4900ACF98D /* SettlementView03.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView03.swift; sourceTree = "<group>"; };
 		792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBarSegment.swift; sourceTree = "<group>"; };
+		793451ED2DEAD9BD00898474 /* Sleep01.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sleep01.swift; sourceTree = "<group>"; };
+		793451F12DEB439E00898474 /* CompleteDayDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompleteDayDataManager.swift; sourceTree = "<group>"; };
 		793B5C112DDA3A55008F92FC /* SettlementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView.swift; sourceTree = "<group>"; };
 		793C4AA72DA2872400C76125 /* EmailAccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAccountManager.swift; sourceTree = "<group>"; };
 		793C4AAB2DA6789000C76125 /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
@@ -245,6 +249,7 @@
 				790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */,
 				790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */,
 				790BFDC92DCF841200AFD044 /* DataSyncManager.swift */,
+				793451F12DEB439E00898474 /* CompleteDayDataManager.swift */,
 			);
 			path = model;
 			sourceTree = "<group>";
@@ -268,6 +273,7 @@
 				793B5C112DDA3A55008F92FC /* SettlementView.swift */,
 				792C74262DE1F9FA00ACF98D /* SettlementView02.swift */,
 				792C742C2DE22D4900ACF98D /* SettlementView03.swift */,
+				793451ED2DEAD9BD00898474 /* Sleep01.swift */,
 			);
 			path = screen;
 			sourceTree = "<group>";
@@ -428,10 +434,12 @@
 			files = (
 				790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */,
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
+				793451EE2DEAD9BD00898474 /* Sleep01.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				792C74272DE1F9FA00ACF98D /* SettlementView02.swift in Sources */,
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
+				793451F22DEB439E00898474 /* CompleteDayDataManager.swift in Sources */,
 				7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */,
 				792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */,
 				790FF7942DCA499200B9C70B /* CloudKitService.swift in Sources */,
