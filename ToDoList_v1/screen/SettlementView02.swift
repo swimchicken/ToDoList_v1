@@ -28,6 +28,7 @@ struct S02ProgressBarSegment: View {
 
 // MARK: - SettlementView02.swift
 struct SettlementView02: View {
+    @Environment(\.presentationMode) var presentationMode
 
     @State private var dailyTasks: [(title: String, iconName: String, time: String, priority: Int, isPinned: Bool)] = [
         ("完成設計提案初稿", "Vector", "", 2, true),
@@ -43,6 +44,7 @@ struct SettlementView02: View {
     ]
     @State private var selectedFilterInSettlement = "全部"
     @State private var showTodoQueue: Bool = false
+    @State private var navigateToSettlementView03: Bool = false // 導航到下一頁
     
     private var tomorrow: Date { Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() }
 
@@ -198,9 +200,19 @@ struct SettlementView02: View {
                     ))
                 }
                 HStack {
-                    Button(action: {}) { Text("返回").font(Font.custom("Inria Sans", size: 20)).foregroundColor(.white) }.padding()
+                    Button(action: {
+                        // 返回上一頁
+                        self.presentationMode.wrappedValue.dismiss()
+                    }) { 
+                        Text("返回").font(Font.custom("Inria Sans", size: 20)).foregroundColor(.white) 
+                    }.padding()
                     Spacer()
-                    Button(action: {}) { Text("Next").font(Font.custom("Inria Sans", size: 20).weight(.bold)).multilineTextAlignment(.center).foregroundColor(.black).frame(width: 87.68571, alignment: .top) }
+                    Button(action: {
+                        // 導航到 SettlementView03
+                        navigateToSettlementView03 = true
+                    }) { 
+                        Text("Next").font(Font.custom("Inria Sans", size: 20).weight(.bold)).multilineTextAlignment(.center).foregroundColor(.black).frame(width: 87.68571, alignment: .top) 
+                    }
                     .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
                 }
                 .padding(.horizontal, 12)
@@ -211,6 +223,14 @@ struct SettlementView02: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.ignoresSafeArea())
         .edgesIgnoringSafeArea(.bottom)
+        .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .background(
+            NavigationLink(destination: SettlementView03(), isActive: $navigateToSettlementView03) {
+                EmptyView()
+            }
+        )
     }
 }
 struct SettlementView02_Previews: PreviewProvider {

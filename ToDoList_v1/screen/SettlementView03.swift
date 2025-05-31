@@ -33,10 +33,19 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
 
 // MARK: - SettlementView03.swift
 struct SettlementView03: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var selectedHour: Int = 8
     @State private var selectedMinute: Int = 0
     @State private var selectedAmPm: Int = 1
     @State private var isAlarmDisabled: Bool = false
+    @State private var navigateToHome: Bool = false
+    
+    // 用於將設置傳遞給 Home 視圖
+    class SleepSettings: ObservableObject {
+        static let shared = SleepSettings()
+        @Published var isSleepMode: Bool = false
+        @Published var alarmTime: String = "9:00 AM"
+    }
 
     private var tomorrow: Date {
         return Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
@@ -75,6 +84,21 @@ struct SettlementView03: View {
         .padding(.vertical, 60)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .background(
+            // 使用 isDetailLink: false 可以讓導航回到根視圖
+            NavigationLink(
+                destination: Home()
+                    .navigationBarHidden(true)
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.hidden, for: .navigationBar), 
+                isActive: $navigateToHome,
+                label: { EmptyView() }
+            )
+            .isDetailLink(false) // 這會重置導航堆疊
+        )
     }
 
     // MARK: - Sub-views for SettlementView03
@@ -183,9 +207,39 @@ struct SettlementView03: View {
 
     private var bottomNavigationButtons: some View {
         HStack {
-            Button(action: {}) { Text("返回").font(Font.custom("Inria Sans", size: 20)).foregroundColor(.white) }.padding()
+            Button(action: {
+                // 返回上一頁
+                self.presentationMode.wrappedValue.dismiss()
+            }) { 
+                Text("返回").font(Font.custom("Inria Sans", size: 20)).foregroundColor(.white) 
+            }.padding()
             Spacer()
-            Button(action: {}) { Text("Next").font(Font.custom("Inria Sans", size: 20).weight(.bold)).multilineTextAlignment(.center).foregroundColor(.black).frame(width: 87.68571, alignment: .top) }
+            Button(action: {
+                // 保存鬧鐘設置
+                let hourToSave = selectedHour
+                let minuteToSave = selectedMinute
+                let ampmToSave = selectedAmPm == 0 ? "AM" : "PM"
+                let alarmEnabled = !isAlarmDisabled
+                
+                // 格式化時間字符串，確保分鐘有兩位數字
+                let formattedMinute = String(format: "%02d", minuteToSave)
+                let alarmTimeFormatted = "\(hourToSave):\(formattedMinute) \(ampmToSave)"
+                
+                print("保存鬧鐘設置: \(alarmTimeFormatted), 啟用: \(alarmEnabled)")
+                
+                // 保存到共享設置
+                SleepSettings.shared.isSleepMode = true
+                SleepSettings.shared.alarmTime = alarmTimeFormatted
+                
+                // 保存到 UserDefaults，以便在應用重啟後仍能保持狀態
+                UserDefaults.standard.set(true, forKey: "isSleepMode")
+                UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
+                
+                // 完成設置並回到 Home 頁面
+                navigateToHome = true
+            }) { 
+                Text("Finish").font(Font.custom("Inria Sans", size: 20).weight(.bold)).multilineTextAlignment(.center).foregroundColor(.black).frame(width: 87.68571, alignment: .top) 
+            }
             .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
         }
         .padding(.bottom, 10)

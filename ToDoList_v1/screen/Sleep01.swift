@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct Sleep01View: View {
+    @Environment(\.presentationMode) var presentationMode
     @State private var currentDate = Date()
     @State private var dayProgress: Double = 0.0
     @State private var isAlarmTimePassedToday: Bool = false
+    @State private var navigateToHome: Bool = false
 
-    // 鬧鐘時間改為早上9點
-    let alarmTimeString = "9:00 AM" // <<-- 已從 "7:00 AM" 更新
+    let alarmTimeString = "9:00 AM"
 
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    // --- Calendar and DateFormatters (保持不變) ---
     private var taipeiCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
@@ -57,7 +57,6 @@ struct Sleep01View: View {
             Color.black.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // --- UI 佈局部分保持不變，僅鬧鐘時間文字會更新為 "9:00 AM" ---
                 HStack(alignment: .lastTextBaseline, spacing: 5) {
                     Text(currentDate, formatter: topDateMonthDayFormatter)
                         .font(Font.custom("Instrument Sans", size: 17.31818).weight(.bold))
@@ -79,39 +78,80 @@ struct Sleep01View: View {
                 HStack(spacing: 8) {
                     Image(systemName: "bell.and.waves.left.and.right")
                         .font(.system(size: 18)).foregroundColor(.gray)
-                    Text(alarmTimeString) // <<-- 現在會顯示 "9:00 AM"
+                    Text(alarmTimeString)
                         .font(Font.custom("Inria Sans", size: 18.62571).weight(.light))
                         .multilineTextAlignment(.center).foregroundColor(.gray)
                 }.padding(.leading, 40).padding(.top, 8)
                 Spacer()
-                VStack(spacing: 20) {
-                    HStack(spacing: 15) {
-                        Image(systemName: "moon.fill").font(.system(size: 20)).foregroundColor(.white.opacity(0.9))
-                            .shadow(color: .white.opacity(0.4), radius: 25, x: 0, y: 0)
-                            .shadow(color: .white.opacity(0.7), radius: 15, x: 0, y: 0)
-                            .shadow(color: .white, radius: 7, x: 0, y: 0)
-                        GeometryReader { geometry in
-                            ZStack(alignment: .leading) {
-                                Rectangle().foregroundColor(Color.gray.opacity(0.35))
-                                Rectangle().frame(width: max(0, geometry.size.width * CGFloat(dayProgress))).foregroundColor(.white)
-                            }.frame(height: 4).cornerRadius(2).clipped()
-                        }.frame(height: 4)
-                        Image(systemName: "bell.and.waves.left.and.right").font(.system(size: 16)).foregroundColor(.gray)
-                        Text(alarmTimeString) // <<-- 現在會顯示 "9:00 AM"
-                            .font(Font.custom("Inria Sans", size: 18.62571).weight(.light))
-                            .multilineTextAlignment(.center).foregroundColor(.gray)
-                    }.padding(.horizontal, 20).padding(.top, 20)
-                    Button(action: { print("Back to home page tapped") }) {
-                        Text("back to home page")
-                            .font(Font.custom("Inria Sans", size: 20).weight(.bold)).foregroundColor(.white)
-                            .padding(.vertical, 15).frame(maxWidth: .infinity)
-                            .background(Color.gray.opacity(0.4)).cornerRadius(18)
-                    }.padding(.horizontal, 15).padding(.bottom, 20)
-                }.background(RoundedRectangle(cornerRadius: 25).fill(Color.white.opacity(0.15)))
-                 .padding(.horizontal, 27).padding(.bottom, 30)
+                
+                VStack {
+                    VStack(spacing: 20) {
+                        HStack(spacing: 15) {
+                            Image(systemName: "moon.fill").font(.system(size: 20)).foregroundColor(.white.opacity(0.9))
+                                .shadow(color: .white.opacity(0.4), radius: 25, x: 0, y: 0)
+                                .shadow(color: .white.opacity(0.7), radius: 15, x: 0, y: 0)
+                                .shadow(color: .white, radius: 7, x: 0, y: 0)
+                            
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    Rectangle().foregroundColor(Color.gray.opacity(0.35))
+                                    Rectangle()
+                                        .frame(width: max(0, geometry.size.width * CGFloat(dayProgress)))
+                                        .foregroundColor(.white)
+                                }
+                                .cornerRadius(2)
+                                .clipped()
+                            }
+                            .frame(height: 4)
+
+                            Image(systemName: "bell.and.waves.left.and.right").font(.system(size: 16)).foregroundColor(.gray)
+                            Text(alarmTimeString)
+                                .font(Font.custom("Inria Sans", size: 18.62571).weight(.light))
+                                .multilineTextAlignment(.center).foregroundColor(.gray)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
+                        
+                        Button(action: {
+                            UserDefaults.standard.set(true, forKey: "isSleepMode")
+                            UserDefaults.standard.set(alarmTimeString, forKey: "alarmTimeString")
+                            navigateToHome = true
+                        }) {
+                            Text("back to home page")
+                                .font(Font.custom("Inria Sans", size: 20).weight(.bold))
+                                .foregroundColor(.white)
+                        }
+                        // --- ERROR FIX ---
+                        .frame(maxWidth: .infinity) // Set max width
+                        .frame(height: 60)          // THEN set fixed height
+                        // --- END ERROR FIX ---
+                        .background(Color(white: 0.35, opacity: 0.9))
+                        .cornerRadius(30)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+
+                    }
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 32).fill(Color.white.opacity(0.15)))
+                    .padding(.bottom, 30)
+                }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 60)
+            .padding(.top, 60)
+            .navigationBarBackButtonHidden(true)
+            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+            .background(
+                NavigationLink(
+                    destination: Home()
+                        .navigationBarHidden(true)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar(.hidden, for: .navigationBar),
+                    isActive: $navigateToHome,
+                    label: { EmptyView() }
+                )
+                .isDetailLink(false)
+            )
             .onReceive(timer) { receivedTime in
                 self.currentDate = receivedTime
 
@@ -174,6 +214,11 @@ struct Sleep01View: View {
     }
 }
 
+// Assuming you have Home struct defined elsewhere in your project.
+// struct Home: View { ... }
+
 #Preview {
-    Sleep01View()
+    NavigationView {
+        Sleep01View()
+    }
 }
