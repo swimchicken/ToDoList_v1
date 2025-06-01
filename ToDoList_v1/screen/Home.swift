@@ -354,6 +354,7 @@ struct Home: View {
                                         Text("back to sleep mode")
                                             .font(.custom("Inria Sans", size: 20).weight(.bold))
                                             .foregroundColor(.black)
+                                            .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
                                     }
                                     .frame(width: 272, height: 60)
                                     .background(Color.white)
@@ -416,8 +417,10 @@ struct Home: View {
                                                     ProgressView()
                                                         .progressViewStyle(CircularProgressViewStyle(tint: .black))
                                                 }
+                                                .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
                                             } else {
                                                 Text("end today")
+                                                    .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
                                             }
                                         }
                                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -475,8 +478,10 @@ struct Home: View {
                                                 ProgressView()
                                                     .progressViewStyle(CircularProgressViewStyle(tint: .black))
                                             }
+                                            .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
                                         } else {
                                             Text("return to today")
+                                                .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
                                         }
                                     }
                                     .font(.custom("Inria Sans", size: 20).weight(.bold))

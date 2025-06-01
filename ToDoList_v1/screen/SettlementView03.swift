@@ -214,7 +214,10 @@ struct SettlementView03: View {
                 // 返回上一頁
                 self.presentationMode.wrappedValue.dismiss()
             }) { 
-                Text("返回").font(Font.custom("Inria Sans", size: 20)).foregroundColor(.white) 
+                Text("返回")
+                    .font(Font.custom("Inria Sans", size: 20))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊
             }.padding()
             Spacer()
             Button(action: {
@@ -245,7 +248,11 @@ struct SettlementView03: View {
                 // 完成設置並回到 Home 頁面
                 navigateToHome = true
             }) { 
-                Text("Finish").font(Font.custom("Inria Sans", size: 20).weight(.bold)).multilineTextAlignment(.center).foregroundColor(.black).frame(width: 87.68571, alignment: .top) 
+                Text("Finish")
+                    .font(Font.custom("Inria Sans", size: 20).weight(.bold))
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊
             }
             .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
         }
