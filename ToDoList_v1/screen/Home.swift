@@ -17,6 +17,9 @@ struct Home: View {
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
     @State private var dayProgress: Double = 0.0 // 與Sleep01相同，用來顯示進度條
     
+    // 用於監控數據變化的屬性
+    @State private var dataRefreshToken: UUID = UUID() // 用於強制視圖刷新
+    
     // 明確的 Add 視圖模式枚舉
     enum AddTaskMode {
         case memo      // 備忘錄模式（從待辦事項佇列添加）
@@ -44,6 +47,9 @@ struct Home: View {
     
     // 數據同步管理器 - 處理本地存儲和雲端同步
     private let dataSyncManager = DataSyncManager.shared
+    
+    // 已完成日期數據管理器 - 追蹤已完成的日期
+    private let completeDayDataManager = CompleteDayDataManager.shared
     
     // 修改後的taiwanTime，基於currentDate和日期偏移量
     var taiwanTime: (monthDay: String, weekday: String, timeStatus: String) {
@@ -91,6 +97,12 @@ struct Home: View {
     // 檢查是否為當天
     private var isCurrentDay: Bool {
         return currentDateOffset == 0
+    }
+    
+    // 檢查當前顯示的日期是否已完成
+    private var isCurrentDisplayDayCompleted: Bool {
+        let dateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+        return completeDayDataManager.isDayCompleted(date: dateWithOffset)
     }
     
     // 計算屬性：篩選並排序當前日期的待辦事項
@@ -187,15 +199,33 @@ struct Home: View {
                 // 2. 主介面內容
                 VStack(spacing: 0) {
                     // Header - 使用台灣時間
-                    UserInfoView(
-                        avatarImageName: "who",
-                        dateText: taiwanTime.monthDay,
-                        dateText2: taiwanTime.weekday,
-                        statusText: taiwanTime.timeStatus,
-                        temperatureText: "26°C",
-                        showCalendarView: $showCalendarView
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: 0)
+                    VStack(spacing: 0) {
+                        UserInfoView(
+                            avatarImageName: "who",
+                            dateText: taiwanTime.monthDay,
+                            dateText2: taiwanTime.weekday,
+                            statusText: taiwanTime.timeStatus,
+                            temperatureText: "26°C",
+                            showCalendarView: $showCalendarView
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: 0)
+                        
+                        // 顯示日期完成狀態指示器
+                        if isCurrentDisplayDayCompleted {
+                            HStack {
+                                Spacer()
+                                HStack(spacing: 5) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                    Text("已完成這一天")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                }
+                                Spacer()
+                            }
+                            .padding(.top, 8)
+                        }
+                    }
                     
                     VStack(alignment: .leading, spacing: 8) {
                         // 待辦事項佇列按鈕
@@ -698,6 +728,9 @@ struct Home: View {
                 print("載入睡眠模式: 關閉")
             }
             
+            // 設置監聽資料變化的通知
+            setupDataChangeObservers()
+            
             if let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") {
                 SaveLast.updateLastLoginDate(forUserId: appleUserID) { result in
                     switch result {
@@ -720,6 +753,11 @@ struct Home: View {
         .onDisappear {
             // 清除定時器
             timer?.invalidate()
+            
+            // 移除通知觀察者
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("iCloudUserChanged"), object: nil)
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("CompletedDaysDataChanged"), object: nil)
         }
         .background(
             Group {
@@ -840,6 +878,53 @@ struct Home: View {
         self.dayProgress = min(max(newProgress, 0.0), 1.0)
     }
     
+    // 設置監聽數據變化的觀察者
+    private func setupDataChangeObservers() {
+        // 監聽 iCloud 用戶變更通知 (直接從 CloudKitService 發出)
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("iCloudUserChanged"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("NOTICE: Home 收到用戶變更通知")
+            
+            // 強制刷新數據
+            dataRefreshToken = UUID()
+            
+            // 清除當前視圖的狀態
+            isSleepMode = false
+            
+            // 延遲一點時間再重新載入數據
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                loadTodoItems()
+            }
+        }
+        
+        // 監聽數據刷新通知 (從 DataSyncManager 發出)
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("TodoItemsDataRefreshed"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("NOTICE: Home 收到數據刷新通知")
+            
+            // 重新載入數據
+            loadTodoItems()
+        }
+        
+        // 監聽已完成日期數據變更通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("CompletedDaysDataChanged"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("NOTICE: Home 收到已完成日期數據變更通知")
+            
+            // 強制更新視圖以顯示最新的完成狀態
+            dataRefreshToken = UUID()
+        }
+    }
+    
     // 執行手動同步
     private func performManualSync() {
         // 如果正在同步，直接返回
@@ -893,22 +978,9 @@ struct Home: View {
                     
                     // 檢查是否接收到數據
                     if items.isEmpty {
-                        // 如果本地和雲端都沒有數據，創建一個歡迎項目
-                        let welcomeItem = TodoItem(
-                            id: UUID(),
-                            userID: "user123",
-                            title: "歡迎使用待辦事項",
-                            priority: 1,
-                            isPinned: true,
-                            taskDate: Date(),
-                            note: "添加您的第一個待辦事項以開始使用",
-                            status: .toDoList,
-                            createdAt: Date(),
-                            updatedAt: Date(),
-                            correspondingImageID: "welcome"
-                        )
-                        self.toDoItems = [welcomeItem]
-                        print("本地和雲端都沒有待辦事項，創建歡迎項目")
+                        // 直接保持空列表
+                        self.toDoItems = []
+                        print("本地和雲端都沒有待辦事項，保持空列表")
                     } else {
                         // 更新模型
                         self.toDoItems = items
@@ -929,21 +1001,9 @@ struct Home: View {
                         self.toDoItems = localItems
                         print("從本地緩存加載了 \(localItems.count) 個項目")
                     } else {
-                        // 創建一個錯誤提示項目
-                        let errorItem = TodoItem(
-                            id: UUID(),
-                            userID: "error_user",
-                            title: "無法載入數據",
-                            priority: 1,
-                            isPinned: true,
-                            taskDate: Date(),
-                            note: "發生錯誤: \(error.localizedDescription)",
-                            status: .toDoList,
-                            createdAt: Date(),
-                            updatedAt: Date(),
-                            correspondingImageID: "error"
-                        )
-                        self.toDoItems = [errorItem]
+                        // 保持空列表
+                        self.toDoItems = []
+                        print("無法載入數據且本地無緩存，保持空列表")
                     }
                 }
             }

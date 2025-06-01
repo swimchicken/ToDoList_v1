@@ -29,6 +29,14 @@ class CloudKitService {
         print("DEBUG: CloudKit container 已初始化 - ID: \(container.containerIdentifier ?? "未知")")
         
         // 檢查 iCloud 狀態
+        checkAccountStatus()
+        
+        // 設置帳號變化通知觀察者
+        setupAccountChangeObserver()
+    }
+    
+    // 檢查 iCloud 帳戶狀態
+    private func checkAccountStatus() {
         container.accountStatus { (status, error) in
             if let error = error {
                 print("ERROR: 無法獲取 iCloud 帳戶狀態: \(error.localizedDescription)")
@@ -38,6 +46,8 @@ class CloudKitService {
             switch status {
             case .available:
                 print("INFO: iCloud 帳戶可用")
+                // 當帳戶可用時獲取當前用戶ID並保存
+                self.fetchAndSaveCurrentUserID()
             case .noAccount:
                 print("WARNING: 未登入 iCloud 帳戶")
             case .restricted:
@@ -52,6 +62,92 @@ class CloudKitService {
         }
     }
     
+    // 設置 iCloud 帳號變化觀察者
+    private func setupAccountChangeObserver() {
+        NotificationCenter.default.addObserver(
+            forName: .CKAccountChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            print("NOTICE: 檢測到 iCloud 帳號變化")
+            self?.handleAccountChange()
+        }
+    }
+    
+    // 處理 iCloud 帳號變化
+    private func handleAccountChange() {
+        // 檢查新帳號狀態
+        container.accountStatus { [weak self] (status, error) in
+            guard let self = self else { return }
+            
+            if let error = error {
+                print("ERROR: 帳號變化後無法獲取 iCloud 帳戶狀態: \(error.localizedDescription)")
+                return
+            }
+            
+            if status == .available {
+                print("INFO: 帳號變化後 iCloud 帳戶可用，檢查是否為新用戶")
+                // 獲取新用戶ID並與舊ID比較
+                self.checkIfUserChanged()
+            } else {
+                print("WARNING: 帳號變化後 iCloud 不可用，狀態: \(status)")
+                // 當帳號不可用時，通知清除本地數據
+                NotificationCenter.default.post(
+                    name: Notification.Name("iCloudAccountUnavailable"),
+                    object: nil
+                )
+            }
+        }
+    }
+    
+    // 獲取並保存當前用戶ID
+    private func fetchAndSaveCurrentUserID() {
+        container.fetchUserRecordID { (recordID, error) in
+            if let error = error {
+                print("ERROR: 無法獲取 iCloud 用戶ID: \(error.localizedDescription)")
+                return
+            }
+            
+            if let recordID = recordID {
+                let userID = recordID.recordName
+                print("INFO: 當前 iCloud 用戶ID: \(userID)")
+                // 保存當前用戶ID
+                UserDefaults.standard.set(userID, forKey: "currentCloudKitUserID")
+            }
+        }
+    }
+    
+    // 檢查用戶是否已變更
+    private func checkIfUserChanged() {
+        container.fetchUserRecordID { (recordID, error) in
+            if let error = error {
+                print("ERROR: 帳號變化後無法獲取用戶ID: \(error.localizedDescription)")
+                return
+            }
+            
+            if let recordID = recordID {
+                let newUserID = recordID.recordName
+                let oldUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID")
+                
+                if oldUserID != newUserID {
+                    print("NOTICE: 檢測到新的 iCloud 用戶 (Old: \(oldUserID ?? "無"), New: \(newUserID))")
+                    
+                    // 保存新用戶ID
+                    UserDefaults.standard.set(newUserID, forKey: "currentCloudKitUserID")
+                    
+                    // 發送用戶變更通知
+                    NotificationCenter.default.post(
+                        name: Notification.Name("iCloudUserChanged"),
+                        object: nil,
+                        userInfo: ["newUserID": newUserID]
+                    )
+                } else {
+                    print("INFO: iCloud 用戶未變更")
+                }
+            }
+        }
+    }
+    
     // MARK: - CRUD Operations
     
     /// 儲存待辦事項至 CloudKit
@@ -61,6 +157,9 @@ class CloudKitService {
     func saveTodoItem(_ todoItem: TodoItem, completion: @escaping (Result<TodoItem, Error>) -> Void) {
         print("DEBUG: 開始儲存待辦事項 - ID: \(todoItem.id.uuidString), 標題: \(todoItem.title)")
         
+        // 獲取當前 iCloud 用戶 ID
+        let currentUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID") ?? "unknown_user"
+        
         // 創建 CKRecord 物件
         let recordID = CKRecord.ID(recordName: todoItem.id.uuidString, zoneID: defaultZoneID)
         let record = CKRecord(recordType: "TodoItem", recordID: recordID)
@@ -69,7 +168,8 @@ class CloudKitService {
         
         // 設置記錄欄位
         record.setValue(todoItem.id.uuidString, forKey: "id")
-        record.setValue(todoItem.userID, forKey: "userID")
+        // 使用當前 iCloud 用戶 ID 而不是傳入的 userID
+        record.setValue(currentUserID, forKey: "userID")
         record.setValue(todoItem.title, forKey: "title")
         record.setValue(todoItem.priority, forKey: "priority")
         record.setValue(todoItem.isPinned, forKey: "isPinned")
@@ -191,10 +291,14 @@ class CloudKitService {
         
         // 使用簡單查詢，但避免依賴 recordName
         // 改用 userID 欄位作為查詢條件
-        let predicate = NSPredicate(format: "id != %@", "NONEXISTENT_ID")
+        // 獲取當前 iCloud 用戶 ID
+        let currentUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID") ?? "unknown_user"
+        
+        // 使用 userID 欄位進行查詢，確保只獲取當前用戶的待辦事項
+        let predicate = NSPredicate(format: "userID == %@", currentUserID)
         let query = CKQuery(recordType: "TodoItem", predicate: predicate)
         
-        print("DEBUG: 使用基於 id 欄位的查詢條件")
+        print("DEBUG: 使用基於 userID 欄位的查詢條件，當前用戶: \(currentUserID)")
         print("DEBUG: 明確指定使用默認區域 zoneID: \(defaultZoneID.zoneName)")
         
         // 明確指定使用與儲存相同的默認區域
@@ -202,13 +306,13 @@ class CloudKitService {
             DispatchQueue.main.async {
                 if let error = error {
                     print("ERROR: 查詢失敗 - \(error.localizedDescription)")
-                    completion(.success([self.createDummyErrorItem(error: error)]))
+                    completion(.failure(error))  // 直接返回錯誤，不再創建錯誤項目
                     return
                 }
                 
                 guard let records = records, !records.isEmpty else {
                     print("INFO: 沒有找到記錄")
-                    completion(.success([self.createWelcomeItem()]))
+                    completion(.success([]))  // 直接返回空數組，不創建歡迎項目
                     return
                 }
                 
@@ -224,37 +328,9 @@ class CloudKitService {
         }
     }
     
-    private func createDummyErrorItem(error: Error) -> TodoItem {
-        return TodoItem(
-            id: UUID(),
-            userID: "error_user",
-            title: "查詢錯誤",
-            priority: 1,
-            isPinned: true,
-            taskDate: Date(), // 保留日期，這是一個錯誤提示項目
-            note: "錯誤: \(error.localizedDescription)",
-            status: .toDoList,
-            createdAt: Date(),
-            updatedAt: Date(),
-            correspondingImageID: "error"
-        )
-    }
+    // 已移除 createDummyErrorItem 函數，不再創建錯誤項目
     
-    private func createWelcomeItem() -> TodoItem {
-        return TodoItem(
-            id: UUID(),
-            userID: "test_user",
-            title: "歡迎使用待辦事項",
-            priority: 1,
-            isPinned: true,
-            taskDate: Date(), // 保留日期，這是一個歡迎項目
-            note: "點擊加號按鈕添加您的第一個待辦事項",
-            status: .toDoList,
-            createdAt: Date(),
-            updatedAt: Date(),
-            correspondingImageID: "welcome"
-        )
-    }
+    // 已移除 createWelcomeItem 函數，不再自動創建歡迎項目
     
     /// 使用 CKQueryOperation 作為備選查詢方式
     /// - Parameter completion: 完成後的回調
@@ -292,23 +368,8 @@ class CloudKitService {
                 if fetchedRecords.isEmpty {
                     print("INFO: 沒有找到任何記錄，返回空列表")
                     
-                    // 創建一個模擬記錄，以確認基本功能正常
-                    let dummyItem = TodoItem(
-                        id: UUID(),
-                        userID: "test_user",
-                        title: "測試項目 - 請嘗試添加新項目",
-                        priority: 1,
-                        isPinned: true,
-                        taskDate: Date(), // 保留日期，這是一個測試項目
-                        note: "這是一個測試項目，表示CloudKit可能初始化成功但沒有數據",
-                        status: .toDoList,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: "test"
-                    )
-                    
-                    // 返回一個模擬項目，以便用戶可以看到界面而不是空白
-                    completion(.success([dummyItem]))
+                    // 返回空列表，不再創建測試項目
+                    completion(.success([]))
                 } else {
                     let todoItems = fetchedRecords.compactMap { self.todoItemFromRecord($0) }
                     completion(.success(todoItems))
@@ -322,40 +383,13 @@ class CloudKitService {
                 if nsError.domain == CKErrorDomain && nsError.code == CKError.notAuthenticated.rawValue {
                     print("ERROR: 未登入 iCloud 帳戶或沒有權限")
                     
-                    // 返回一個模擬記錄，而不是空結果
-                    let dummyItem = TodoItem(
-                        id: UUID(),
-                        userID: "icloud_error",
-                        title: "iCloud 登入錯誤 - 請檢查登入狀態",
-                        priority: 1,
-                        isPinned: true,
-                        taskDate: Date(), // 保留日期，這是一個錯誤提示項目
-                        note: "此錯誤表示您可能未登入 iCloud 或應用沒有足夠權限",
-                        status: .toDoList,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: "error"
-                    )
-                    
-                    completion(.success([dummyItem]))
+                    print("ERROR: iCloud 帳戶未驗證")
+                    // 返回錯誤，而不是創建錯誤項目
+                    completion(.failure(error))
                 } else {
-                    // 創建一個錯誤提示項目
-                    let errorItem = TodoItem(
-                        id: UUID(),
-                        userID: "error",
-                        title: "讀取錯誤 - \(nsError.code)",
-                        priority: 1,
-                        isPinned: true,
-                        taskDate: Date(), // 保留日期，這是一個錯誤提示項目
-                        note: "無法讀取 CloudKit 數據: \(error.localizedDescription)",
-                        status: .toDoList,
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: "error"
-                    )
-                    
-                    // 返回一個錯誤提示項目，而不是完全失敗
-                    completion(.success([errorItem]))
+                    // 直接返回錯誤，不再創建錯誤項目
+                    print("ERROR: CloudKit 查詢失敗: \(error.localizedDescription)")
+                    completion(.failure(error))
                 }
             }
         }

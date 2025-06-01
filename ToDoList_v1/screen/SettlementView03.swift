@@ -40,6 +40,9 @@ struct SettlementView03: View {
     @State private var isAlarmDisabled: Bool = false
     @State private var navigateToHome: Bool = false
     
+    // 引用已完成日期數據管理器
+    private let completeDayDataManager = CompleteDayDataManager.shared
+    
     // 用於將設置傳遞給 Home 視圖
     class SleepSettings: ObservableObject {
         static let shared = SleepSettings()
@@ -215,6 +218,10 @@ struct SettlementView03: View {
             }.padding()
             Spacer()
             Button(action: {
+                // 標記今天為已完成
+                completeDayDataManager.markTodayAsCompleted()
+                print("已標記今天為已完成的一天")
+                
                 // 保存鬧鐘設置
                 let hourToSave = selectedHour
                 let minuteToSave = selectedMinute

@@ -206,6 +206,7 @@ class LocalDataManager {
         UserDefaults.standard.removeObject(forKey: todoItemsKey)
         UserDefaults.standard.removeObject(forKey: syncStatusKey)
         UserDefaults.standard.removeObject(forKey: lastSyncTimeKey)
+        UserDefaults.standard.removeObject(forKey: "hasShownWelcomeItem") // 確保清除歡迎項目狀態
         print("DEBUG: 已清除所有本地存儲的待辦事項和同步狀態")
     }
 }

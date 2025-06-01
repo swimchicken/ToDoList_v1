@@ -23,6 +23,9 @@ struct CalendarView: View {
     // 新增：用於處理導航到home
     var onNavigateToHome: (() -> Void)?
     
+    // 引用已完成日期數據管理器
+    private let completeDayDataManager = CompleteDayDataManager.shared
+    
     // 每週日期標題
     let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     
@@ -220,6 +223,19 @@ struct CalendarView: View {
     // 簡化版本，用於當前月份
     func isToday(day: Int) -> Bool {
         return isToday(day: day, month: selectedMonth, year: selectedYear)
+    }
+    
+    // 檢查指定日期是否已完成
+    func isDayCompleted(day: Int, month: Int, year: Int) -> Bool {
+        let calendar = Calendar.current
+        let dateComponents = DateComponents(year: year, month: month, day: day)
+        guard let date = calendar.date(from: dateComponents) else { return false }
+        return completeDayDataManager.isDayCompleted(date: date)
+    }
+    
+    // 簡化版本，用於當前月份
+    func isDayCompleted(day: Int) -> Bool {
+        return isDayCompleted(day: day, month: selectedMonth, year: selectedYear)
     }
     
     // 修改：檢查日期是否在當前選擇的週（基於點擊的日期或今天）
@@ -546,6 +562,20 @@ struct CalendarView: View {
                                                                 .frame(width: 28, height: 28) // 從36x36縮小到28x28
                                                         }
                                                         
+                                                        // 如果這一天已完成，顯示綠色小勾勾
+                                                        if isDayCompleted(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year) {
+                                                            HStack {
+                                                                Spacer()
+                                                                VStack {
+                                                                    Image(systemName: "checkmark.circle.fill")
+                                                                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                                                        .font(.system(size: 12))
+                                                                    Spacer()
+                                                                }
+                                                            }
+                                                            .frame(width: 36, height: 36)
+                                                        }
+                                                        
                                                         // 日期文字固定位置
                                                         Text(String(dayInfo.day))
                                                             .font(.system(size: 16, weight: .bold))
@@ -634,6 +664,21 @@ struct CalendarView: View {
             if toDoItems.isEmpty {
                 loadFromLocalDataManager()
             }
+            
+            // 監聽已完成日期數據變更通知
+            NotificationCenter.default.addObserver(
+                forName: Notification.Name("CompletedDaysDataChanged"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                // 強制更新視圖以顯示最新的完成狀態
+                print("CalendarView 收到已完成日期數據變更通知")
+                // 這裡不需要做什麼，因為視圖會自動刷新
+            }
+        }
+        .onDisappear {
+            // 移除通知觀察者
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("CompletedDaysDataChanged"), object: nil)
         }
     }
 }
