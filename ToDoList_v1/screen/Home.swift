@@ -11,7 +11,7 @@ struct Home: View {
     @State private var showToDoSheet: Bool = false
     @State private var showAddTaskSheet: Bool = false
     @State private var currentDate: Date = Date()  // 添加當前時間狀態
-    @State private var navigateToSettlementView02: Bool = false // 導航到結算頁面
+    @State private var navigateToSettlementView: Bool = false // 導航到結算頁面
     @State private var navigateToSleep01View: Bool = false // 導航到Sleep01視圖
     @State private var isSleepMode: Bool = false // 睡眠模式狀態
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
@@ -210,7 +210,8 @@ struct Home: View {
                         )
                         .frame(maxWidth: .infinity, maxHeight: 0)
                         
-                        // 顯示日期完成狀態指示器
+                        // 顯示日期完成狀態指示器 (已註釋)
+                        /* 
                         if isCurrentDisplayDayCompleted {
                             HStack {
                                 Spacer()
@@ -225,6 +226,7 @@ struct Home: View {
                             }
                             .padding(.top, 8)
                         }
+                        */
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
@@ -406,8 +408,8 @@ struct Home: View {
                                             if isSyncing {
                                                 // 如果正在同步，則只顯示進度（不執行操作）
                                             } else {
-                                                // 導航到結算頁面
-                                                navigateToSettlementView02 = true
+                                                // 導航到結算頁面（SettlementView）
+                                                navigateToSettlementView = true
                                             }
                                         }) {
                                             // 根據同步狀態顯示不同文字
@@ -766,7 +768,7 @@ struct Home: View {
         }
         .background(
             Group {
-                NavigationLink(destination: SettlementView02(), isActive: $navigateToSettlementView02) {
+                NavigationLink(destination: SettlementView(), isActive: $navigateToSettlementView) {
                     EmptyView()
                 }
                 

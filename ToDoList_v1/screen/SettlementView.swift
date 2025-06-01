@@ -40,6 +40,7 @@ struct SettlementView: View {
     @State private var completedTasks: [TodoItem] = []
     @State private var uncompletedTasks: [TodoItem] = []
     @State private var moveUncompletedTasksToTomorrow: Bool = true
+    @State private var navigateToSettlementView02: Bool = false // 導航到下一頁
 
     // 日期相關
     private var yesterday: Date {
@@ -181,7 +182,10 @@ struct SettlementView: View {
                     .offset(x: 40)
                 }
 
-                BottomControlsView(moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow)
+                BottomControlsView(
+                    moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow,
+                    navigateToSettlementView02: $navigateToSettlementView02
+                )
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 60)
@@ -189,6 +193,14 @@ struct SettlementView: View {
         .onAppear {
             loadSampleTasks()
         }
+        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .background(
+            NavigationLink(destination: SettlementView02(), isActive: $navigateToSettlementView02) {
+                EmptyView()
+            }
+        )
     }
 
     func loadSampleTasks() {
@@ -317,7 +329,9 @@ struct MockTaskRow: View {
 
 struct BottomControlsView: View {
     @Binding var moveUncompletedTasksToTomorrow: Bool
-
+    @Binding var navigateToSettlementView02: Bool  // 添加導航綁定
+    @Environment(\.presentationMode) var presentationMode
+    
     var body: some View {
         VStack(spacing: 20) {
             HStack {
@@ -335,7 +349,8 @@ struct BottomControlsView: View {
             .cornerRadius(12)
 
             Button(action: {
-                print("開始設定今天的計畫按鈕被點擊")
+                // 導航到 SettlementView02
+                navigateToSettlementView02 = true
             }) {
                 Text("開始設定今天的計畫")
                     .font(.system(size: 17, weight: .semibold))
@@ -344,6 +359,18 @@ struct BottomControlsView: View {
                     .padding()
                     .background(Color.white)
                     .cornerRadius(25)
+            }
+            
+            // 返回按鈕
+            Button(action: {
+                // 返回上一頁
+                presentationMode.wrappedValue.dismiss()
+            }) {
+                Text("返回首頁")
+                    .font(.system(size: 15))
+                    .foregroundColor(.white.opacity(0.7))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
             }
         }
     }
