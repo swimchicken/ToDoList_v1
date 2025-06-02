@@ -75,8 +75,8 @@ struct Home: View {
         return (monthDay: monthDay, weekday: weekday, timeStatus: timeStatus)
     }
     
-    // 用於更新睡眠模式下的進度條
-    private let sleepModeTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    // 用於更新睡眠模式下的進度條 - 更改為每秒更新一次，使動畫更流暢
+    private let sleepModeTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     private var taipeiCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -338,8 +338,13 @@ struct Home: View {
                                     GeometryReader { geometry in
                                         ZStack(alignment: .leading) {
                                             Rectangle().foregroundColor(Color.gray.opacity(0.35))
-                                            Rectangle().frame(width: max(0, geometry.size.width * CGFloat(dayProgress))).foregroundColor(.white)
-                                        }.frame(height: 4).cornerRadius(2).clipped()
+                                            Rectangle()
+                                                .frame(width: max(0, geometry.size.width * CGFloat(dayProgress)))
+                                                .foregroundColor(.white)
+                                        }
+                                        .frame(height: 4)
+                                        .cornerRadius(2)
+                                        .clipped()
                                     }.frame(height: 4)
                                     Image(systemName: "bell.and.waves.left.and.right").font(.system(size: 16)).foregroundColor(.gray)
                                     Text(alarmTimeString)
@@ -726,8 +731,12 @@ struct Home: View {
                     alarmTimeString = savedAlarmTime
                 }
                 
-                // 立即計算進度條
+                // 立即計算進度條，並延遲一點時間再更新一次確保動畫平滑
                 updateDayProgress(currentTime: Date())
+                // 延遲100毫秒再次更新，確保動畫平滑
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    updateDayProgress(currentTime: Date())
+                }
                 
                 print("載入睡眠模式: 開啟, 鬧鐘時間: \(alarmTimeString)")
             } else {
@@ -883,6 +892,7 @@ struct Home: View {
         }
         
         self.dayProgress = min(max(newProgress, 0.0), 1.0)
+        print("Home - dayProgress updated: \(self.dayProgress)")
     }
     
     // 設置監聽數據變化的觀察者

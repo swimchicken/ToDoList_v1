@@ -3,11 +3,11 @@ import SwiftUI
 struct Sleep01View: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var currentDate = Date()
-    @State private var dayProgress: Double = 0.0
+    @State private var dayProgress: Double = 0.5 // 初始值設為0.5，確保有進度
     @State private var isAlarmTimePassedToday: Bool = false
     @State private var navigateToHome: Bool = false
 
-    let alarmTimeString = "9:00 AM"
+    @State private var alarmTimeString: String = "9:00 AM" // 改為State變量以便更新
 
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -120,11 +120,9 @@ struct Sleep01View: View {
                             Text("back to home page")
                                 .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                                 .foregroundColor(.white)
+                                .frame(maxWidth: .infinity) // Set max width
                         }
-                        // --- ERROR FIX ---
-                        .frame(maxWidth: .infinity) // Set max width
                         .frame(height: 60)          // THEN set fixed height
-                        // --- END ERROR FIX ---
                         .background(Color(white: 0.35, opacity: 0.9))
                         .cornerRadius(30)
                         .padding(.horizontal, 20)
@@ -152,65 +150,84 @@ struct Sleep01View: View {
                 )
                 .isDetailLink(false)
             )
+            .onAppear {
+                // 從UserDefaults讀取保存的鬧鐘時間
+                if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
+                    alarmTimeString = savedAlarmTime
+                }
+                
+                // 立即計算進度條
+                calculateDayProgress(currentTime: Date())
+                
+                // 短暫延遲後再次計算，確保視圖已完全加載
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    calculateDayProgress(currentTime: Date())
+                }
+            }
             .onReceive(timer) { receivedTime in
                 self.currentDate = receivedTime
-
-                let calendar = self.taipeiCalendar
-                let localAlarmStringParser = self.alarmStringParser
-                var newProgress = 0.0
-
-                guard let parsedAlarmTime = localAlarmStringParser.date(from: alarmTimeString) else {
-                    self.dayProgress = 0.0
-                    self.isAlarmTimePassedToday = false
-                    return
-                }
-                let alarmHourMinuteComponents = calendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
-                guard let alarmHour = alarmHourMinuteComponents.hour,
-                      let alarmMinute = alarmHourMinuteComponents.minute else {
-                    self.dayProgress = 0.0
-                    self.isAlarmTimePassedToday = false
-                    return
-                }
-
-                var todayAlarmDateComponents = calendar.dateComponents([.year, .month, .day], from: receivedTime)
-                todayAlarmDateComponents.hour = alarmHour
-                todayAlarmDateComponents.minute = alarmMinute
-                todayAlarmDateComponents.second = 0
-                guard let alarmTimeOnCurrentDay = calendar.date(from: todayAlarmDateComponents) else {
-                    self.dayProgress = 0.0
-                    self.isAlarmTimePassedToday = false
-                    return
-                }
-
-                self.isAlarmTimePassedToday = receivedTime >= alarmTimeOnCurrentDay
-                
-                let cycleStart: Date
-                let cycleEnd: Date
-
-                if receivedTime < alarmTimeOnCurrentDay {
-                    cycleEnd = alarmTimeOnCurrentDay
-                    guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: cycleEnd) else {
-                        self.dayProgress = 0.0; return
-                    }
-                    cycleStart = yesterdayAlarmTime
-                } else {
-                    cycleStart = alarmTimeOnCurrentDay
-                    guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: cycleStart) else {
-                        self.dayProgress = 0.0; return
-                    }
-                    cycleEnd = tomorrowAlarmTime
-                }
-
-                let totalCycleDuration = cycleEnd.timeIntervalSince(cycleStart)
-                let elapsedInCycle = receivedTime.timeIntervalSince(cycleStart)
-
-                if totalCycleDuration > 0 {
-                    newProgress = elapsedInCycle / totalCycleDuration
-                }
-                
-                self.dayProgress = min(max(newProgress, 0.0), 1.0)
+                calculateDayProgress(currentTime: receivedTime)
             }
         }
+    }
+    
+    // 提取進度條計算邏輯到獨立函數
+    private func calculateDayProgress(currentTime: Date) {
+        let calendar = self.taipeiCalendar
+        let localAlarmStringParser = self.alarmStringParser
+        var newProgress = 0.0
+
+        guard let parsedAlarmTime = localAlarmStringParser.date(from: alarmTimeString) else {
+            self.dayProgress = 0.0
+            self.isAlarmTimePassedToday = false
+            return
+        }
+        let alarmHourMinuteComponents = calendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
+        guard let alarmHour = alarmHourMinuteComponents.hour,
+              let alarmMinute = alarmHourMinuteComponents.minute else {
+            self.dayProgress = 0.0
+            self.isAlarmTimePassedToday = false
+            return
+        }
+
+        var todayAlarmDateComponents = calendar.dateComponents([.year, .month, .day], from: currentTime)
+        todayAlarmDateComponents.hour = alarmHour
+        todayAlarmDateComponents.minute = alarmMinute
+        todayAlarmDateComponents.second = 0
+        guard let alarmTimeOnCurrentDay = calendar.date(from: todayAlarmDateComponents) else {
+            self.dayProgress = 0.0
+            self.isAlarmTimePassedToday = false
+            return
+        }
+
+        self.isAlarmTimePassedToday = currentTime >= alarmTimeOnCurrentDay
+        
+        let cycleStart: Date
+        let cycleEnd: Date
+
+        if currentTime < alarmTimeOnCurrentDay {
+            cycleEnd = alarmTimeOnCurrentDay
+            guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: cycleEnd) else {
+                self.dayProgress = 0.0; return
+            }
+            cycleStart = yesterdayAlarmTime
+        } else {
+            cycleStart = alarmTimeOnCurrentDay
+            guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: cycleStart) else {
+                self.dayProgress = 0.0; return
+            }
+            cycleEnd = tomorrowAlarmTime
+        }
+
+        let totalCycleDuration = cycleEnd.timeIntervalSince(cycleStart)
+        let elapsedInCycle = currentTime.timeIntervalSince(cycleStart)
+
+        if totalCycleDuration > 0 {
+            newProgress = elapsedInCycle / totalCycleDuration
+        }
+        
+        self.dayProgress = min(max(newProgress, 0.0), 1.0)
+        print("Sleep01 - dayProgress updated: \(self.dayProgress)")
     }
 }
 
