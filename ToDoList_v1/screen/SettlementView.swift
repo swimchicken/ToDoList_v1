@@ -255,13 +255,16 @@ struct TopDateView: View {
     let isSameDaySettlement: Bool
 
     var body: some View {
-        VStack(spacing: 5) {
-            // 添加標題文字，說明這是上次結算到本次結算的時間範圍
-            Text("上次結算至今")
-                .font(.system(size: 14))
-                .foregroundColor(Color.white.opacity(0.7))
-                .padding(.bottom, 5)
-            
+        // 根據是否為當天結算顯示不同的日期佈局
+        if isSameDaySettlement {
+            // 狀態2（當天結算）- 只顯示左側（今天）日期
+            HStack {
+                DateDisplay(monthDayString: rightDateParts.monthDay, weekdayString: rightDateParts.weekday)
+                Spacer()
+            }
+            .padding(.vertical, 10)
+        } else {
+            // 狀態1（延遲結算）- 顯示從上次結算到今天的日期範圍
             HStack {
                 DateDisplay(monthDayString: leftDateParts.monthDay, weekdayString: leftDateParts.weekday)
                 Spacer()
@@ -272,8 +275,8 @@ struct TopDateView: View {
                 Spacer()
                 DateDisplay(monthDayString: rightDateParts.monthDay, weekdayString: rightDateParts.weekday)
             }
+            .padding(.vertical, 10)
         }
-        .padding(.vertical, 10)
     }
 }
 
