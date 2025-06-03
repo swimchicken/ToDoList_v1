@@ -209,4 +209,18 @@ class LocalDataManager {
         UserDefaults.standard.removeObject(forKey: "hasShownWelcomeItem") // 確保清除歡迎項目狀態
         print("DEBUG: 已清除所有本地存儲的待辦事項和同步狀態")
     }
+    
+    /// 保存所有本地更改
+    /// 確保所有待辦事項的更改都被同步保存到 UserDefaults
+    func saveAllChanges() {
+        // 獲取當前所有待辦事項並重新保存它們
+        // 這可以確保所有內存中的變更都被寫入到持久化存儲
+        let items = getAllTodoItems()
+        saveAllTodoItems(items)
+        print("DEBUG: 保存了所有本地待辦事項更改")
+        
+        // 更新最後同步時間，但不改變同步狀態
+        // 這表示資料已保存到本地，但尚未同步到雲端
+        updateLastSyncTime()
+    }
 }

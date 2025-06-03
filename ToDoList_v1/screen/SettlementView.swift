@@ -36,7 +36,7 @@ struct GreenCircleImageView: View {
 
 struct SettlementView: View {
 
-    // 模擬數據，之後你可以從你的數據源加載
+    // 任務數據
     @State private var completedTasks: [TodoItem] = []
     @State private var uncompletedTasks: [TodoItem] = []
     @State private var moveUncompletedTasksToTomorrow: Bool = true
@@ -45,8 +45,17 @@ struct SettlementView: View {
     // 延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
     
+    // 數據同步管理器
+    private let dataSyncManager = DataSyncManager.shared
+    
     // 判斷是否為當天結算
     @State private var isSameDaySettlement: Bool = false
+    
+    // 加載狀態
+    @State private var isLoading: Bool = true
+    
+    // 數據刷新令牌 - 用於強制視圖刷新
+    @State private var dataRefreshToken: UUID = UUID()
     
     // 日期相關
     private var currentDate: Date {
@@ -107,14 +116,25 @@ struct SettlementView: View {
                     .frame(height: 1) // 線條高度
                     .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34)) // 線條顏色
                                 
-                // 2. 標題 - 更新文字風格
+                // 2. 標題 - 根據結算狀態顯示不同文字
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("未結算提醒")
-                        .font(Font.custom("Instrument Sans", size: 13).weight(.bold))
-                        .foregroundColor(.white)
-                    Text("你尚未結算之前的任務")
-                        .font(Font.custom("Instrument Sans", size: 31.79449).weight(.bold))
-                        .foregroundColor(.white)
+                    if isSameDaySettlement {
+                        // 狀態2（當天結算）顯示「你今天完成了」和「n個任務」
+                        Text("你今天完成了")
+                            .font(Font.custom("Instrument Sans", size: 13).weight(.bold))
+                            .foregroundColor(.white)
+                        Text("\(completedTasks.count)個任務")
+                            .font(Font.custom("Instrument Sans", size: 31.79449).weight(.bold))
+                            .foregroundColor(.white)
+                    } else {
+                        // 狀態1（延遲結算）顯示原來的文字
+                        Text("未結算提醒")
+                            .font(Font.custom("Instrument Sans", size: 13).weight(.bold))
+                            .foregroundColor(.white)
+                        Text("你尚未結算之前的任務")
+                            .font(Font.custom("Instrument Sans", size: 31.79449).weight(.bold))
+                            .foregroundColor(.white)
+                    }
                 }
                 .padding(.top, 20) // 分隔線與標題之間的間距
 
@@ -150,15 +170,23 @@ struct SettlementView: View {
 
                             // 實際的已完成任務列表
                             VStack(alignment: .leading, spacing: 10) {
-                                if !completedTasks.isEmpty {
+                                if isLoading {
+                                    // 載入中顯示進度圈
+                                    HStack {
+                                        Spacer()
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        Spacer()
+                                    }
+                                    .padding()
+                                } else if !completedTasks.isEmpty {
+                                    // 顯示從資料庫加載的已完成任務
                                     ForEach(completedTasks) { task in
-                                        TaskRow(task: task, isCompleted: true)
+                                        TaskRow(task: task)
                                     }
                                 } else {
-                                    MockTaskRow(title: "完成設計提案初稿", isCompleted: true)
-                                    MockTaskRow(title: "Prepare tomorrow's meeting report", isCompleted: true)
-                                    MockTaskRow(title: "整理桌面和文件夾", isCompleted: true)
-                                    MockTaskRow(title: "寫一篇學習筆記", isCompleted: true)
+                                    // 沒有已完成任務時不顯示任何內容
+                                    EmptyView()
                                 }
                             }
                         }
@@ -167,18 +195,27 @@ struct SettlementView: View {
                         Spacer(minLength: 20)
 
                         // 4. 未完成任務列表
-                        Text("\(uncompletedTasks.isEmpty ? 3 : uncompletedTasks.count)個任務尚未達成")
+                        Text("\(uncompletedTasks.count)個任務尚未達成")
                             .font(Font.custom("Instrument Sans", size: 13).weight(.semibold))
                             .foregroundColor(.white)
 
-                        if !uncompletedTasks.isEmpty {
+                        if isLoading {
+                            // 載入中顯示進度圈
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                Spacer()
+                            }
+                            .padding()
+                        } else if !uncompletedTasks.isEmpty {
+                            // 顯示從資料庫加載的未完成任務
                             ForEach(uncompletedTasks) { task in
-                                TaskRow(task: task, isCompleted: false)
+                                TaskRow(task: task)
                             }
                         } else {
-                            MockTaskRow(title: "回覆所有未讀郵件", isCompleted: false)
-                            MockTaskRow(title: "練習日語聽力", isCompleted: false)
-                            MockTaskRow(title: "市場研究", isCompleted: false)
+                            // 沒有未完成任務時不顯示任何內容
+                            EmptyView()
                         }
                     }
                     .padding(.top, 20)
@@ -215,8 +252,6 @@ struct SettlementView: View {
             .padding(.vertical, 60)
         }
         .onAppear {
-            loadSampleTasks()
-            
             // 初始化當天結算狀態
             isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
             
@@ -228,6 +263,16 @@ struct SettlementView: View {
             } else {
                 print("SettlementView - 初始化結算狀態: 是否為當天結算 = \(isSameDaySettlement), 沒有上次結算日期（首次使用）")
             }
+            
+            // 設置數據變更監聽
+            setupDataChangeObservers()
+            
+            // 加載任務數據
+            loadTasks()
+        }
+        .onDisappear {
+            // 移除通知觀察者
+            NotificationCenter.default.removeObserver(self)
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
@@ -239,11 +284,96 @@ struct SettlementView: View {
         )
     }
 
-    func loadSampleTasks() {
-        if completedTasks.isEmpty {
+    // 加載任務數據
+    func loadTasks() {
+        isLoading = true
+        
+        // 先使用LocalDataManager直接從本地獲取最新數據
+        let localItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 打印所有本地項目的狀態進行調試
+        print("SettlementView - 本地數據庫中的項目: \(localItems.count) 個")
+        for (index, item) in localItems.enumerated() {
+            print("  項目\(index): ID=\(item.id), 標題=\(item.title), 狀態=\(item.status.rawValue), 有日期=\(item.taskDate != nil)")
         }
-        if uncompletedTasks.isEmpty {
+        
+        // 從本地項目中過濾已完成和未完成的項目
+        self.completedTasks = localItems.filter { $0.status == .completed }
+        self.uncompletedTasks = localItems.filter { $0.status == .undone || $0.status == .toBeStarted }
+        
+        print("SettlementView - 從本地加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
+        
+        // 然後使用DataSyncManager獲取並同步雲端數據
+        dataSyncManager.fetchTodoItems { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let items):
+                    // 根據任務狀態進行分類
+                    self.completedTasks = items.filter { $0.status == .completed }
+                    self.uncompletedTasks = items.filter { $0.status == .undone || $0.status == .toBeStarted }
+                    
+                    print("SettlementView - 成功從雲端加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
+                    for (index, item) in self.completedTasks.enumerated() {
+                        print("  已完成項目\(index): ID=\(item.id), 標題=\(item.title)")
+                    }
+                    
+                case .failure(let error):
+                    print("SettlementView - 從雲端加載任務失敗: \(error.localizedDescription)")
+                    // 加載失敗時保留本地數據，已經在之前設置過了
+                }
+                
+                self.isLoading = false
+            }
         }
+    }
+    
+    // 加載假數據（當實際數據加載失敗時使用）
+    func loadMockTasks() {
+        print("SettlementView - 加載假數據")
+        
+        // 假数据
+        completedTasks = [
+            TodoItem(id: UUID(), userID: "user1", title: "完成設計提案初稿", priority: 2, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+            TodoItem(id: UUID(), userID: "user1", title: "Prepare tomorrow's meeting report", priority: 1, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+            TodoItem(id: UUID(), userID: "user1", title: "整理桌面和文件夾", priority: 0, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+            TodoItem(id: UUID(), userID: "user1", title: "寫一篇學習筆記", priority: 0, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
+        ]
+        
+        uncompletedTasks = [
+            TodoItem(id: UUID(), userID: "user1", title: "回覆所有未讀郵件", priority: 1, isPinned: false, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+            TodoItem(id: UUID(), userID: "user1", title: "練習日語聽力", priority: 2, isPinned: false, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+            TodoItem(id: UUID(), userID: "user1", title: "市場研究", priority: 0, isPinned: false, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
+        ]
+    }
+    
+    // 設置監聽數據變化的觀察者
+    private func setupDataChangeObservers() {
+        // 監聽數據刷新通知 (從 DataSyncManager 發出)
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("TodoItemsDataRefreshed"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            self.handleDataRefreshed()
+        }
+        
+        // 監聽任務狀態變更通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("TodoItemStatusChanged"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            self.handleDataRefreshed()
+        }
+        
+        print("SettlementView - 已設置數據變更監聽")
+    }
+    
+    // 處理數據刷新通知
+    private func handleDataRefreshed() {
+        print("SettlementView - 收到數據刷新通知，重新加載任務")
+        dataRefreshToken = UUID() // 更新令牌以強制視圖刷新
+        loadTasks() // 重新加載任務數據
     }
 }
 
@@ -299,76 +429,74 @@ struct DateDisplay: View {
 
 struct TaskRow: View {
     let task: TodoItem
-    let isCompleted: Bool
+    
+    // 根據任務狀態確定是否已完成
+    private var isCompleted: Bool {
+        return task.status == .completed
+    }
+    
+    // 綠色和灰色
+    private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
+    private let grayColor = Color(red: 0.52, green: 0.52, blue: 0.52)
 
     var body: some View {
         HStack(spacing: 12) {
-            if isCompleted {
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .frame(width: 17, height: 17)
-                    .background(Color(red: 0, green: 0.72, blue: 0.41))
-                    .cornerRadius(40.5)
+            // 狀態指示圈
+            Circle()
+                .fill(isCompleted ? greenColor : Color.white.opacity(0.15))
+                .frame(width: 17, height: 17)
 
-                Text(task.title)
-                    .font(Font.custom("Inria Sans", size: 14).weight(.bold))
-                    .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                    .frame(height: 15, alignment: .topLeading)
-                    .lineLimit(1)
-            } else {
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .frame(width: 17, height: 17)
-                    .background(Color.white.opacity(0.15))
-                    .cornerRadius(40.5)
-
-                Text(task.title)
-                    .font(Font.custom("Inria Sans", size: 14).weight(.bold))
-                    .foregroundColor(Color(red: 0.52, green: 0.52, blue: 0.52))
-                    .frame(height: 15, alignment: .topLeading)
-                    .lineLimit(1)
-            }
+            // 任務標題 - 在結算頁面中移除刪除線
+            Text(task.title)
+                .font(Font.custom("Inria Sans", size: 14).weight(.bold))
+                .foregroundColor(isCompleted ? greenColor : grayColor)
+                .frame(height: 15, alignment: .topLeading)
+                .lineLimit(1)
+                // 根據需求在結算頁面不顯示刪除線
+                // .overlay(
+                //     isCompleted ? 
+                //         Rectangle()
+                //         .fill(greenColor)
+                //         .frame(height: 1.5)
+                //         .offset(y: 0) : nil
+                // )
+                
             Spacer()
         }
         .padding(.vertical, 4)
     }
-    
-    static var staticUncompletedTasks: [TodoItem] = [
-        TodoItem(id: UUID(), userID: "user1", title: "市場研究", priority: 0, isPinned: false, note: "aa", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
-    ]
 }
 
 struct MockTaskRow: View {
     let title: String
     let isCompleted: Bool
+    
+    // 綠色和灰色
+    private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
+    private let grayColor = Color(red: 0.52, green: 0.52, blue: 0.52)
 
     var body: some View {
         HStack(spacing: 12) {
-            if isCompleted {
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .frame(width: 17, height: 17)
-                    .background(Color(red: 0, green: 0.72, blue: 0.41))
-                    .cornerRadius(40.5)
+            // 狀態指示圈
+            Circle()
+                .fill(isCompleted ? greenColor : Color.white.opacity(0.15))
+                .frame(width: 17, height: 17)
 
-                Text(title)
-                    .font(Font.custom("Inria Sans", size: 14).weight(.bold))
-                    .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                    .frame(height: 15, alignment: .topLeading)
-                    .lineLimit(1)
-            } else {
-                Rectangle()
-                    .foregroundColor(.clear)
-                    .frame(width: 17, height: 17)
-                    .background(Color.white.opacity(0.15))
-                    .cornerRadius(40.5)
-
-                Text(title)
-                    .font(Font.custom("Inria Sans", size: 14).weight(.bold))
-                    .foregroundColor(Color(red: 0.52, green: 0.52, blue: 0.52))
-                    .frame(height: 15, alignment: .topLeading)
-                    .lineLimit(1)
-            }
+            // 任務標題 - 在結算頁面中移除刪除線
+            Text(title)
+                .font(Font.custom("Inria Sans", size: 14).weight(.bold))
+                .foregroundColor(isCompleted ? greenColor : grayColor)
+                .frame(height: 15, alignment: .topLeading)
+                .lineLimit(1)
+                // 根據需求在結算頁面不顯示刪除線
+                // .overlay(
+                //     isCompleted ? 
+                //         Rectangle()
+                //         .fill(greenColor)
+                //         .frame(height: 1.5)
+                //         .offset(y: 0) : nil
+                // )
+                
             Spacer()
         }
         .padding(.vertical, 4)

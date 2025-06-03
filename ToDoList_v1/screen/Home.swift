@@ -4,7 +4,6 @@ import CloudKit
 
 
 
-
 struct Home: View {
     @State private var showCalendarView: Bool = false
     @State private var updateStatus: String = ""
@@ -108,6 +107,8 @@ struct Home: View {
         return completeDayDataManager.isDayCompleted(date: dateWithOffset)
     }
     
+    // 已移至PhysicsSceneWrapper.swift
+    
     // 計算屬性：篩選並排序當前日期的待辦事項
     private var sortedToDoItems: [TodoItem] {
         // 獲取帶偏移量的日期
@@ -174,15 +175,7 @@ struct Home: View {
         )
     }
 
-    // 只在當前為今天時顯示物理場景
-    private var physicsScene: PhysicsScene {
-        let items = isCurrentDay ? sortedToDoItems : []
-        print("PhysicsScene 創建: 當前是今天=\(isCurrentDay), 項目數量=\(items.count)")
-        return PhysicsScene(
-            size: CGSize(width: 369, height: 100),
-            todoItems: items // 只在今天顯示球體
-        )
-    }
+    // 已移至PhysicsSceneWrapper.swift
     // 添加一個計算屬性來動態計算底部 padding
     private var bottomPaddingForTaskList: CGFloat {
         // 當天顯示物理場景時需要更多間距
@@ -326,219 +319,69 @@ struct Home: View {
                 // 3. 底部灰色容器：根據睡眠模式和當天狀態顯示不同的UI
                 // 只有當沒有顯示待辦事項佇列時才顯示
                 if !showToDoSheet {
-                    VStack {
-                        Spacer()
-                        
-                        // 先判斷睡眠模式
-                        if isSleepMode {
-                            // 睡眠模式UI - 類似Sleep01.swift的底部區域但保持相同的間距
-                            VStack(spacing: 20) {
-                                HStack(spacing: 15) {
-                                    Image(systemName: "moon.fill").font(.system(size: 20)).foregroundColor(.white.opacity(0.9))
-                                        .shadow(color: .white.opacity(0.4), radius: 25, x: 0, y: 0)
-                                        .shadow(color: .white.opacity(0.7), radius: 15, x: 0, y: 0)
-                                        .shadow(color: .white, radius: 7, x: 0, y: 0)
-                                    GeometryReader { geometry in
-                                        ZStack(alignment: .leading) {
-                                            Rectangle().foregroundColor(Color.gray.opacity(0.35))
-                                            Rectangle()
-                                                .frame(width: max(0, geometry.size.width * CGFloat(dayProgress)))
-                                                .foregroundColor(.white)
-                                        }
-                                        .frame(height: 4)
-                                        .cornerRadius(2)
-                                        .clipped()
-                                    }.frame(height: 4)
-                                    Image(systemName: "bell.and.waves.left.and.right").font(.system(size: 16)).foregroundColor(.gray)
-                                    Text(alarmTimeString)
-                                        .font(Font.custom("Inria Sans", size: 18.62571).weight(.light))
-                                        .multilineTextAlignment(.center).foregroundColor(.gray)
-                                }.padding(.top, 20)
+                    // 使用抽取出來的HomeBottomView組件
+                    HomeBottomView(
+                        todoItems: sortedToDoItems,
+                        refreshToken: dataRefreshToken,
+                        isCurrentDay: isCurrentDay,
+                        isSyncing: isSyncing,
+                        onEndTodayTapped: {
+                            // 根據同步狀態執行不同操作
+                            if !isSyncing {
+                                // 當用戶點擊"end today"按鈕，無論是否需要結算，都應該進入結算流程
+                                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
+                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement)")
                                 
-                                HStack(spacing: 10) {
-                                    // back to sleep mode 按鈕
-                                    Button(action: {
-                                        // 導航到Sleep01頁面
-                                        navigateToSleep01View = true
-                                    }) {
-                                        Text("back to sleep mode")
-                                            .font(.custom("Inria Sans", size: 20).weight(.bold))
-                                            .foregroundColor(.black)
-                                            .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
-                                    }
-                                    .frame(width: 272, height: 60)
-                                    .background(Color.white)
-                                    .cornerRadius(40.5)
-                                    
-                                    // plus 按鈕 - 新增任務
-                                    Button {
-                                        // 設置為今天模式
-                                        addTaskMode = .today
-                                        print("睡眠模式頁面的Plus按鈕被點擊，設置模式為: today")
-                                        
-                                        withAnimation(.easeInOut) {
-                                            showAddTaskSheet = true
-                                        }
-                                    } label: {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 77)
-                                                .fill(Color(red: 0, green: 0.72, blue: 0.41))
-                                                .frame(width: 71, height: 60)
-                                            Image(systemName: "plus")
-                                                .font(.system(size: 24))
-                                                .foregroundColor(.white)
-                                        }
-                                    }
+                                // 在導航前先觸發數據同步
+                                LocalDataManager.shared.saveAllChanges()
+                                
+                                // 發送數據刷新通知
+                                NotificationCenter.default.post(
+                                    name: Notification.Name("TodoItemsDataRefreshed"),
+                                    object: nil
+                                )
+                                
+                                // 給系統一點時間來處理數據更新
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    // 導航到結算頁面
+                                    navigateToSettlementView = true
                                 }
-                                .padding(.bottom, 20)
                             }
-                            .padding(12)
-                            .background(RoundedRectangle(cornerRadius: 32).fill(Color.white.opacity(0.15)))
-                            .transition(.opacity.combined(with: .scale))
-                        } else {
-                            // 非睡眠模式 - 原來的UI
-                            // 根據當天/非當天使用不同的佈局
+                        },
+                        onReturnToTodayTapped: {
+                            withAnimation(.easeInOut) {
+                                currentDateOffset = 0 // 返回到當天
+                                
+                                // 根據同步狀態執行不同操作
+                                if !isSyncing {
+                                    // 如果不在同步中，才刷新數據
+                                    loadTodoItems()
+                                }
+                            }
+                        },
+                        onAddButtonTapped: {
                             if isCurrentDay {
-                                // 當天顯示完整灰色容器（包含碰撞球和按鈕）
-                                VStack(spacing: 10) {
-                                    // 1. 物理場景 (BumpyCircle 掉落動畫)
-                                    SpriteView(scene: physicsScene, options: [.allowsTransparency])
-                                        .frame(width: 369, height: 100)
-                                        .clipShape(RoundedRectangle(cornerRadius: 32))
-                                        .background(Color.clear)
-                                        .id(sortedToDoItems.count) // 強制重新創建場景當項目數量改變時
-                                    
-                                    // 2. 底下兩個按鈕
-                                    HStack(spacing: 10) {
-                                        // end today 按鈕
-                                        Button(action: {
-                                            // 根據同步狀態執行不同操作
-                                            if isSyncing {
-                                                // 如果正在同步，則只顯示進度（不執行操作）
-                                            } else {
-                                                // 當用戶點擊"end today"按鈕，無論是否需要結算，都應該進入結算流程
-                                                // 這樣用戶可以清楚了解他們的當前狀態
-                                                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
-                                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement)")
-                                                
-                                                // 導航到結算頁面（SettlementView）
-                                                navigateToSettlementView = true
-                                            }
-                                        }) {
-                                            // 根據同步狀態顯示不同文字
-                                            if isSyncing {
-                                                HStack {
-                                                    Text("同步中...")
-                                                    ProgressView()
-                                                        .progressViewStyle(CircularProgressViewStyle(tint: .black))
-                                                }
-                                                .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
-                                            } else {
-                                                Text("end today")
-                                                    .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
-                                            }
-                                        }
-                                        .font(.custom("Inria Sans", size: 20).weight(.bold))
-                                        .foregroundColor(.black)
-                                        .frame(width: 272, height: 60)
-                                        .background(Color.white)
-                                        .cornerRadius(40.5)
-                                        
-                                        // plus 按鈕 - 新增任務
-                                        Button {
-                                            // 設置為今天模式
-                                            addTaskMode = .today
-                                            print("今天頁面的Plus按鈕被點擊，設置模式為: today")
-                                            
-                                            withAnimation(.easeInOut) {
-                                                showAddTaskSheet = true
-                                            }
-                                        } label: {
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 77)
-                                                    .fill(Color(red: 0, green: 0.72, blue: 0.41))
-                                                    .frame(width: 71, height: 60)
-                                                Image(systemName: "plus")
-                                                    .font(.system(size: 24))
-                                                    .foregroundColor(.white)
-                                            }
-                                        }
-                                    }
-                                }
-                                .padding(12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 32)
-                                        .fill(Color.gray.opacity(0.2))
-                                )
-                                .transition(.opacity.combined(with: .scale))
+                                // 設置為今天模式
+                                addTaskMode = .today
+                                print("今天頁面的Plus按鈕被點擊，設置模式為: today")
                             } else {
-                                // 非當天只顯示按鈕
-                                HStack(spacing: 10) {
-                                    // return to today 按鈕
-                                    Button(action: {
-                                        withAnimation(.easeInOut) {
-                                            currentDateOffset = 0 // 返回到當天
-                                            
-                                            // 根據同步狀態執行不同操作
-                                            if !isSyncing {
-                                                // 如果不在同步中，才刷新數據
-                                                loadTodoItems()
-                                            }
-                                        }
-                                    }) {
-                                        // 根據同步狀態顯示不同文字
-                                        if isSyncing {
-                                            HStack {
-                                                Text("同步中...")
-                                                ProgressView()
-                                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
-                                            }
-                                            .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
-                                        } else {
-                                            Text("return to today")
-                                                .frame(maxWidth: .infinity) // 使整個按鈕區域可點擊
-                                        }
-                                    }
-                                    .font(.custom("Inria Sans", size: 20).weight(.bold))
-                                    .foregroundColor(.black)
-                                    .frame(width: 272, height: 60)
-                                    .background(Color.white)
-                                    .cornerRadius(40.5)
-                                    
-                                    // plus 按鈕 - 新增任務
-                                    Button {
-                                        // 設置為未來日期模式
-                                        addTaskMode = .future
-                                        print("未來日期頁面的Plus按鈕被點擊，設置模式為: future")
-                                        
-                                        withAnimation(.easeInOut) {
-                                            showAddTaskSheet = true
-                                        }
-                                    } label: {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 77)
-                                                .fill(Color(red: 0, green: 0.72, blue: 0.41))
-                                                .frame(width: 71, height: 60)
-                                            Image(systemName: "plus")
-                                                .font(.system(size: 24))
-                                                .foregroundColor(.white)
-                                        }
-                                    }
-                                }
-                                .padding(10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 32)
-                                        .fill(Color.gray.opacity(0.2))
-                                )
-                                .transition(.opacity.combined(with: .scale))
+                                // 設置為未來日期模式
+                                addTaskMode = .future
+                                print("未來日期頁面的Plus按鈕被點擊，設置模式為: future")
                             }
+                            
+                            withAnimation(.easeInOut) {
+                                showAddTaskSheet = true
+                            }
+                        },
+                        isSleepMode: isSleepMode,
+                        alarmTimeString: alarmTimeString,
+                        dayProgress: dayProgress,
+                        onSleepButtonTapped: {
+                            // 導航到Sleep01頁面
+                            navigateToSleep01View = true
                         }
-                        
-                        // 底部間距
-                        Spacer().frame(height: 20)
-                    }
-                    .animation(.spring(response: 0.3), value: isCurrentDay)
-                    .animation(.spring(response: 0.3), value: isSleepMode)
+                    )
                     .zIndex(2) // 設置底部容器的層級
                 }
                 
@@ -935,9 +778,27 @@ struct Home: View {
             // 清除當前視圖的狀態
             isSleepMode = false
             
+        }
+        
+        // 監聽任務狀態變更通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("TodoItemStatusChanged"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            print("NOTICE: Home 收到任務狀態變更通知")
+            
+            // 強制刷新數據和UI
+            self.dataRefreshToken = UUID()
+            
+            // 如果有userInfo中有itemId，打印出來
+            if let itemId = notification.userInfo?["itemId"] as? String {
+                print("  變更的項目ID: \(itemId)")
+            }
+            
             // 延遲一點時間再重新載入數據
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                loadTodoItems()
+                self.loadTodoItems()
             }
         }
         

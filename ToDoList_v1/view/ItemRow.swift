@@ -22,13 +22,25 @@ struct ItemRow: View {
                 // 1. 圓圈按鈕：永遠靠左
                 Button {
                     withAnimation {
+                        // 更新狀態
                         item.status = (item.status == .completed ? .toBeStarted : .completed)
+                        
+                        // 立即更新本地資料庫
+                        LocalDataManager.shared.updateTodoItem(item)
+                        
+                        // 發送狀態變更通知，附帶項目ID
+                        NotificationCenter.default.post(
+                            name: Notification.Name("TodoItemStatusChanged"),
+                            object: nil,
+                            userInfo: ["itemId": item.id.uuidString]
+                        )
+                        
+                        print("ItemRow - 項目狀態已變更: ID=\(item.id), 標題=\(item.title), 新狀態=\(item.status.rawValue)")
                     }
                 } label: {
                     Circle()
                         .fill(item.status == .completed ? doneColor : Color.white.opacity(0.15))
                         .frame(width: 28, height: 28)
-                        
                 }
                 .buttonStyle(PlainButtonStyle())
 
