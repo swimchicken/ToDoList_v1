@@ -329,8 +329,12 @@ struct Home: View {
                             // 根據同步狀態執行不同操作
                             if !isSyncing {
                                 // 當用戶點擊"end today"按鈕，無論是否需要結算，都應該進入結算流程
-                                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
-                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement)")
+                                // 主動點擊 end today 時應該始終視為當天結算（狀態2）
+                                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
+                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
+                                
+                                // 設置主動結算標記，供SettlementView識別
+                                UserDefaults.standard.set(true, forKey: "isActiveEndDay")
                                 
                                 // 在導航前先觸發數據同步
                                 LocalDataManager.shared.saveAllChanges()
@@ -573,8 +577,9 @@ struct Home: View {
             // 在應用啟動時檢查是否應該直接顯示結算頁面
             let shouldShowSettlement = delaySettlementManager.shouldShowSettlement()
             if shouldShowSettlement {
-                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
-                print("檢測到未完成的結算，準備顯示結算頁面，是否為當天結算 = \(isSameDaySettlement)")
+                // 系統檢測到未完成結算時，使用正常的檢查邏輯（非主動結算）
+                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: false)
+                print("檢測到未完成的結算，準備顯示結算頁面，是否為當天結算 = \(isSameDaySettlement) (系統檢測)")
                 
                 // 延遲一點時間再導航，確保Home視圖已完全加載
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

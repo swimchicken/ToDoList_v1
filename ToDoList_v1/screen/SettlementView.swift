@@ -252,8 +252,14 @@ struct SettlementView: View {
             .padding(.vertical, 60)
         }
         .onAppear {
-            // 初始化當天結算狀態
-            isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
+            // 檢查是否有主動結算標記
+            let isActiveEndDay = UserDefaults.standard.bool(forKey: "isActiveEndDay")
+            
+            // 初始化當天結算狀態 - 如果是主動結算則一律視為當天結算
+            isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: isActiveEndDay)
+            
+            // 清除主動結算標記（一次性使用）
+            UserDefaults.standard.removeObject(forKey: "isActiveEndDay")
             
             // 打印結算信息以便調試
             if let lastDate = delaySettlementManager.getLastSettlementDate() {
@@ -327,24 +333,7 @@ struct SettlementView: View {
         }
     }
     
-    // 加載假數據（當實際數據加載失敗時使用）
-    func loadMockTasks() {
-        print("SettlementView - 加載假數據")
-        
-        // 假数据
-        completedTasks = [
-            TodoItem(id: UUID(), userID: "user1", title: "完成設計提案初稿", priority: 2, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-            TodoItem(id: UUID(), userID: "user1", title: "Prepare tomorrow's meeting report", priority: 1, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-            TodoItem(id: UUID(), userID: "user1", title: "整理桌面和文件夾", priority: 0, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-            TodoItem(id: UUID(), userID: "user1", title: "寫一篇學習筆記", priority: 0, isPinned: false, note: "", status: .completed, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
-        ]
-        
-        uncompletedTasks = [
-            TodoItem(id: UUID(), userID: "user1", title: "回覆所有未讀郵件", priority: 1, isPinned: false, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-            TodoItem(id: UUID(), userID: "user1", title: "練習日語聽力", priority: 2, isPinned: false, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-            TodoItem(id: UUID(), userID: "user1", title: "市場研究", priority: 0, isPinned: false, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
-        ]
-    }
+    // Mock data loading function has been removed
     
     // 設置監聽數據變化的觀察者
     private func setupDataChangeObservers() {
@@ -467,41 +456,7 @@ struct TaskRow: View {
     }
 }
 
-struct MockTaskRow: View {
-    let title: String
-    let isCompleted: Bool
-    
-    // 綠色和灰色
-    private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
-    private let grayColor = Color(red: 0.52, green: 0.52, blue: 0.52)
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // 狀態指示圈
-            Circle()
-                .fill(isCompleted ? greenColor : Color.white.opacity(0.15))
-                .frame(width: 17, height: 17)
-
-            // 任務標題 - 在結算頁面中移除刪除線
-            Text(title)
-                .font(Font.custom("Inria Sans", size: 14).weight(.bold))
-                .foregroundColor(isCompleted ? greenColor : grayColor)
-                .frame(height: 15, alignment: .topLeading)
-                .lineLimit(1)
-                // 根據需求在結算頁面不顯示刪除線
-                // .overlay(
-                //     isCompleted ? 
-                //         Rectangle()
-                //         .fill(greenColor)
-                //         .frame(height: 1.5)
-                //         .offset(y: 0) : nil
-                // )
-                
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-}
+// MockTaskRow has been removed
 
 struct BottomControlsView: View {
     @Binding var moveUncompletedTasksToTomorrow: Bool

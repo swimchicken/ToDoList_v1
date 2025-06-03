@@ -122,8 +122,15 @@ class DelaySettlementManager {
     }
     
     /// 檢查是否為當天結算
+    /// - Parameter isActiveEndDay: 是否是用戶主動點擊"end today"按鈕
     /// - Returns: 如果是當天結算返回true，否則返回false
-    func isSameDaySettlement() -> Bool {
+    func isSameDaySettlement(isActiveEndDay: Bool = false) -> Bool {
+        // 如果是用戶主動點擊"end today"按鈕，則視為當天結算
+        if isActiveEndDay {
+            return true
+        }
+        
+        // 否則檢查上次結算日期是否為今天
         guard let lastDate = getLastSettlementDate() else {
             return false // 沒有上次結算日期，肯定不是當天
         }
