@@ -41,14 +41,37 @@ struct SettlementView: View {
     @State private var uncompletedTasks: [TodoItem] = []
     @State private var moveUncompletedTasksToTomorrow: Bool = true
     @State private var navigateToSettlementView02: Bool = false // 導航到下一頁
-
+    
+    // 延遲結算管理器
+    private let delaySettlementManager = DelaySettlementManager.shared
+    
+    // 判斷是否為當天結算
+    @State private var isSameDaySettlement: Bool = false
+    
     // 日期相關
-    private var yesterday: Date {
-        return Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+    private var currentDate: Date {
+        return Date()
     }
-    // 左側日期先假定一個，例如7天前
+    
+    // 右側日期 - 顯示當前日期
+    private var rightDisplayDate: Date {
+        return currentDate
+    }
+    
+    // 左側日期 - 顯示上次結算日期（或適當的默認值）
     private var leftDisplayDate: Date {
-        return Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        // 嘗試獲取上次結算日期
+        if let lastSettlementDate = delaySettlementManager.getLastSettlementDate() {
+            // 使用實際的上次結算日期
+            return lastSettlementDate
+        } else {
+            // 首次使用時沒有上次結算日期
+            // 首次使用或未有結算記錄時使用昨天作為默認顯示值
+            // 注意：這裡只是用於顯示，不代表實際的結算狀態
+            let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+            print("首次使用應用或無結算記錄，顯示默認時間範圍（昨天到今天）")
+            return yesterday
+        }
     }
 
     // 更新 formatDate 以返回月日和星期兩個部分
@@ -74,7 +97,8 @@ struct SettlementView: View {
                 // 1. 頂部日期選擇器
                 TopDateView(
                     leftDateParts: formatDateForDisplay(leftDisplayDate),
-                    rightDateParts: formatDateForDisplay(yesterday)
+                    rightDateParts: formatDateForDisplay(rightDisplayDate),
+                    isSameDaySettlement: isSameDaySettlement
                 )
                 .padding(.bottom, 20) // 日期選擇器下方的間距
 
@@ -192,6 +216,18 @@ struct SettlementView: View {
         }
         .onAppear {
             loadSampleTasks()
+            
+            // 初始化當天結算狀態
+            isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
+            
+            // 打印結算信息以便調試
+            if let lastDate = delaySettlementManager.getLastSettlementDate() {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                print("SettlementView - 初始化結算狀態: 是否為當天結算 = \(isSameDaySettlement), 上次結算日期 = \(dateFormatter.string(from: lastDate))")
+            } else {
+                print("SettlementView - 初始化結算狀態: 是否為當天結算 = \(isSameDaySettlement), 沒有上次結算日期（首次使用）")
+            }
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
@@ -216,17 +252,26 @@ struct SettlementView: View {
 struct TopDateView: View {
     let leftDateParts: (monthDay: String, weekday: String)
     let rightDateParts: (monthDay: String, weekday: String)
+    let isSameDaySettlement: Bool
 
     var body: some View {
-        HStack {
-            DateDisplay(monthDayString: leftDateParts.monthDay, weekdayString: leftDateParts.weekday)
-            Spacer()
-            Image("line01")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 40, height: 2)
-            Spacer()
-            DateDisplay(monthDayString: rightDateParts.monthDay, weekdayString: rightDateParts.weekday)
+        VStack(spacing: 5) {
+            // 添加標題文字，說明這是上次結算到本次結算的時間範圍
+            Text("上次結算至今")
+                .font(.system(size: 14))
+                .foregroundColor(Color.white.opacity(0.7))
+                .padding(.bottom, 5)
+            
+            HStack {
+                DateDisplay(monthDayString: leftDateParts.monthDay, weekdayString: leftDateParts.weekday)
+                Spacer()
+                Image("line01")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 40, height: 2)
+                Spacer()
+                DateDisplay(monthDayString: rightDateParts.monthDay, weekdayString: rightDateParts.weekday)
+            }
         }
         .padding(.vertical, 10)
     }
@@ -332,6 +377,14 @@ struct BottomControlsView: View {
     @Binding var navigateToSettlementView02: Bool  // 添加導航綁定
     @Environment(\.presentationMode) var presentationMode
     
+    // 引用延遲結算管理器
+    private let delaySettlementManager = DelaySettlementManager.shared
+    
+    // 是否為當天結算
+    private var isSameDaySettlement: Bool {
+        return delaySettlementManager.isSameDaySettlement()
+    }
+    
     var body: some View {
         VStack(spacing: 20) {
             HStack {
@@ -349,10 +402,20 @@ struct BottomControlsView: View {
             .cornerRadius(12)
 
             Button(action: {
-                // 導航到 SettlementView02
-                navigateToSettlementView02 = true
+                // 根據是否為當天結算執行不同操作
+                if isSameDaySettlement {
+                    // 當天結算才進入 SettlementView02 繼續流程
+                    navigateToSettlementView02 = true
+                    print("是當天結算，繼續到 SettlementView02")
+                } else {
+                    // 非當天結算（延遲結算）直接標記結算完成並返回首頁
+                    delaySettlementManager.markSettlementCompleted()
+                    print("是延遲結算，標記完成並返回首頁")
+                    presentationMode.wrappedValue.dismiss()
+                }
             }) {
-                Text("開始設定今天的計畫")
+                // 按鈕文字根據是否為當天結算而變化
+                Text(isSameDaySettlement ? "開始設定今天的計畫" : "完成結算並返回")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)

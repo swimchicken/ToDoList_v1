@@ -46,6 +46,9 @@ struct SettlementView02: View {
     @State private var showTodoQueue: Bool = false
     @State private var navigateToSettlementView03: Bool = false // 導航到下一頁
     
+    // 延遲結算管理器
+    private let delaySettlementManager = DelaySettlementManager.shared
+    
     private var tomorrow: Date { Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() }
 
     private func formatDateForDisplay(_ date: Date) -> (monthDay: String, weekday: String) {
@@ -211,7 +214,12 @@ struct SettlementView02: View {
                     }.padding()
                     Spacer()
                     Button(action: {
-                        // 導航到 SettlementView03
+                        // 因為這是當天結算流程的最後一步（不再進入 SettlementView03）
+                        // 所以直接標記結算完成
+                        delaySettlementManager.markSettlementCompleted()
+                        print("SettlementView02 - 已標記結算完成")
+                        
+                        // 仍然導航到 SettlementView03 來設置鬧鐘
                         navigateToSettlementView03 = true
                     }) { 
                         Text("Next")

@@ -43,6 +43,9 @@ struct SettlementView03: View {
     // 引用已完成日期數據管理器
     private let completeDayDataManager = CompleteDayDataManager.shared
     
+    // 引用延遲結算管理器
+    private let delaySettlementManager = DelaySettlementManager.shared
+    
     // 用於將設置傳遞給 Home 視圖
     class SleepSettings: ObservableObject {
         static let shared = SleepSettings()
@@ -224,6 +227,10 @@ struct SettlementView03: View {
                 // 標記今天為已完成
                 completeDayDataManager.markTodayAsCompleted()
                 print("已標記今天為已完成的一天")
+                
+                // 標記結算流程完成 - 這是整個結算流程的最後一步
+                delaySettlementManager.markSettlementCompleted()
+                print("已標記結算流程完成")
                 
                 // 保存鬧鐘設置
                 let hourToSave = selectedHour

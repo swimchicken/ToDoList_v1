@@ -51,6 +51,9 @@ struct Home: View {
     // 已完成日期數據管理器 - 追蹤已完成的日期
     private let completeDayDataManager = CompleteDayDataManager.shared
     
+    // 延遲結算管理器 - 處理結算顯示和時間追蹤
+    private let delaySettlementManager = DelaySettlementManager.shared
+    
     // 修改後的taiwanTime，基於currentDate和日期偏移量
     var taiwanTime: (monthDay: String, weekday: String, timeStatus: String) {
         let currentDateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
@@ -413,6 +416,11 @@ struct Home: View {
                                             if isSyncing {
                                                 // 如果正在同步，則只顯示進度（不執行操作）
                                             } else {
+                                                // 當用戶點擊"end today"按鈕，無論是否需要結算，都應該進入結算流程
+                                                // 這樣用戶可以清楚了解他們的當前狀態
+                                                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
+                                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement)")
+                                                
                                                 // 導航到結算頁面（SettlementView）
                                                 navigateToSettlementView = true
                                             }
@@ -716,6 +724,22 @@ struct Home: View {
             // 在主線程延遲0.5秒後再次載入，確保視圖更新
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 loadTodoItems()  // 再次載入以確保物理場景正確顯示
+            }
+            
+            // 檢查是否需要顯示結算頁面（有未完成的結算）
+            // 在應用啟動時檢查是否應該直接顯示結算頁面
+            let shouldShowSettlement = delaySettlementManager.shouldShowSettlement()
+            if shouldShowSettlement {
+                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement()
+                print("檢測到未完成的結算，準備顯示結算頁面，是否為當天結算 = \(isSameDaySettlement)")
+                
+                // 延遲一點時間再導航，確保Home視圖已完全加載
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    navigateToSettlementView = true
+                }
+            } else {
+                // 如果不需要顯示結算（例如昨天已經結算過），則不做特別處理
+                print("不需要顯示結算頁面，正常進入Home畫面")
             }
             
             // 從 UserDefaults 讀取保存的狀態
