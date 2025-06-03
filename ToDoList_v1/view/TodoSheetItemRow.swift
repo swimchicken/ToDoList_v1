@@ -7,6 +7,9 @@ struct TodoSheetItemRow: View {
     private let doneColor = Color(red: 0, green: 0.72, blue: 0.41)
     private let iconSize: CGFloat = 16
     
+    // 新增：處理將項目添加到首頁的回調
+    var onAddToHome: ((TodoItem) -> Void)? = nil
+    
     var body: some View {
         ZStack {
             // 完成狀態下的橫跨整行的刪除線
@@ -24,6 +27,16 @@ struct TodoSheetItemRow: View {
                     withAnimation {
                         item.status = (item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)
                     }
+                    
+                    // 更新本地資料庫
+                    LocalDataManager.shared.updateTodoItem(item)
+                    
+                    // 發送狀態變更通知
+                    NotificationCenter.default.post(
+                        name: Notification.Name("TodoItemStatusChanged"),
+                        object: nil,
+                        userInfo: ["itemId": item.id.uuidString]
+                    )
                 } label: {
                     Rectangle()
                         .foregroundColor(.clear)
@@ -57,9 +70,39 @@ struct TodoSheetItemRow: View {
                     .padding(.trailing, 8)
                 }
                 
-                // 右側箭頭按鈕
+                // 右側箭頭按鈕 - 添加到首頁並賦予當前時間
                 Button {
-                    // 這裡可以添加點擊箭頭的操作，例如查看詳情
+                    // 創建一個新的副本
+                    var homeItem = item
+                    
+                    // 賦予當前時間
+                    homeItem.taskDate = Date()
+                    
+                    // 如果之前是備忘錄（待辦佇列），更改狀態為 toBeStarted
+                    if homeItem.status == .toDoList {
+                        homeItem.status = .toBeStarted
+                    }
+                    
+                    // 使用數據同步管理器添加到首頁事件
+                    DataSyncManager.shared.addTodoItem(homeItem) { result in
+                        switch result {
+                        case .success(_):
+                            // 發送通知以刷新首頁
+                            NotificationCenter.default.post(
+                                name: Notification.Name("TodoItemsDataRefreshed"),
+                                object: nil
+                            )
+                            
+                            // 如果有回調，傳遞新項目
+                            if let onAddToHome = onAddToHome {
+                                onAddToHome(homeItem)
+                            }
+                            
+                        case .failure(let error):
+                            // 錯誤記錄到控制台
+                            print("添加失敗: \(error.localizedDescription)")
+                        }
+                    }
                 } label: {
                     Image(systemName: "arrow.turn.right.up")
                         .font(.system(size: 14))

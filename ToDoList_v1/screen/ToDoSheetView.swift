@@ -34,13 +34,17 @@ struct ToDoSheetView: View {
     private var filteredItems: [TodoItem] {
         switch selectedCategory {
         case .all:
+            // 全部項目 - 不過濾
             return mutableItems
         case .memo:
-            // 篩選沒有時間的項目 (備忘錄項目)
+            // 備忘錄 - 篩選沒有時間的項目 (taskDate == nil)
             return mutableItems.filter { $0.taskDate == nil }
         case .incomplete:
-            // 過濾出狀態不是 .completed 的待辦事項
-            return mutableItems.filter { $0.status != .completed }
+            // 未完成 - 有時間且狀態為未完成
+            return mutableItems.filter { 
+                $0.taskDate != nil && 
+                ($0.status == .undone || $0.status == .toBeStarted) 
+            }
         }
     }
 
@@ -130,7 +134,18 @@ struct ToDoSheetView: View {
                             ForEach(filteredItems.indices, id: \.self) { index in
                                 let item = filteredItems[index]
                                 if let originalIndex = mutableItems.firstIndex(where: { $0.id == item.id }) {
-                                    TodoSheetItemRow(item: $mutableItems[originalIndex])
+                                    TodoSheetItemRow(
+                                        item: $mutableItems[originalIndex],
+                                        onAddToHome: { homeItem in
+                                            // 更新本地項目
+                                            toDoItems = mutableItems
+                                            
+                                            // 關閉待辦事項佇列視窗
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                                onDismiss()
+                                            }
+                                        }
+                                    )
                                     Divider()
                                         .background(Color.white.opacity(0.1))
                                         .padding(.leading, 60)
