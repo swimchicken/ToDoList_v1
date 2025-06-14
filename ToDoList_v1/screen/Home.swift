@@ -128,7 +128,7 @@ struct Home: View {
             return taskDate >= startOfDay && taskDate < endOfDay
         }
         
-        // 排序：首先按置頂狀態排序，其次按任務日期排序
+        // 排序：先按置頂狀態排序，再按優先級排序(高到低)，最後按任務日期排序
         return filteredItems.sorted { item1, item2 in
             // 置頂項目優先
             if item1.isPinned && !item2.isPinned {
@@ -137,8 +137,13 @@ struct Home: View {
             if !item1.isPinned && item2.isPinned {
                 return false
             }
+            
+            // 如果置頂狀態相同，按優先級排序（由高到低）
+            if item1.priority != item2.priority {
+                return item1.priority > item2.priority
+            }
                     
-            // 如果置頂狀態相同，按任務日期排序（由早到晚）
+            // 如果優先級相同，按任務日期排序（由早到晚）
             // 因為這個階段的項目都已經通過了前面的過濾，所以已經確保它們都有任務日期
             let date1 = item1.taskDate ?? Date.distantFuture
             let date2 = item2.taskDate ?? Date.distantFuture
