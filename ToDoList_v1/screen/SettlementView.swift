@@ -170,8 +170,14 @@ struct SettlementView: View {
 
                             // 實際的已完成任務列表
                             VStack(alignment: .leading, spacing: 10) {
-                                if isLoading {
-                                    // 載入中顯示進度圈
+                                if !completedTasks.isEmpty || !isLoading {
+                                    // 顯示從資料庫加載的已完成任務
+                                    // 即使在加載中也顯示已有的任務，避免閃爍
+                                    ForEach(completedTasks) { task in
+                                        TaskRow(task: task)
+                                    }
+                                } else if isLoading && completedTasks.isEmpty {
+                                    // 只有當真的沒有任務且正在加載時才顯示加載指示器
                                     HStack {
                                         Spacer()
                                         ProgressView()
@@ -179,11 +185,6 @@ struct SettlementView: View {
                                         Spacer()
                                     }
                                     .padding()
-                                } else if !completedTasks.isEmpty {
-                                    // 顯示從資料庫加載的已完成任務
-                                    ForEach(completedTasks) { task in
-                                        TaskRow(task: task)
-                                    }
                                 } else {
                                     // 沒有已完成任務時不顯示任何內容
                                     EmptyView()
@@ -199,8 +200,14 @@ struct SettlementView: View {
                             .font(Font.custom("Instrument Sans", size: 13).weight(.semibold))
                             .foregroundColor(.white)
 
-                        if isLoading {
-                            // 載入中顯示進度圈
+                        if !uncompletedTasks.isEmpty || !isLoading {
+                            // 顯示從資料庫加載的未完成任務
+                            // 即使在加載中也顯示已有的任務，避免閃爍
+                            ForEach(uncompletedTasks) { task in
+                                TaskRow(task: task)
+                            }
+                        } else if isLoading && uncompletedTasks.isEmpty {
+                            // 只有當真的沒有任務且正在加載時才顯示加載指示器
                             HStack {
                                 Spacer()
                                 ProgressView()
@@ -208,11 +215,6 @@ struct SettlementView: View {
                                 Spacer()
                             }
                             .padding()
-                        } else if !uncompletedTasks.isEmpty {
-                            // 顯示從資料庫加載的未完成任務
-                            ForEach(uncompletedTasks) { task in
-                                TaskRow(task: task)
-                            }
                         } else {
                             // 沒有未完成任務時不顯示任何內容
                             EmptyView()
@@ -308,6 +310,11 @@ struct SettlementView: View {
         
         print("SettlementView - 從本地加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
         
+        // 如果本地已有數據，可以先將 isLoading 設為 false 以提高用戶體驗
+        if !localItems.isEmpty {
+            isLoading = false
+        }
+        
         // 然後使用DataSyncManager獲取並同步雲端數據
         dataSyncManager.fetchTodoItems { result in
             DispatchQueue.main.async {
@@ -361,7 +368,16 @@ struct SettlementView: View {
     private func handleDataRefreshed() {
         print("SettlementView - 收到數據刷新通知，重新加載任務")
         dataRefreshToken = UUID() // 更新令牌以強制視圖刷新
-        loadTasks() // 重新加載任務數據
+        
+        // 優化任務刷新過程，避免顯示加載指示器
+        // 直接從本地數據庫獲取最新數據
+        let localItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 從本地項目中過濾已完成和未完成的項目
+        self.completedTasks = localItems.filter { $0.status == .completed }
+        self.uncompletedTasks = localItems.filter { $0.status == .undone || $0.status == .toBeStarted }
+        
+        print("SettlementView - 數據刷新通知後直接更新: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
     }
 }
 
@@ -418,21 +434,32 @@ struct DateDisplay: View {
 struct TaskRow: View {
     let task: TodoItem
     
-    // 根據任務狀態確定是否已完成
-    private var isCompleted: Bool {
-        return task.status == .completed
-    }
+    // 使用 @State 來追蹤是否已完成，初始值從 task.status 獲取
+    @State private var isCompleted: Bool
+    
+    // 引用數據同步管理器以更新任務狀態
+    private let dataSyncManager = DataSyncManager.shared
     
     // 綠色和灰色
     private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
     private let grayColor = Color(red: 0.52, green: 0.52, blue: 0.52)
+    
+    // 初始化時設置 isCompleted 的值
+    init(task: TodoItem) {
+        self.task = task
+        self._isCompleted = State(initialValue: task.status == .completed)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
-            // 狀態指示圈
+            // 狀態指示圈 - 現在可點擊
             Circle()
                 .fill(isCompleted ? greenColor : Color.white.opacity(0.15))
                 .frame(width: 17, height: 17)
+                .onTapGesture {
+                    toggleTaskStatus()
+                }
+                .contentShape(Rectangle()) // 增加點擊區域
 
             // 任務標題 - 在結算頁面中移除刪除線
             Text(task.title)
@@ -452,6 +479,37 @@ struct TaskRow: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+    
+    // 切換任務狀態
+    private func toggleTaskStatus() {
+        // 切換本地狀態
+        isCompleted.toggle()
+        
+        // 創建更新後的任務
+        var updatedTask = task
+        updatedTask.status = isCompleted ? .completed : .undone
+        
+        // 更新數據庫中的任務
+        dataSyncManager.updateTodoItem(updatedTask) { result in
+            switch result {
+            case .success:
+                // 發送通知以刷新 UI
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("TodoItemStatusChanged"),
+                        object: nil
+                    )
+                }
+                print("成功更新任務狀態: \(updatedTask.id) 為 \(updatedTask.status.rawValue)")
+            case .failure(let error):
+                print("更新任務狀態失敗: \(error.localizedDescription)")
+                // 如果更新失敗，恢復本地狀態
+                DispatchQueue.main.async {
+                    self.isCompleted = !self.isCompleted
+                }
+            }
+        }
     }
 }
 
