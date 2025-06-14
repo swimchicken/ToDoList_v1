@@ -249,7 +249,6 @@ struct SettlementView: View {
                 )
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 60)
         }
         .onAppear {
             // 檢查是否有主動結算標記
@@ -466,9 +465,10 @@ struct BottomControlsView: View {
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
     
-    // 是否為當天結算
+    // 是否為當天結算 - 使用正確的參數
     private var isSameDaySettlement: Bool {
-        return delaySettlementManager.isSameDaySettlement()
+        // 從 Home 點擊 end today 進入的結算應該始終視為當天結算
+        return delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
     }
     
     var body: some View {
@@ -488,20 +488,12 @@ struct BottomControlsView: View {
             .cornerRadius(12)
 
             Button(action: {
-                // 根據是否為當天結算執行不同操作
-                if isSameDaySettlement {
-                    // 當天結算才進入 SettlementView02 繼續流程
-                    navigateToSettlementView02 = true
-                    print("是當天結算，繼續到 SettlementView02")
-                } else {
-                    // 非當天結算（延遲結算）直接標記結算完成並返回首頁
-                    delaySettlementManager.markSettlementCompleted()
-                    print("是延遲結算，標記完成並返回首頁")
-                    presentationMode.wrappedValue.dismiss()
-                }
+                // 固定行為：無論是否為當天結算，都進入 SettlementView02 繼續流程
+                navigateToSettlementView02 = true
+                print("繼續到 SettlementView02 設置計畫")
             }) {
-                // 按鈕文字根據是否為當天結算而變化
-                Text(isSameDaySettlement ? "開始設定今天的計畫" : "完成結算並返回")
+                // 根據模式選擇不同文字
+                Text(isSameDaySettlement ? "開始設定明日計畫" : "開始設定今天的計畫")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
