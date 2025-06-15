@@ -285,7 +285,13 @@ struct SettlementView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .background(
-            NavigationLink(destination: SettlementView02(), isActive: $navigateToSettlementView02) {
+            NavigationLink(
+                destination: SettlementView02(
+                    uncompletedTasks: uncompletedTasks,
+                    moveTasksToTomorrow: moveUncompletedTasksToTomorrow
+                ), 
+                isActive: $navigateToSettlementView02
+            ) {
                 EmptyView()
             }
         )
