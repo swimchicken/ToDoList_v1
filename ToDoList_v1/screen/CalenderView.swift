@@ -622,7 +622,8 @@ struct CalendarView: View {
                                                         .font(.system(size: 10))
                                                         .lineLimit(isActiveWeek ? 3 : 1)
                                                         .truncationMode(.tail)
-                                                        .fixedSize(horizontal: false, vertical: isActiveWeek)
+                                                        .multilineTextAlignment(.leading) // 添加文本對齊方式
+                                                        .frame(maxWidth: .infinity, alignment: .leading) // 讓文本填滿可用寬度
                                                         .padding(.horizontal, 4)
                                                         .padding(.vertical, 2)
                                                         .background(eventColor(for: dayInfo.day, isCurrentMonth: dayInfo.isCurrentMonth, month: dayInfo.month, year: dayInfo.year).opacity(0.7))
@@ -635,11 +636,12 @@ struct CalendarView: View {
                                                     Text("+\(events.count - 3) more")
                                                         .font(.system(size: 9))
                                                         .foregroundColor(.gray)
+                                                        .frame(maxWidth: .infinity, alignment: .leading) // 同樣讓 "+x more" 文本也填滿寬度
                                                 }
                                             }
                                         }
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                        .padding(.horizontal, 2)
+                                        .padding(.horizontal, 1) // 減少水平 padding，讓事項有更多空間
                                         .padding(.top, 0) // 確保無上方間距
                                     }
                                 }
