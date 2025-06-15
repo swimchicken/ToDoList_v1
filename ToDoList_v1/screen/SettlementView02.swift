@@ -108,7 +108,7 @@ struct SettlementView02: View {
                         .padding(.top, 10)
                     }
                      // 估算底部固定UI高度，為ScrollView增加padding，避免遮擋
-                    .padding(.bottom, (showTodoQueue ? 380 : 80) + 70 + 20 ) // (按鈕+展開內容)+底部導航+緩衝
+                    .padding(.bottom, showTodoQueue ? 380 : 200) // 简化padding计算，确保有足够空间
                 }
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, 12)
@@ -332,7 +332,8 @@ struct TaskListView: View {
                     TaskRowView(task: tasks[index], isLast: index == tasks.count - 1)
                 }
             }
-            // 无论有没有任务都显示添加按钮
+            
+            // 无论有没有任务都显示添加按钮，简单地放在列表末尾
             AddTaskButton()
         }
     }
