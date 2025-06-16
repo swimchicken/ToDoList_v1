@@ -24,6 +24,11 @@ struct DeleteItemView: View {
     /// 當用戶點擊「刪除」時執行的閉包
     let onDelete: () -> Void
     
+    // 獲取屏幕寬度，減去邊距以貼近屏幕邊緣
+    private var containerWidth: CGFloat {
+        UIScreen.main.bounds.width - 32
+    }
+    
     // MARK: - Body
     
     var body: some View {
@@ -44,18 +49,24 @@ struct DeleteItemView: View {
                 VStack(spacing: 0) {
                     // 項目名稱標題
                     Text(itemName)
-                        .font(.footnote)
-                        .foregroundColor(.gray)
-                        .padding(.vertical, 4) // 降低事件名稱區域高度
+                        .font(Font.custom("SF Pro Text", size: 13))
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(Color(red: 0.92, green: 0.92, blue: 0.96).opacity(0.6))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 6) // 調整事件名稱區域高度
+                        .padding(.bottom, 4) // 增加與下邊線的間距
                     
                     Divider().background(Color.gray.opacity(0.3))
                     
                     // 編輯按鈕
                     Button(action: onEdit) {
                         Text("編輯")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, minHeight: 45) // 增加編輯按鈕高度
+                            .font(Font.custom("SF Pro Display", size: 20))
+                            .kerning(0.38)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(Color(red: 0.04, green: 0.52, blue: 1))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .frame(minHeight: 45) // 保持按鈕高度
                     }
                     
                     Divider().background(Color.gray.opacity(0.3))
@@ -63,14 +74,17 @@ struct DeleteItemView: View {
                     // 刪除按鈕
                     Button(action: onDelete) {
                         Text("刪除")
-                            .font(.system(size: 18))
-                            .foregroundColor(.red) // 紅色以示警告
-                            .frame(maxWidth: .infinity, minHeight: 45) // 增加編輯按鈕高度
+                            .font(Font.custom("SF Pro Display", size: 20))
+                            .kerning(0.38)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.red) // 保持紅色以示警告
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .frame(minHeight: 45) // 保持按鈕高度
                     }
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .frame(width: 347, alignment: .center)
+                .frame(width: containerWidth, alignment: .center)
                 .background(Color(red: 0.09, green: 0.09, blue: 0.09))
                 .cornerRadius(13)
                 .overlay(
@@ -83,19 +97,19 @@ struct DeleteItemView: View {
                 // 取消按鈕
                 Button(action: onCancel) {
                     Text("取消")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .font(Font.custom("SF Pro Display", size: 20))
+                        .kerning(0.38)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(Color(red: 0.04, green: 0.52, blue: 1))
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .frame(minHeight: 38)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .frame(width: 347, alignment: .center)
+                .frame(width: containerWidth, alignment: .center)
                 .background(Color(red: 0.09, green: 0.09, blue: 0.09))
                 .cornerRadius(13)
                 .padding(.horizontal, 16)
-                // 注意：blur效果会使按钮文字变模糊，通常不建议在实际按钮上使用
-                // 如果需要模糊效果，可以取消下面这行的注释
-                // .blur(radius: 40)
                 
             }
             // 從底部滑入的過場動畫
