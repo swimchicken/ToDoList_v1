@@ -43,6 +43,9 @@ struct Home: View {
     @State private var selectedItem: TodoItem? = nil
     @State private var showingEditSheet: Bool = false
     
+    // 跟踪已删除项目ID的集合，防止它们重新出现
+    @State private var recentlyDeletedItemIDs: Set<UUID> = []
+    
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
     @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量
@@ -578,12 +581,68 @@ struct Home: View {
                         }
                     },
                     onDelete: {
-                        // 關閉彈出視圖並刪除項目
-                        withAnimation(.easeInOut) {
-                            // 這裡先暫時不實現刪除邏輯
-                            print("準備刪除項目: \(item.title)")
-                            showingDeleteView = false
-                            selectedItem = nil
+                        // 執行刪除邏輯
+                        if let itemToDelete = selectedItem {
+                            // 立即關閉彈出視圖以提供更好的用戶體驗
+                            withAnimation(.easeInOut) {
+                                showingDeleteView = false
+                                selectedItem = nil
+                            }
+                            
+                            // 先從本地陣列中移除該項目，立即反映在UI上
+                            if let index = toDoItems.firstIndex(where: { $0.id == itemToDelete.id }) {
+                                toDoItems.remove(at: index)
+                            }
+                            
+                            // 保存待刪除項目的ID，用於稍後檢查
+                            let deletedItemID = itemToDelete.id
+                            
+                            // 將刪除的ID添加到最近刪除集合中
+                            recentlyDeletedItemIDs.insert(deletedItemID)
+                            
+                            // 使用DataSyncManager刪除項目
+                            DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { result in
+                                DispatchQueue.main.async {
+                                    switch result {
+                                    case .success:
+                                        print("成功刪除項目: \(itemToDelete.title), ID: \(deletedItemID)")
+                                        
+                                        // 防止loadTodoItems重新加載已刪除的項目
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                            // 確保項目確實被刪除 - 再次檢查並刪除
+                                            if let index = self.toDoItems.firstIndex(where: { $0.id == deletedItemID }) {
+                                                print("警告：已刪除的項目仍然存在，再次刪除")
+                                                self.toDoItems.remove(at: index)
+                                                
+                                                // 強制再次從本地刪除
+                                                LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
+                                            }
+                                        }
+                                        
+                                    case .failure(let error):
+                                        print("刪除項目失敗: \(error.localizedDescription)")
+                                    }
+                                }
+                            }
+                            
+                            // 延遲刷新數據，確保刪除操作先完成
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                // 發送數據變更通知而不是刷新整個列表
+                                self.dataRefreshToken = UUID()
+                            }
+                            
+                            // 設置一個延遲器，在5分鐘後從recentlyDeletedItemIDs中移除項目ID
+                            // 這是為了避免永久保留太多已刪除項目的引用
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 300) { // 300秒 = 5分鐘
+                                self.recentlyDeletedItemIDs.remove(deletedItemID)
+                                print("ID \(deletedItemID) 已從最近刪除項目集合中移除")
+                            }
+                        } else {
+                            // 如果沒有選中項目，直接關閉彈出視圖
+                            withAnimation(.easeInOut) {
+                                showingDeleteView = false
+                                selectedItem = nil
+                            }
                         }
                     }
                 )
@@ -937,9 +996,20 @@ struct Home: View {
                         self.toDoItems = []
                         print("本地和雲端都沒有待辦事項，保持空列表")
                     } else {
+                        // 過濾掉最近刪除的項目
+                        let filteredItems = items.filter { item in
+                            !self.recentlyDeletedItemIDs.contains(item.id)
+                        }
+                        
                         // 更新模型
-                        self.toDoItems = items
-                        print("成功載入 \(items.count) 個待辦事項")
+                        self.toDoItems = filteredItems
+                        
+                        // 打印詳細日誌
+                        if filteredItems.count < items.count {
+                            print("成功載入 \(filteredItems.count) 個待辦事項 (過濾掉 \(items.count - filteredItems.count) 個已刪除項目)")
+                        } else {
+                            print("成功載入 \(filteredItems.count) 個待辦事項")
+                        }
                     }
                     
                     // 打印當前狀態以便調試
@@ -951,7 +1021,13 @@ struct Home: View {
                     print("載入待辦事項時發生錯誤: \(error.localizedDescription)")
                     
                     // 如果發生錯誤，仍然嘗試從本地獲取數據
-                    let localItems = LocalDataManager.shared.getAllTodoItems()
+                    var localItems = LocalDataManager.shared.getAllTodoItems()
+                    
+                    // 過濾掉最近刪除的項目
+                    localItems = localItems.filter { item in
+                        !self.recentlyDeletedItemIDs.contains(item.id)
+                    }
+                    
                     if !localItems.isEmpty {
                         self.toDoItems = localItems
                         print("從本地緩存加載了 \(localItems.count) 個項目")
