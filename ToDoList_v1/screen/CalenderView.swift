@@ -39,6 +39,19 @@ struct CalendarView: View {
         self.onNavigateToHome = onNavigateToHome
         
         print("日曆視圖初始化，傳入了 \(toDoItems.wrappedValue.count) 個待辦事項")
+        
+        // 使用獨立代碼塊確保在初始化完成後進行刪除項目檢查
+        DispatchQueue.main.async {
+            // 獲取已刪除項目ID集合
+            var recentlyDeletedItemIDs: Set<UUID> = []
+            if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
+               let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
+                recentlyDeletedItemIDs = Set(decodedIDs)
+                if !recentlyDeletedItemIDs.isEmpty {
+                    print("日曆視圖初始化時檢測到 \(recentlyDeletedItemIDs.count) 個已刪除項目ID")
+                }
+            }
+        }
     }
     
     // 新增：重置到當週
@@ -48,13 +61,29 @@ struct CalendarView: View {
         }
     }
     
-    // 新增：從本地數據加載待辦事項
+    // 從本地數據加載待辦事項，並過濾掉已刪除的項目
     private func loadFromLocalDataManager() {
         isLoading = true
         loadingError = nil
         
+        // 從UserDefaults獲取最近刪除的項目ID
+        var recentlyDeletedItemIDs: Set<UUID> = []
+        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
+           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
+            recentlyDeletedItemIDs = Set(decodedIDs)
+            print("CalendarView - 獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
+        }
+        
         // 獲取本地數據
-        let localItems = LocalDataManager.shared.getAllTodoItems()
+        var localItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 過濾掉已刪除的項目
+        if !recentlyDeletedItemIDs.isEmpty {
+            let originalCount = localItems.count
+            localItems = localItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
+            let filteredCount = originalCount - localItems.count
+            print("CalendarView - 過濾掉 \(filteredCount) 個已刪除項目")
+        }
         
         // 更新狀態
         DispatchQueue.main.async {
@@ -165,12 +194,24 @@ struct CalendarView: View {
         return days
     }
     
-    // 獲取指定日期的事件
+    // 獲取指定日期的事件，確保已刪除的項目不會顯示
     func eventsForDate(_ day: Int, month: Int, year: Int) -> [TodoItem] {
         let calendar = Calendar.current
         let targetDate = calendar.date(from: DateComponents(year: year, month: month, day: day))!
         
+        // 獲取已刪除項目ID集合
+        var recentlyDeletedItemIDs: Set<UUID> = []
+        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
+           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
+            recentlyDeletedItemIDs = Set(decodedIDs)
+        }
+        
         return toDoItems.filter { item in
+            // 首先檢查該項目是否已被刪除
+            if recentlyDeletedItemIDs.contains(item.id) {
+                return false
+            }
+            
             // 檢查 taskDate 是否為 nil
             guard let taskDate = item.taskDate else {
                 return false // 沒有日期的項目不顯示在日曆中
@@ -204,7 +245,7 @@ struct CalendarView: View {
         }
     }
     
-    // 簡化版本，用於當前月份
+    // 簡化版本，用於當前月份，會調用完整版本以確保過濾已刪除項目
     func eventsForDate(_ day: Int) -> [TodoItem] {
         return eventsForDate(day, month: selectedMonth, year: selectedYear)
     }
@@ -677,10 +718,24 @@ struct CalendarView: View {
                 print("CalendarView 收到已完成日期數據變更通知")
                 // 這裡不需要做什麼，因為視圖會自動刷新
             }
+            
+            // 監聽數據刷新通知
+            NotificationCenter.default.addObserver(
+                forName: Notification.Name("TodoItemsDataRefreshed"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                // 檢查是否有項目刪除並刷新數據
+                print("CalendarView 收到數據刷新通知，重新加載數據")
+                if toDoItems.isEmpty {
+                    self.loadFromLocalDataManager()
+                }
+            }
         }
         .onDisappear {
             // 移除通知觀察者
             NotificationCenter.default.removeObserver(self, name: Notification.Name("CompletedDaysDataChanged"), object: nil)
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
         }
     }
 }

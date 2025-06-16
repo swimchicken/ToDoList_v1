@@ -301,11 +301,35 @@ struct SettlementView: View {
     func loadTasks() {
         isLoading = true
         
+        // 從UserDefaults獲取最近刪除的項目ID
+        var recentlyDeletedItemIDs: Set<UUID> = []
+        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
+           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
+            recentlyDeletedItemIDs = Set(decodedIDs)
+            print("SettlementView - 獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
+        }
+        
         // 先使用LocalDataManager直接從本地獲取最新數據
-        let localItems = LocalDataManager.shared.getAllTodoItems()
+        var localItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 過濾掉已刪除的項目
+        if !recentlyDeletedItemIDs.isEmpty {
+            let originalCount = localItems.count
+            localItems = localItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
+            let filteredCount = originalCount - localItems.count
+            print("SettlementView - 過濾掉 \(filteredCount) 個已刪除項目")
+            
+            // 如果發現有項目應該被刪除但仍存在，強制刪除它們
+            if filteredCount > 0 {
+                for id in recentlyDeletedItemIDs {
+                    LocalDataManager.shared.deleteTodoItem(withID: id)
+                    print("SettlementView - 強制刪除項目 ID: \(id)")
+                }
+            }
+        }
         
         // 打印所有本地項目的狀態進行調試
-        print("SettlementView - 本地數據庫中的項目: \(localItems.count) 個")
+        print("SettlementView - 本地數據庫中的項目(過濾後): \(localItems.count) 個")
         for (index, item) in localItems.enumerated() {
             print("  項目\(index): ID=\(item.id), 標題=\(item.title), 狀態=\(item.status.rawValue), 有日期=\(item.taskDate != nil)")
         }
@@ -326,9 +350,18 @@ struct SettlementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let items):
+                    // 首先過濾掉已刪除的項目
+                    var filteredItems = items
+                    if !recentlyDeletedItemIDs.isEmpty {
+                        let originalCount = filteredItems.count
+                        filteredItems = filteredItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
+                        let filteredCount = originalCount - filteredItems.count
+                        print("SettlementView - 從雲端數據中過濾掉 \(filteredCount) 個已刪除項目")
+                    }
+                    
                     // 根據任務狀態進行分類
-                    self.completedTasks = items.filter { $0.status == .completed }
-                    self.uncompletedTasks = items.filter { $0.status == .undone || $0.status == .toBeStarted }
+                    self.completedTasks = filteredItems.filter { $0.status == .completed }
+                    self.uncompletedTasks = filteredItems.filter { $0.status == .undone || $0.status == .toBeStarted }
                     
                     print("SettlementView - 成功從雲端加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
                     for (index, item) in self.completedTasks.enumerated() {
@@ -375,9 +408,33 @@ struct SettlementView: View {
         print("SettlementView - 收到數據刷新通知，重新加載任務")
         dataRefreshToken = UUID() // 更新令牌以強制視圖刷新
         
+        // 從UserDefaults獲取最近刪除的項目ID
+        var recentlyDeletedItemIDs: Set<UUID> = []
+        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
+           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
+            recentlyDeletedItemIDs = Set(decodedIDs)
+            print("SettlementView - 刷新時獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
+        }
+        
         // 優化任務刷新過程，避免顯示加載指示器
         // 直接從本地數據庫獲取最新數據
-        let localItems = LocalDataManager.shared.getAllTodoItems()
+        var localItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 過濾掉已刪除的項目
+        if !recentlyDeletedItemIDs.isEmpty {
+            let originalCount = localItems.count
+            localItems = localItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
+            let filteredCount = originalCount - localItems.count
+            print("SettlementView - 刷新時過濾掉 \(filteredCount) 個已刪除項目")
+            
+            // 如果發現有項目應該被刪除但仍存在，強制刪除它們
+            if filteredCount > 0 {
+                for id in recentlyDeletedItemIDs {
+                    LocalDataManager.shared.deleteTodoItem(withID: id)
+                    print("SettlementView - 刷新時強制刪除項目 ID: \(id)")
+                }
+            }
+        }
         
         // 從本地項目中過濾已完成和未完成的項目
         self.completedTasks = localItems.filter { $0.status == .completed }

@@ -44,7 +44,15 @@ struct Home: View {
     @State private var showingEditSheet: Bool = false
     
     // 跟踪已删除项目ID的集合，防止它们重新出现
-    @State private var recentlyDeletedItemIDs: Set<UUID> = []
+    // 跟踪已删除项目ID的集合，防止它们重新出现
+    // 使用UserDefaults持久化存储，确保应用重启后仍然有效
+    @State private var recentlyDeletedItemIDs: Set<UUID> = {
+        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
+           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
+            return Set(decodedIDs)
+        }
+        return []
+    }()
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
@@ -358,7 +366,35 @@ struct Home: View {
                                 
                                 // 給系統一點時間來處理數據更新
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    // 導航到結算頁面
+                                    // 在導航到結算頁面前，確保所有已刪除的項目都不會被包含在結算中
+                                    
+                                    // 1. 強制從本地數據庫刷新最新數據
+                                    let allItems = LocalDataManager.shared.getAllTodoItems()
+                                    
+                                    // 2. 過濾掉已刪除的項目
+                                    let filteredItems = allItems.filter { item in
+                                        !self.recentlyDeletedItemIDs.contains(item.id)
+                                    }
+                                    
+                                    // 3. 更新本地數據（可選，如果需要確保數據庫也是最新的）
+                                    if allItems.count != filteredItems.count {
+                                        print("結算前過濾了 \(allItems.count - filteredItems.count) 個已刪除項目")
+                                        
+                                        // 將已刪除但仍存在於數據庫中的項目強制刪除
+                                        let deletedButStillExistIDs = allItems
+                                            .filter { self.recentlyDeletedItemIDs.contains($0.id) }
+                                            .map { $0.id }
+                                        
+                                        for id in deletedButStillExistIDs {
+                                            LocalDataManager.shared.deleteTodoItem(withID: id)
+                                            print("結算前強制刪除項目 ID: \(id)")
+                                        }
+                                        
+                                        // 更新toDoItems以反映最新狀態
+                                        self.toDoItems = filteredItems
+                                    }
+                                    
+                                    // 4. 導航到結算頁面
                                     navigateToSettlementView = true
                                 }
                             }
@@ -600,27 +636,61 @@ struct Home: View {
                             // 將刪除的ID添加到最近刪除集合中
                             recentlyDeletedItemIDs.insert(deletedItemID)
                             
-                            // 使用DataSyncManager刪除項目
+                            // 強制直接從本地刪除
+                            LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
+                            
+                            // 然後嘗試從CloudKit刪除
                             DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { result in
                                 DispatchQueue.main.async {
                                     switch result {
                                     case .success:
-                                        print("成功刪除項目: \(itemToDelete.title), ID: \(deletedItemID)")
+                                        print("成功從CloudKit刪除項目: \(itemToDelete.title), ID: \(deletedItemID)")
                                         
-                                        // 防止loadTodoItems重新加載已刪除的項目
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                            // 確保項目確實被刪除 - 再次檢查並刪除
+                                        // 防止項目重新出現 - 設置循環檢查
+                                        // 每隔1秒檢查一次，共檢查5次
+                                        var checkCount = 0
+                                        let checkTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+                                            checkCount += 1
+                                            
+                                            // 檢查項目是否在陣列中
                                             if let index = self.toDoItems.firstIndex(where: { $0.id == deletedItemID }) {
-                                                print("警告：已刪除的項目仍然存在，再次刪除")
+                                                print("警告：已刪除的項目又回來了，再次刪除 (檢查 #\(checkCount))")
                                                 self.toDoItems.remove(at: index)
                                                 
                                                 // 強制再次從本地刪除
                                                 LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
+                                                
+                                                // 強制再次從CloudKit刪除
+                                                CloudKitService.shared.deleteTodoItem(withID: deletedItemID) { _ in }
+                                            } else {
+                                                print("確認項目 #\(deletedItemID) 仍然被刪除 (檢查 #\(checkCount))")
+                                            }
+                                            
+                                            // 完成所有檢查後停止計時器
+                                            if checkCount >= 5 {
+                                                timer.invalidate()
+                                            }
+                                        }
+                                        
+                                        // 確保計時器在5秒後無論如何都會被銷毀
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                                            if checkTimer.isValid {
+                                                checkTimer.invalidate()
                                             }
                                         }
                                         
                                     case .failure(let error):
-                                        print("刪除項目失敗: \(error.localizedDescription)")
+                                        print("從CloudKit刪除項目失敗: \(error.localizedDescription)")
+                                        
+                                        // 即使CloudKit刪除失敗，仍然確保本地刪除生效
+                                        LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
+                                        
+                                        // 嘗試再次刪除
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                            CloudKitService.shared.deleteTodoItem(withID: deletedItemID) { _ in 
+                                                print("重試從CloudKit刪除項目")
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -631,11 +701,30 @@ struct Home: View {
                                 self.dataRefreshToken = UUID()
                             }
                             
-                            // 設置一個延遲器，在5分鐘後從recentlyDeletedItemIDs中移除項目ID
-                            // 這是為了避免永久保留太多已刪除項目的引用
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 300) { // 300秒 = 5分鐘
+                            // 持久化保存已刪除項目的ID到UserDefaults
+                            do {
+                                let encodedData = try JSONEncoder().encode(Array(recentlyDeletedItemIDs))
+                                UserDefaults.standard.set(encodedData, forKey: "recentlyDeletedItemIDs")
+                                print("已保存刪除項目ID \(deletedItemID) 到持久存儲")
+                            } catch {
+                                print("保存刪除項目ID到UserDefaults失敗: \(error.localizedDescription)")
+                            }
+                            
+                            // 設置一個延遲器，在24小時後從recentlyDeletedItemIDs中移除項目ID
+                            // 這是為了避免永久保留太多已刪除項目的引用，但保留足夠長時間確保不會重新出現
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 86400) { // 86400秒 = 24小時
+                                // 從內存中移除
                                 self.recentlyDeletedItemIDs.remove(deletedItemID)
-                                print("ID \(deletedItemID) 已從最近刪除項目集合中移除")
+                                
+                                // 從持久存儲中移除
+                                do {
+                                    let encodedData = try JSONEncoder().encode(Array(self.recentlyDeletedItemIDs))
+                                    UserDefaults.standard.set(encodedData, forKey: "recentlyDeletedItemIDs")
+                                } catch {
+                                    print("更新持久存儲中的刪除項目ID失敗: \(error.localizedDescription)")
+                                }
+                                
+                                print("ID \(deletedItemID) 已從最近刪除項目集合中移除（24小時後）")
                             }
                         } else {
                             // 如果沒有選中項目，直接關閉彈出視圖
@@ -684,6 +773,35 @@ struct Home: View {
                 
                 // 延遲一點時間再導航，確保Home視圖已完全加載
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    // 在導航到結算頁面前，確保所有已刪除的項目都不會被包含在結算中
+                    
+                    // 1. 強制從本地數據庫刷新最新數據
+                    let allItems = LocalDataManager.shared.getAllTodoItems()
+                    
+                    // 2. 過濾掉已刪除的項目
+                    let filteredItems = allItems.filter { item in
+                        !self.recentlyDeletedItemIDs.contains(item.id)
+                    }
+                    
+                    // 3. 更新本地數據（可選，如果需要確保數據庫也是最新的）
+                    if allItems.count != filteredItems.count {
+                        print("結算前過濾了 \(allItems.count - filteredItems.count) 個已刪除項目")
+                        
+                        // 將已刪除但仍存在於數據庫中的項目強制刪除
+                        let deletedButStillExistIDs = allItems
+                            .filter { self.recentlyDeletedItemIDs.contains($0.id) }
+                            .map { $0.id }
+                        
+                        for id in deletedButStillExistIDs {
+                            LocalDataManager.shared.deleteTodoItem(withID: id)
+                            print("結算前強制刪除項目 ID: \(id)")
+                        }
+                        
+                        // 更新toDoItems以反映最新狀態
+                        self.toDoItems = filteredItems
+                    }
+                    
+                    // 4. 導航到結算頁面
                     navigateToSettlementView = true
                 }
             } else {
