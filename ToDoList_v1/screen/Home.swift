@@ -38,7 +38,10 @@ struct Home: View {
     @State private var loadingError: String? = nil
     @State private var isSyncing: Bool = false // 新增：同步狀態標記
     
-    
+    // 添加长按项目功能的状态
+    @State private var showingDeleteView: Bool = false
+    @State private var selectedItem: TodoItem? = nil
+    @State private var showingEditSheet: Bool = false
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
@@ -322,8 +325,8 @@ struct Home: View {
                 .zIndex(1) // 設置主界面内容的層級
                 
                 // 3. 底部灰色容器：根據睡眠模式和當天狀態顯示不同的UI
-                // 只有當沒有顯示待辦事項佇列時才顯示
-                if !showToDoSheet {
+                // 只有當沒有顯示待辦事項佇列且沒有顯示刪除視圖時才顯示
+                if !showToDoSheet && !showingDeleteView {
                     // 使用抽取出來的HomeBottomView組件
                     HomeBottomView(
                         todoItems: sortedToDoItems,
@@ -555,11 +558,45 @@ struct Home: View {
                 .zIndex(200) // 確保顯示在最上層
             }
             
+            // 7. 新增: DeleteItemView 彈出視圖
+            if showingDeleteView, let item = selectedItem {
+                DeleteItemView(
+                    itemName: item.title,
+                    onCancel: {
+                        // 關閉彈出視圖
+                        withAnimation(.easeInOut) {
+                            showingDeleteView = false
+                            selectedItem = nil
+                        }
+                    },
+                    onEdit: {
+                        // 關閉彈出視圖並開啟編輯界面
+                        withAnimation(.easeInOut) {
+                            showingDeleteView = false
+                            selectedItem = nil
+                            showingEditSheet = true
+                        }
+                    },
+                    onDelete: {
+                        // 關閉彈出視圖並刪除項目
+                        withAnimation(.easeInOut) {
+                            // 這裡先暫時不實現刪除邏輯
+                            print("準備刪除項目: \(item.title)")
+                            showingDeleteView = false
+                            selectedItem = nil
+                        }
+                    }
+                )
+                .transition(.move(edge: .bottom))
+                .zIndex(300) // 確保顯示在最上層
+            }
+            
         }
         
         .animation(.easeOut, value: showToDoSheet)
         .animation(.easeOut, value: showAddTaskSheet)
         .animation(.easeOut, value: showCalendarView)
+        .animation(.easeOut, value: showingDeleteView)
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -701,6 +738,12 @@ struct Home: View {
                         VStack(spacing: 0) {
                             ItemRow(item: getBindingToSortedItem(at: idx))
                                 .padding(.vertical, 8)
+                                .contentShape(Rectangle()) // 确保整行可点击
+                                .onLongPressGesture {
+                                    // 长按时显示编辑/删除选项
+                                    selectedItem = sortedToDoItems[idx]
+                                    showingDeleteView = true
+                                }
                             Rectangle()
                                 .fill(Color.white.opacity(0.2))
                                 .frame(height: 2)
