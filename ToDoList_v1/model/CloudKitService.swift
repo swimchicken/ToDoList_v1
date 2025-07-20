@@ -25,7 +25,7 @@ class CloudKitService {
         print("DEBUG: 正在初始化 CloudKitService")
         self.container = CKContainer(identifier: "iCloud.com.fcu.ToDolist1")
         self.publicDatabase = container.publicCloudDatabase
-        self.privateDatabase = container.privateCloudDatabase // 添加私有數據庫
+        self.privateDatabase = container.privateCloudDatabase
         print("DEBUG: CloudKit container 已初始化 - ID: \(container.containerIdentifier ?? "未知")")
         
         // 檢查 iCloud 狀態
