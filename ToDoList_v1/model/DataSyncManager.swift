@@ -160,27 +160,33 @@ class DataSyncManager {
         // 獲取當前 iCloud 用戶 ID
         let currentUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID") ?? "unknown_user"
         
-        // 創建一個新的TodoItem，確保使用當前用戶ID
+        // 創建一個新的TodoItem，確保使用當前用戶ID和正確的時間戳
         var updatedItem = item
         updatedItem.userID = currentUserID
+        updatedItem.updatedAt = Date() // 確保有最新的更新時間
         
-        // 保存到本地
-        localDataManager.addTodoItem(updatedItem)
-        
-        // 返回成功結果，不等待 CloudKit 同步完成
-        completion(.success(updatedItem))
-        
-        // 在後台嘗試同步到 CloudKit
-        syncItemToCloudKit(updatedItem) { result in
-            switch result {
-            case .success:
-                print("INFO: 成功同步待辦事項到 CloudKit - ID: \(item.id.uuidString)")
-                // 更新同步狀態
-                self.localDataManager.updateSyncStatus(for: item.id, isSynced: true)
-            case .failure(let error):
-                print("WARNING: 同步待辦事項到 CloudKit 失敗 - ID: \(item.id.uuidString), 錯誤: \(error.localizedDescription)")
-                // 更新同步狀態，包含錯誤信息
-                self.localDataManager.updateSyncStatus(for: item.id, isSynced: false, error: error.localizedDescription)
+        // 使用 DispatchQueue 確保本地操作的線程安全
+        DispatchQueue.main.async {
+            // 保存到本地
+            self.localDataManager.addTodoItem(updatedItem)
+            
+            // 返回成功結果，不等待 CloudKit 同步完成
+            completion(.success(updatedItem))
+            
+            // 在後台嘗試同步到 CloudKit
+            DispatchQueue.global(qos: .background).async {
+                self.syncItemToCloudKit(updatedItem) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("INFO: 成功同步待辦事項到 CloudKit - ID: \(updatedItem.id.uuidString)")
+                            self.localDataManager.updateSyncStatus(for: updatedItem.id, isSynced: true)
+                        case .failure(let error):
+                            print("WARNING: 同步待辦事項到 CloudKit 失敗 - ID: \(updatedItem.id.uuidString), 錯誤: \(error.localizedDescription)")
+                            self.localDataManager.updateSyncStatus(for: updatedItem.id, isSynced: false, error: error.localizedDescription)
+                        }
+                    }
+                }
             }
         }
     }
@@ -190,46 +196,60 @@ class DataSyncManager {
         // 獲取當前 iCloud 用戶 ID
         let currentUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID") ?? "unknown_user"
         
-        // 創建一個新的TodoItem，確保使用當前用戶ID
+        // 創建一個新的TodoItem，確保使用當前用戶ID和正確的時間戳
         var updatedItem = item
         updatedItem.userID = currentUserID
+        updatedItem.updatedAt = Date() // 確保有最新的更新時間
         
-        // 更新本地
-        localDataManager.updateTodoItem(updatedItem)
-        
-        // 返回成功結果，不等待 CloudKit 同步完成
-        completion(.success(updatedItem))
-        
-        // 在後台嘗試同步到 CloudKit
-        syncItemToCloudKit(updatedItem) { result in
-            switch result {
-            case .success:
-                print("INFO: 成功同步更新的待辦事項到 CloudKit - ID: \(item.id.uuidString)")
-                // 更新同步狀態
-                self.localDataManager.updateSyncStatus(for: item.id, isSynced: true)
-            case .failure(let error):
-                print("WARNING: 同步更新的待辦事項到 CloudKit 失敗 - ID: \(item.id.uuidString), 錯誤: \(error.localizedDescription)")
-                // 更新同步狀態，包含錯誤信息
-                self.localDataManager.updateSyncStatus(for: item.id, isSynced: false, error: error.localizedDescription)
+        // 使用 DispatchQueue 確保本地操作的線程安全
+        DispatchQueue.main.async {
+            // 更新本地
+            self.localDataManager.updateTodoItem(updatedItem)
+            
+            // 返回成功結果，不等待 CloudKit 同步完成
+            completion(.success(updatedItem))
+            
+            // 在後台嘗試同步到 CloudKit
+            DispatchQueue.global(qos: .background).async {
+                self.syncItemToCloudKit(updatedItem) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("INFO: 成功同步更新的待辦事項到 CloudKit - ID: \(updatedItem.id.uuidString)")
+                            self.localDataManager.updateSyncStatus(for: updatedItem.id, isSynced: true)
+                        case .failure(let error):
+                            print("WARNING: 同步更新的待辦事項到 CloudKit 失敗 - ID: \(updatedItem.id.uuidString), 錯誤: \(error.localizedDescription)")
+                            self.localDataManager.updateSyncStatus(for: updatedItem.id, isSynced: false, error: error.localizedDescription)
+                        }
+                    }
+                }
             }
         }
     }
     
     /// 刪除待辦事項 - 首先從本地刪除，然後嘗試從 CloudKit 刪除
     func deleteTodoItem(withID id: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
-        // 從本地刪除
-        localDataManager.deleteTodoItem(withID: id)
-        
-        // 返回成功結果，不等待 CloudKit 同步完成
-        completion(.success(()))
-        
-        // 在後台嘗試從 CloudKit 刪除
-        cloudKitService.deleteTodoItem(withID: id) { result in
-            switch result {
-            case .success:
-                print("INFO: 成功從 CloudKit 刪除待辦事項 - ID: \(id.uuidString)")
-            case .failure(let error):
-                print("WARNING: 從 CloudKit 刪除待辦事項失敗 - ID: \(id.uuidString), 錯誤: \(error.localizedDescription)")
+        // 使用 DispatchQueue 確保本地操作的線程安全
+        DispatchQueue.main.async {
+            // 從本地刪除
+            self.localDataManager.deleteTodoItem(withID: id)
+            
+            // 返回成功結果，不等待 CloudKit 同步完成
+            completion(.success(()))
+            
+            // 在後台嘗試從 CloudKit 刪除
+            DispatchQueue.global(qos: .background).async {
+                self.cloudKitService.deleteTodoItem(withID: id) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("INFO: 成功從 CloudKit 刪除待辦事項 - ID: \(id.uuidString)")
+                        case .failure(let error):
+                            print("WARNING: 從 CloudKit 刪除待辦事項失敗 - ID: \(id.uuidString), 錯誤: \(error.localizedDescription)")
+                            // 可以考慮在這裡加入重試邏輯或者恢復本地數據
+                        }
+                    }
+                }
             }
         }
     }
@@ -328,25 +348,39 @@ class DataSyncManager {
                 var mergedItems = localItems
                 var updatedItems = [TodoItem]()
                 
-                // 合併雲端數據
+                // 合併雲端數據，採用更智慧的衝突解決策略
                 for cloudItem in cloudItems {
                     if let index = mergedItems.firstIndex(where: { $0.id == cloudItem.id }) {
-                        // 檢查是否需要更新
                         let localItem = mergedItems[index]
-                        
-                        // 檢查是否有本地修改但尚未同步
                         let syncStatus = self.localDataManager.getSyncStatus(for: localItem.id)
                         
-                        // 如果本地項目未同步且已經被修改，不覆蓋本地修改
-                        if syncStatus == nil || syncStatus!.isSynced {
-                            // 雲端數據更新，更新本地數據
-                            mergedItems[index] = cloudItem
-                            updatedItems.append(cloudItem)
+                        // 衝突解決策略：比較 updatedAt 時間戳
+                        if let syncStatus = syncStatus, !syncStatus.isSynced {
+                            // 本地有未同步的修改，比較時間戳決定使用哪個版本
+                            if cloudItem.updatedAt > localItem.updatedAt {
+                                // 雲端版本更新，使用雲端版本但標記需要重新同步本地修改
+                                print("INFO: 檢測到衝突，雲端版本較新 - ID: \(cloudItem.id.uuidString)")
+                                mergedItems[index] = cloudItem
+                                updatedItems.append(cloudItem)
+                                // 重置同步狀態，讓未來的同步處理衝突
+                                self.localDataManager.updateSyncStatus(for: cloudItem.id, isSynced: false)
+                            } else {
+                                // 本地版本較新或相同，保持本地版本
+                                print("INFO: 本地版本較新，保持本地修改 - ID: \(localItem.id.uuidString)")
+                            }
+                        } else {
+                            // 本地已同步或無同步狀態，使用雲端版本
+                            if cloudItem.updatedAt != localItem.updatedAt {
+                                mergedItems[index] = cloudItem
+                                updatedItems.append(cloudItem)
+                                print("INFO: 更新本地項目為雲端版本 - ID: \(cloudItem.id.uuidString)")
+                            }
                         }
                     } else {
                         // 雲端有新數據，添加到本地
                         mergedItems.append(cloudItem)
                         updatedItems.append(cloudItem)
+                        print("INFO: 新增雲端項目到本地 - ID: \(cloudItem.id.uuidString)")
                     }
                 }
                 

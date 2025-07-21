@@ -12,7 +12,6 @@
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
 		7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */; };
 		790BFDC62DCF83ED00AFD044 /* LocalDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */; };
-		790BFDC82DCF83FB00AFD044 /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */; };
 		790BFDCA2DCF841200AFD044 /* DataSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790BFDC92DCF841200AFD044 /* DataSyncManager.swift */; };
 		790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */; };
 		790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 790DD1AB2DC6205500FDFC6D /* AddItem.swift */; };
@@ -91,7 +90,6 @@
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
 		7908C2902D9C25E700A97C11 /* LoginStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginStatusChecker.swift; sourceTree = "<group>"; };
 		790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDataManager.swift; sourceTree = "<group>"; };
-		790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
 		790BFDC92DCF841200AFD044 /* DataSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataSyncManager.swift; sourceTree = "<group>"; };
 		790DD1392DBA5B1800FDFC6D /* ScrollCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollCalendarView.swift; sourceTree = "<group>"; };
 		790DD1AB2DC6205500FDFC6D /* AddItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddItem.swift; sourceTree = "<group>"; };
@@ -255,7 +253,6 @@
 				791E53AC2DB3F4470096F3B2 /* TodoStatus.swift */,
 				790DD1AB2DC6205500FDFC6D /* AddItem.swift */,
 				790BFDC52DCF83ED00AFD044 /* LocalDataManager.swift */,
-				790BFDC72DCF83FB00AFD044 /* CoreDataManager.swift */,
 				790BFDC92DCF841200AFD044 /* DataSyncManager.swift */,
 				793451F12DEB439E00898474 /* CompleteDayDataManager.swift */,
 				7914F9872DEDD62D00BD4801 /* DelaySettlementManager.swift */,
@@ -477,7 +474,6 @@
 				791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */,
 				793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */,
 				7914F98C2DEF22C600BD4801 /* HomeBottomView.swift in Sources */,
-				790BFDC82DCF83FB00AFD044 /* CoreDataManager.swift in Sources */,
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				79161FA52DFF30B60020B67F /* DeleteItemView.swift in Sources */,
