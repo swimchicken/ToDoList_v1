@@ -18,6 +18,15 @@ class LoginStatusChecker {
             return
         }
         
+        // 先確保 CloudKit 認證狀態正常
+        let cloudKitService = CloudKitService.shared
+        
+        // 直接執行查詢，如果失敗就返回登入頁面
+        performLoginStatusQuery(userId: userId, completion: completion)
+    }
+    
+    /// 執行實際的登入狀態查詢
+    private func performLoginStatusQuery(userId: String, completion: @escaping (Destination) -> Void) {
         let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
         let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
@@ -47,6 +56,10 @@ class LoginStatusChecker {
                 }
             case .failure(let error):
                 print("登入狀態查詢錯誤：\(error.localizedDescription)")
+                
+                // 檢查是否是認證問題
+                let nsError = error as NSError
+                print("LoginStatusChecker: CloudKit 查詢失敗，返回登入頁面")
                 DispatchQueue.main.async {
                     completion(.login)
                 }

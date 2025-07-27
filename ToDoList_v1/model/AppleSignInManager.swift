@@ -53,12 +53,19 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
     /// - 帳號存在：檢查 guidedInputCompleted 狀態（true → home，false → onboarding）
     /// - 帳號不存在：建立新記錄（預設 guidedInputCompleted 為 false）並導向 onboarding
     private func handleUserRecord(userId: String, email: String?, fullName: PersonNameComponents?, completion: @escaping (_ destination: String) -> Void) {
+        // 先確保 CloudKit 認證狀態正常
+        let cloudKitService = CloudKitService.shared
+        
+        // 直接執行查詢，如果失敗就使用預設流程
+        performUserRecordQuery(userId: userId, email: email, fullName: fullName, completion: completion)
+    }
+    
+    /// 執行實際的用戶記錄查詢
+    private func performUserRecordQuery(userId: String, email: String?, fullName: PersonNameComponents?, completion: @escaping (_ destination: String) -> Void) {
         let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
         let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
         let defaultZoneID = CKRecordZone.default().zoneID
-        
-        
         
         // 採用預設 zone，故 inZoneWith 傳入 nil
         privateDatabase.fetch(withQuery: query, inZoneWith: defaultZoneID, desiredKeys: nil, resultsLimit: CKQueryOperation.maximumResults) { result in
@@ -80,33 +87,56 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                 } else {
                     // 帳號不存在，建立新記錄，預設 guidedInputCompleted 為 false
                     print("首次使用第三方登入，創建新記錄並導向 onboarding")
-                    let newRecord = CKRecord(recordType: "ApiUser")  // 建立至預設 zone
-                    newRecord["provider"] = "Apple" as CKRecordValue
-                    newRecord["providerUserID"] = userId as CKRecordValue
-                    newRecord["email"] = email as CKRecordValue?
-                    if let fullName = fullName {
-                        let formatter = PersonNameComponentsFormatter()
-                        let nameString = formatter.string(from: fullName)
-                        newRecord["name"] = nameString as CKRecordValue
-                    }
-                    newRecord["guidedInputCompleted"] = false as CKRecordValue
-                    let now = Date()
-                    newRecord["createdAt"] = now as CKRecordValue
-                    newRecord["updatedAt"] = now as CKRecordValue
-                    
-                    privateDatabase.save(newRecord) { _, error in
-                        if let error = error {
-                            print("創建新使用者錯誤: \(error.localizedDescription)")
-                        }
-                        completion("onboarding")
-                    }
-                    print("save done")
+                    self.createNewUserRecord(userId: userId, email: email, fullName: fullName, completion: completion)
                 }
             case .failure(let error):
                 print("查詢使用者記錄失敗: \(error.localizedDescription)")
-                completion("login")
+                
+                // 檢查是否是認證問題
+                let nsError = error as NSError
+                if nsError.domain == CKErrorDomain && nsError.code == CKError.notAuthenticated.rawValue ||
+                   error.localizedDescription.contains("bad or missing auth token") {
+                    print("AppleSignInManager: CloudKit 不可用，直接導向 onboarding")
+                    // 如果 CloudKit 不可用，直接進入新用戶流程
+                    completion("onboarding")
+                } else {
+                    completion("login")
+                }
             }
         }
+    }
+    
+    /// 創建新用戶記錄
+    private func createNewUserRecord(userId: String, email: String?, fullName: PersonNameComponents?, completion: @escaping (_ destination: String) -> Void) {
+        let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
+        let newRecord = CKRecord(recordType: "ApiUser")  // 建立至預設 zone
+        newRecord["provider"] = "Apple" as CKRecordValue
+        newRecord["providerUserID"] = userId as CKRecordValue
+        newRecord["email"] = email as CKRecordValue?
+        if let fullName = fullName {
+            let formatter = PersonNameComponentsFormatter()
+            let nameString = formatter.string(from: fullName)
+            newRecord["name"] = nameString as CKRecordValue
+        }
+        newRecord["guidedInputCompleted"] = false as CKRecordValue
+        let now = Date()
+        newRecord["createdAt"] = now as CKRecordValue
+        newRecord["updatedAt"] = now as CKRecordValue
+        
+        privateDatabase.save(newRecord) { _, error in
+            if let error = error {
+                print("創建新使用者錯誤: \(error.localizedDescription)")
+                
+                // 檢查是否是認證問題
+                let nsError = error as NSError
+                if nsError.domain == CKErrorDomain && nsError.code == CKError.notAuthenticated.rawValue {
+                    print("AppleSignInManager: 創建用戶時認證問題，觸發重新認證")
+                    CloudKitService.shared.refreshAuthentication()
+                }
+            }
+            completion("onboarding")
+        }
+        print("save done")
     }
 }
 
