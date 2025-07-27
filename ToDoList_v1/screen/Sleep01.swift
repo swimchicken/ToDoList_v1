@@ -240,17 +240,23 @@ struct Sleep01View: View {
         let cycleStart: Date
         let cycleEnd: Date
 
+        // 修改邏輯：進度條總是顯示到明天的鬧鐘時間
+        guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: alarmTimeOnCurrentDay) else {
+            self.dayProgress = 0.0; return
+        }
+        
         if currentTime < alarmTimeOnCurrentDay {
-            cycleEnd = alarmTimeOnCurrentDay
-            guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: cycleEnd) else {
+            // 如果當前時間還沒到今天的鬧鐘時間，
+            // 週期是從昨天的鬧鐘到明天的鬧鐘
+            guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: alarmTimeOnCurrentDay) else {
                 self.dayProgress = 0.0; return
             }
             cycleStart = yesterdayAlarmTime
+            cycleEnd = tomorrowAlarmTime
         } else {
+            // 如果當前時間已經超過今天的鬧鐘時間，
+            // 週期是從今天的鬧鐘到明天的鬧鐘
             cycleStart = alarmTimeOnCurrentDay
-            guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: cycleStart) else {
-                self.dayProgress = 0.0; return
-            }
             cycleEnd = tomorrowAlarmTime
         }
 
