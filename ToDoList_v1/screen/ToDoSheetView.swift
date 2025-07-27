@@ -81,32 +81,6 @@ struct ToDoSheetView: View {
                         categoryButton(.all, title: "全部")
                         categoryButton(.memo, title: "備忘錄")
                         categoryButton(.incomplete, title: "未完成")
-                        // 分類列中的加號按鈕
-                        Button {
-                            // 通知 Home 顯示 Add 視圖
-                            print("🚨 ToDoSheetView - 分類列加號按鈕被點擊")
-                            // 先關閉待辦事項視圖
-                            withAnimation {
-                                onDismiss()
-                            }
-                            // 然後通知 Home 顯示 Add 視圖
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                onAddButtonPressed()
-                            }
-                        } label: {
-                            Image(systemName: "plus")
-                                .foregroundColor(Color(red: 0.53, green: 0.53, blue: 0.53))
-                                .frame(width: 16, height: 16)
-                                .padding(10)
-                                .frame(width: 40, height: 38, alignment: .center)
-                                .background(.white.opacity(0.06))
-                                .cornerRadius(28)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 28)
-                                        .inset(by: 0)
-                                        .stroke(Color(red: 0.53, green: 0.53, blue: 0.53), lineWidth: 0)
-                                )
-                        }
                     }
                     .padding(.horizontal, 24)
                 }
@@ -156,36 +130,10 @@ struct ToDoSheetView: View {
                 }
                 .padding(.bottom, 20)
                 
-                // 底部添加按鈕 - 固定在底部
-                Button(action: {
-                    // 通知 Home 顯示 Add 視圖
-                    print("🚨 ToDoSheetView - 底部加號按鈕被點擊")
-                    // 先關閉待辦事項視圖
-                    withAnimation {
-                        onDismiss()
-                    }
-                    // 然後通知 Home 顯示 Add 視圖
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        onAddButtonPressed()
-                    }
-                }) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 20))
-                        Text("新增待辦事項")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 20)
-                    .foregroundColor(.black)
-                    .background(Color.white)
-                    .cornerRadius(25)
-                }
-                .padding(.bottom, 16)
             }
         }
-        // 修改尺寸，確保不會過長遮擋底部按鈕
-        .frame(width: UIScreen.main.bounds.width - 40, height: 450) // 降低高度從530降至450
+        // 修改尺寸，移除底部按鈕後調整高度
+        .frame(width: UIScreen.main.bounds.width - 40, height: 400) // 移除按鈕後降低高度
         .cornerRadius(30)
         // 动画和偏移 - 默认位置不设置，由容器控制
         .offset(y: (animateSheetUp ? 0 : 800) + currentDragOffset)

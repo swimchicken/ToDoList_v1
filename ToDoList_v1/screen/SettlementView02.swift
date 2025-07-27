@@ -37,8 +37,8 @@ struct SettlementView02: View {
     // 用於顯示的明日任務列表
     @State private var dailyTasks: [TodoItem] = []
     
-    // 原本的待辦佇列項目
-    @State private var todoQueueItems: [TodoItem] = []
+    // 所有待辦事項（與 Home.swift 保持一致）
+    @State private var allTodoItems: [TodoItem] = []
     
     // 初始化方法 - 接收未完成任務和是否移至明日的設置
     init(uncompletedTasks: [TodoItem], moveTasksToTomorrow: Bool) {
@@ -50,8 +50,8 @@ struct SettlementView02: View {
         let initialDailyTasks = moveTasksToTomorrow ? uncompletedTasks : []
         self._dailyTasks = State(initialValue: initialDailyTasks)
         
-        // 初始化待辦佇列項目
-        self._todoQueueItems = State(initialValue: [])
+        // 初始化所有待辦事項
+        self._allTodoItems = State(initialValue: [])
     }
     @State private var selectedFilterInSettlement = "全部"
     @State private var showTodoQueue: Bool = false
@@ -125,13 +125,16 @@ struct SettlementView02: View {
 
             VStack(spacing: 0) {
                 if showTodoQueue {
-                    TobestartedView(
-                        items: $todoQueueItems,
+                    SettlementTodoQueueView(
+                        items: $allTodoItems,
                         selectedFilter: $selectedFilterInSettlement,
                         collapseAction: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                                 showTodoQueue = false
                             }
+                        },
+                        onTaskAdded: {
+                            loadTasksFromDataManager()
                         }
                     )
                     .padding(.horizontal, 12)
@@ -225,8 +228,12 @@ struct SettlementView02: View {
     
     /// 從 DataManager 重新載入任務列表
     private func loadTasksFromDataManager() {
-        // 從 LocalDataManager 獲取最新的數據
+        // 從 LocalDataManager 獲取最新的數據（與 Home.swift 保持一致）
         let allItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 更新所有待辦事項（與 Home.swift 同步）
+        allTodoItems = allItems
+        print("SettlementView02 - 載入所有待辦事項: \(allTodoItems.count) 個")
         
         if moveTasksToTomorrow {
             // 如果設置移動未完成任務到明日，顯示相關任務
@@ -240,10 +247,6 @@ struct SettlementView02: View {
             dailyTasks = []
             print("SettlementView02 - 清空任務列表")
         }
-        
-        // 同時更新待辦事項佇列
-        todoQueueItems = allItems.filter { $0.status == .toDoList }
-        print("SettlementView02 - 載入待辦佇列: \(todoQueueItems.count) 個")
     }
     
     /// 刪除任務
@@ -875,6 +878,266 @@ struct AddTaskButton: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - SettlementTodoQueueView (基於 Home.swift 的 ToDoSheetView 邏輯)
+struct SettlementTodoQueueView: View {
+    @Binding var items: [TodoItem]
+    @Binding var selectedFilter: String
+    let collapseAction: () -> Void
+    let onTaskAdded: () -> Void
+    
+    let filters: [String] = ["全部", "備忘錄", "未完成"]
+    
+    // 根據選取條件過濾待辦事項（與 ToDoSheetView 完全一致）
+    private var filteredItems: [TodoItem] {
+        switch selectedFilter {
+        case "全部":
+            // 全部項目 - 不過濾
+            return items
+        case "備忘錄":
+            // 備忘錄 - 篩選沒有時間的項目 (taskDate == nil)
+            return items.filter { $0.taskDate == nil }
+        case "未完成":
+            // 未完成 - 有時間且狀態為未完成
+            return items.filter { 
+                $0.taskDate != nil && 
+                ($0.status == .undone || $0.status == .toBeStarted) 
+            }
+        default:
+            return items
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 標題欄
+            HStack {
+                Text("待辦事項佇列")
+                    .font(Font.custom("Inter", size: 16))
+                    .foregroundColor(.white)
+                Spacer()
+                // 分類按鈕列
+                HStack(spacing: 8) {
+                    ForEach(filters, id: \.self) { filter in
+                        Button(action: {
+                            selectedFilter = filter
+                        }) {
+                            Text(filter)
+                                .font(Font.custom("Inter", size: 12).weight(.semibold))
+                                .foregroundColor(.white)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(
+                                    selectedFilter == filter ?
+                                    Color(red: 0, green: 0.72, blue: 0.41) :
+                                    Color.white.opacity(0.15)
+                                )
+                                .cornerRadius(8)
+                        }
+                    }
+                    
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 15)
+
+            // 待辦事項列表
+            VStack(spacing: 0) {
+                if filteredItems.isEmpty {
+                    VStack(spacing: 8) {
+                        Text(getEmptyStateMessage())
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.top, 20)
+                        
+                        if selectedFilter == "備忘錄" {
+                            Text("點擊加號來添加一個沒有時間的備忘錄項目")
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 30)
+                } else {
+                    ForEach(filteredItems.indices, id: \.self) { index in
+                        let item = filteredItems[index]
+                        if let originalIndex = items.firstIndex(where: { $0.id == item.id }) {
+                            SettlementTodoItemRow(
+                                item: $items[originalIndex],
+                                onAddToToday: { todayItem in
+                                    // 通知重新載入數據
+                                    onTaskAdded()
+                                }
+                            )
+                            
+                            if index < filteredItems.count - 1 {
+                                Rectangle()
+                                    .frame(height: 1)
+                                    .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
+                                    .padding(.leading, 56)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+
+            // 收合按鈕
+            Button(action: {
+                collapseAction()
+            }) {
+                HStack {
+                    Spacer()
+                    Text("收合")
+                        .font(Font.custom("Inter", size: 12).weight(.medium))
+                        .foregroundColor(.gray)
+                    Image(systemName: "chevron.down")
+                        .foregroundColor(.gray)
+                        .font(.caption)
+                    Spacer()
+                }
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+        }
+        .background(Color(white: 0.12, opacity: 1.0))
+        .cornerRadius(12)
+    }
+    
+    private func getEmptyStateMessage() -> String {
+        switch selectedFilter {
+        case "備忘錄":
+            return "還沒有備忘錄項目"
+        case "未完成":
+            return "沒有未完成的項目"
+        default:
+            return "佇列是空的"
+        }
+    }
+}
+
+// MARK: - SettlementTodoItemRow (基於 TodoSheetItemRow 邏輯)
+struct SettlementTodoItemRow: View {
+    @Binding var item: TodoItem
+    private let doneColor = Color(red: 0, green: 0.72, blue: 0.41)
+    private let iconSize: CGFloat = 14
+    
+    var onAddToToday: ((TodoItem) -> Void)? = nil
+    
+    var body: some View {
+        ZStack {
+            // 完成狀態下的橫跨整行的刪除線
+            if item.status == .completed {
+                Rectangle()
+                    .fill(doneColor)
+                    .frame(height: 2)
+                    .offset(y: 0)
+            }
+            
+            HStack(spacing: 12) {
+                // 矩形按鈕 (點擊前灰色，點擊後綠色)
+                Button {
+                    print("SettlementTodoItem: 狀態從 \(item.status) 變為 \(item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)")
+                    withAnimation {
+                        item.status = (item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)
+                    }
+                    
+                    // 更新本地資料庫
+                    LocalDataManager.shared.updateTodoItem(item)
+                    
+                    // 使用 DataSyncManager 同步更新
+                    DataSyncManager.shared.updateTodoItem(item) { result in
+                        switch result {
+                        case .success(_):
+                            print("SettlementTodoItem: 成功更新項目狀態")
+                        case .failure(let error):
+                            print("SettlementTodoItem: 更新項目狀態失敗 - \(error.localizedDescription)")
+                        }
+                    }
+                } label: {
+                    Rectangle()
+                        .foregroundColor(.clear)
+                        .frame(width: 28, height: 28)
+                        .background(item.status == .completed ? doneColor : .white.opacity(0.15))
+                        .cornerRadius(40.5)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // 任務標題
+                Text(item.title)
+                    .font(.system(size: 15))
+                    .foregroundColor(item.status == .completed ? doneColor : .white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                
+                Spacer()
+                
+                // 星標（如果優先度>=1）
+                if item.priority >= 1 {
+                    HStack(spacing: 2) {
+                        ForEach(0..<min(item.priority, 3), id: \.self) { _ in
+                            Image("Star")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: iconSize, height: iconSize)
+                                .foregroundColor(item.status == .completed ? doneColor : .white.opacity(0.7))
+                        }
+                    }
+                    .padding(.trailing, 8)
+                }
+                
+                // 右側箭頭按鈕 - 添加到今日並賦予當前時間
+                Button {
+                    print("SettlementTodoItem: 將項目添加到今日 - \(item.title)")
+                    
+                    // 創建一個新的副本
+                    var todayItem = item
+                    
+                    // 賦予當前時間
+                    todayItem.taskDate = Date()
+                    
+                    // 如果之前是備忘錄（待辦佇列），更改狀態為 toBeStarted
+                    if todayItem.status == .toDoList {
+                        todayItem.status = .toBeStarted
+                    }
+                    
+                    // 更新 updatedAt 時間戳
+                    todayItem.updatedAt = Date()
+                    
+                    // 使用數據同步管理器更新項目
+                    DataSyncManager.shared.updateTodoItem(todayItem) { result in
+                        DispatchQueue.main.async {
+                            switch result {
+                            case .success(_):
+                                print("SettlementTodoItem: 成功將項目添加到今日")
+                                
+                                // 如果有回調，傳遞新項目
+                                if let onAddToToday = onAddToToday {
+                                    onAddToToday(todayItem)
+                                }
+                                
+                            case .failure(let error):
+                                print("SettlementTodoItem: 添加到今日失敗 - \(error.localizedDescription)")
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.turn.right.up")
+                        .font(.system(size: 12))
+                        .foregroundColor(item.status == .completed ? doneColor : .white.opacity(0.5))
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 0)
+        .background(Color.clear)
     }
 }
 
