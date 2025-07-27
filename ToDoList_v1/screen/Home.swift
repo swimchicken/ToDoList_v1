@@ -417,7 +417,14 @@ struct Home: View {
                                 showAddTaskSheet = true
                             }
                         },
-                    
+                        // 新增的 SoundtoText 參數
+                            SoundtoText: {
+                                // 暫時留空，你可以稍後添加語音轉文字的邏輯
+                                print("SoundtoText 按鈕被點擊")
+                                // 例如：觸發語音識別功能
+                                // startSpeechRecognition()
+                            },
+                        
                         isSleepMode: isSleepMode,
                         alarmTimeString: alarmTimeString,
                         dayProgress: dayProgress,
