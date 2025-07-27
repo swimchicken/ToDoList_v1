@@ -465,21 +465,372 @@ struct TimeDisplayView: View {
 
 // 添加任务按钮
 struct AddTaskButton: View {
+    // 添加狀態變量來管理輸入和鍵盤
+    @State private var taskTitle: String = ""
+    @State private var displayText: String = ""
+    @State private var priority: Int = 0
+    @State private var isPinned: Bool = false
+    @State private var isKeyboardVisible = false
+    @State private var hasNote: Bool = false
+    @State private var note: String = ""
+    @State private var isDateEnabled: Bool = false
+    @State private var isTimeEnabled: Bool = false
+    @State private var selectedDate: Date = Date()
+    @State private var showAddTimeView: Bool = false
+    @State private var showAddNoteView: Bool = false
+    @State private var shouldRefocusAfterReturn = false
+    
+    // 聚焦狀態
+    @FocusState private var isTextFieldFocused: Bool
+    
+    // 優先級追踪
+    @State private var priorityLevel: Int = 0
+    
+    // 是否處於編輯模式
+    @State private var isEditing: Bool = false
+    
     var body: some View {
-        HStack {
-            Image(systemName: "plus")
-                .font(.system(size: 20))
-                .foregroundColor(.white)
-                .opacity(0.5)
-            
-            Text("Add test")
-                .font(Font.custom("Inria Sans", size: 20).weight(.bold))
-                .foregroundColor(.white)
-                .opacity(0.5)
-            
-            Spacer()
+        VStack(spacing: 0) {
+            if !isEditing {
+                // 默認的添加按鈕狀態
+                Button(action: {
+                    isEditing = true
+                    // 自動聚焦文字輸入框
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        isTextFieldFocused = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "plus")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .opacity(0.5)
+                        
+                        Text("Add task")
+                            .font(Font.custom("Inria Sans", size: 20).weight(.bold))
+                            .foregroundColor(.white)
+                            .opacity(0.5)
+                        
+                        Spacer()
+                    }
+                }
+                .padding(.top, 12)
+            } else {
+                // 編輯模式的輸入介面
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image("Check_Rec_Group 1000004070")
+                        
+                        TextField("", text: $displayText)
+                            .foregroundColor(.white)
+                            .keyboardType(.default)
+                            .colorScheme(.dark)
+                            .focused($isTextFieldFocused)
+                            .onChange(of: isTextFieldFocused) { newValue in
+                                isKeyboardVisible = newValue
+                            }
+                            .onAppear {
+                                setupKeyboardNotifications()
+                            }
+                            .onDisappear {
+                                removeKeyboardNotifications()
+                            }
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    ZStack {
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: 9) {
+                                                // 優先級按鈕
+                                                Button(action: {
+                                                    if isPinned {
+                                                        isPinned = false
+                                                    }
+                                                    priorityLevel = (priorityLevel + 1) % 4
+                                                    priority = priorityLevel
+                                                }) {
+                                                    HStack(alignment: .center, spacing: 2) {
+                                                        ForEach(0..<3) { index in
+                                                            Image("Star 1 (3)")
+                                                                .renderingMode(.template)
+                                                                .foregroundColor(index < priorityLevel ? .green : .white.opacity(0.65))
+                                                                .opacity(index < priorityLevel ? 1.0 : 0.65)
+                                                        }
+                                                    }
+                                                    .frame(width: 109, height: 33.7)
+                                                    .background(Color.white.opacity(0.15))
+                                                    .cornerRadius(12)
+                                                }
+                                                
+                                                // Pin按鈕
+                                                Button(action: {
+                                                    isPinned.toggle()
+                                                    if isPinned {
+                                                        priorityLevel = 0
+                                                        priority = 0
+                                                    }
+                                                }) {
+                                                    HStack {
+                                                        Image("Pin")
+                                                            .renderingMode(.template)
+                                                            .foregroundColor(isPinned ? .green : .white)
+                                                            .opacity(isPinned ? 1.0 : 0.25)
+                                                    }
+                                                    .frame(width: 51.7, height: 33.7)
+                                                    .background(Color.white.opacity(0.15))
+                                                    .cornerRadius(12)
+                                                }
+                                                
+                                                // 時間按鈕
+                                                Button(action: {
+                                                    shouldRefocusAfterReturn = true
+                                                    isTextFieldFocused = false
+                                                    showAddTimeView = true
+                                                }) {
+                                                    GeometryReader { geometry in
+                                                        Text(timeButtonText)
+                                                            .lineLimit(1)
+                                                            .minimumScaleFactor(0.7)
+                                                            .foregroundColor(shouldUseGreenColor ? .green : .white.opacity(0.65))
+                                                            .font(.system(size: 18))
+                                                            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                                                    }
+                                                    .frame(width: 110, height: 33.7)
+                                                    .background(Color.white.opacity(0.15))
+                                                    .cornerRadius(12)
+                                                }
+                                                
+                                                // 筆記按鈕
+                                                Button(action: {
+                                                    isTextFieldFocused = false
+                                                    showAddNoteView = true
+                                                }) {
+                                                    Text("note")
+                                                        .foregroundColor(shouldUseGreenColorForNote ? .green : .white.opacity(0.65))
+                                                        .font(.system(size: 18))
+                                                        .frame(width: 110, height: 33.7)
+                                                        .background(Color.white.opacity(0.15))
+                                                        .cornerRadius(12)
+                                                }
+                                            }
+                                            .padding(.vertical, 7)
+                                            .padding(.horizontal, 8)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                            }
+                    }
+                    
+                    Image("Vector 80")
+                    
+                    // 顯示保存和取消按鈕（僅在鍵盤不可見時）
+                    if !isKeyboardVisible {
+                        HStack {
+                            Button(action: {
+                                // 取消編輯
+                                resetEditingState()
+                            }) {
+                                Text("Cancel")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .frame(width: 80, height: 40)
+                                    .background(Color.gray.opacity(0.3))
+                                    .cornerRadius(20)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                // 保存任務
+                                saveTask()
+                            }) {
+                                Text("Save")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.black)
+                                    .frame(width: 120, height: 40)
+                                    .background(Color.white)
+                                    .cornerRadius(20)
+                            }
+                            .disabled(displayText.isEmpty)
+                        }
+                        .padding(.top, 12)
+                        .transition(.opacity)
+                    }
+                }
+                .padding(.top, 12)
+            }
         }
-        .padding(.top, 12)
+        .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible)
+        .fullScreenCover(isPresented: $showAddTimeView) {
+            AddTimeView(
+                isDateEnabled: $isDateEnabled,
+                isTimeEnabled: $isTimeEnabled,
+                selectedDate: $selectedDate,
+                onSave: {
+                    showAddTimeView = false
+                    isDateEnabled = true
+                    isTimeEnabled = true
+                    
+                    if shouldRefocusAfterReturn {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            isTextFieldFocused = true
+                            shouldRefocusAfterReturn = false
+                        }
+                    }
+                },
+                onBack: {
+                    showAddTimeView = false
+                    
+                    if shouldRefocusAfterReturn {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            isTextFieldFocused = true
+                            shouldRefocusAfterReturn = false
+                        }
+                    }
+                }
+            )
+        }
+        .fullScreenCover(isPresented: $showAddNoteView) {
+            AddNote(noteText: note) { savedNote in
+                note = savedNote
+                hasNote = !note.isEmpty
+                showAddNoteView = false
+            }
+        }
+    }
+    
+    // 時間按鈕文字
+    private var timeButtonText: String {
+        if !isDateEnabled && !isTimeEnabled {
+            return "time"
+        }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeStyle = .short
+        let timeString = timeFormatter.string(from: selectedDate)
+        
+        var dateText = ""
+        if calendar.isDate(selectedDay, inSameDayAs: today) {
+            dateText = "Today"
+        } else if calendar.isDate(selectedDay, inSameDayAs: tomorrow) {
+            dateText = "Tomorrow"
+        } else {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "MMM d"
+            dateText = dateFormatter.string(from: selectedDate)
+        }
+        
+        if isDateEnabled && isTimeEnabled {
+            return "\(dateText) \(timeString)"
+        } else if isDateEnabled {
+            return dateText
+        } else if isTimeEnabled {
+            return timeString
+        }
+        
+        return "time"
+    }
+    
+    // 是否應該使用綠色
+    private var shouldUseGreenColor: Bool {
+        return isDateEnabled || isTimeEnabled
+    }
+    
+    // 筆記按鈕是否應該使用綠色
+    private var shouldUseGreenColorForNote: Bool {
+        return hasNote
+    }
+    
+    // 設置鍵盤通知
+    private func setupKeyboardNotifications() {
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            isKeyboardVisible = true
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            isKeyboardVisible = false
+        }
+    }
+    
+    // 移除鍵盤通知
+    private func removeKeyboardNotifications() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+    
+    // 重置編輯狀態
+    private func resetEditingState() {
+        isEditing = false
+        displayText = ""
+        taskTitle = ""
+        priority = 0
+        isPinned = false
+        priorityLevel = 0
+        hasNote = false
+        note = ""
+        isDateEnabled = false
+        isTimeEnabled = false
+        selectedDate = Date()
+        isTextFieldFocused = false
+    }
+    
+    // 保存任務
+    private func saveTask() {
+        guard !displayText.isEmpty else { return }
+        
+        // 這裡可以添加保存邏輯，類似 Add.swift 中的 saveToCloudKit()
+        let finalTaskDate: Date? = (isDateEnabled || isTimeEnabled) ? selectedDate : nil
+        
+        let newTask = TodoItem(
+            id: UUID(),
+            userID: "user123",
+            title: displayText,
+            priority: priority,
+            isPinned: isPinned,
+            taskDate: finalTaskDate,
+            note: note,
+            status: .toBeStarted,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: "new_task"
+        )
+        
+        // 使用 DataSyncManager 保存
+        DataSyncManager.shared.addTodoItem(newTask) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let savedItem):
+                    print("成功保存任務: \(savedItem.title)")
+                    resetEditingState()
+                case .failure(let error):
+                    print("保存失敗: \(error.localizedDescription)")
+                    // 可以顯示錯誤提示
+                    resetEditingState()
+                }
+            }
+        }
     }
 }
 

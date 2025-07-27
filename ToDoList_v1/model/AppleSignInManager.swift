@@ -35,6 +35,10 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
             let email = appleIDCredential.email
             let fullName = appleIDCredential.fullName
             
+            // Apple登入成功後立即設置持久化狀態
+            UserDefaults.standard.set(true, forKey: "hasPersistedLogin")
+            print("AppleSignInManager: Apple登入成功，已設置持久化登入狀態")
+            
             // 登入後立即查詢或建立使用者記錄，採用預設 zone（inZoneWith 設為 nil）
             handleUserRecord(userId: userId, email: email, fullName: fullName) { destination in
                 DispatchQueue.main.async {
@@ -92,15 +96,17 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
             case .failure(let error):
                 print("查詢使用者記錄失敗: \(error.localizedDescription)")
                 
-                // 檢查是否是認證問題
+                // 檢查是否是認證問題或帳戶不存在
                 let nsError = error as NSError
                 if nsError.domain == CKErrorDomain && nsError.code == CKError.notAuthenticated.rawValue ||
                    error.localizedDescription.contains("bad or missing auth token") {
-                    print("AppleSignInManager: CloudKit 不可用，直接導向 onboarding")
-                    // 如果 CloudKit 不可用，直接進入新用戶流程
-                    completion("onboarding")
+                    print("AppleSignInManager: CloudKit 認證問題，但Apple登入成功，創建新帳戶")
+                    // CloudKit認證問題時，直接創建新用戶記錄
+                    self.createNewUserRecord(userId: userId, email: email, fullName: fullName, completion: completion)
                 } else {
-                    completion("login")
+                    print("AppleSignInManager: 其他錯誤(\(error.localizedDescription))，導向 onboarding")
+                    // 其他錯誤也進入onboarding流程
+                    completion("onboarding")
                 }
             }
         }
@@ -130,11 +136,17 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                 // 檢查是否是認證問題
                 let nsError = error as NSError
                 if nsError.domain == CKErrorDomain && nsError.code == CKError.notAuthenticated.rawValue {
-                    print("AppleSignInManager: 創建用戶時認證問題，觸發重新認證")
-                    CloudKitService.shared.refreshAuthentication()
+                    print("AppleSignInManager: 創建用戶時認證問題，但Apple登入已成功，繼續onboarding流程")
+                    // 即使CloudKit創建失敗，由於Apple登入成功，還是可以進入onboarding
                 }
+                
+                // 不管CloudKit是否成功，都進入onboarding（因為Apple登入已成功）
+                print("AppleSignInManager: 新用戶進入onboarding流程")
+                completion("onboarding")
+            } else {
+                print("AppleSignInManager: 成功創建新用戶記錄，進入onboarding")
+                completion("onboarding")
             }
-            completion("onboarding")
         }
         print("save done")
     }

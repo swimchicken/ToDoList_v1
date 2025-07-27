@@ -39,11 +39,12 @@ class CloudKitService {
         // 設置帳號變化通知觀察者
         setupAccountChangeObserver()
         
-        // 延遲檢查 iCloud 狀態，確保初始化完成
-        // 增加延遲時間，讓系統有足夠時間準備
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.performAuthentication()
-        }
+        // 只有在實際需要CloudKit操作時才進行認證，避免不必要的DEBUG輸出
+        // DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        //     self.performAuthentication()
+        // }
+        
+        print("DEBUG: CloudKitService已初始化，將在需要時進行認證")
     }
     
     // MARK: - Authentication Management
