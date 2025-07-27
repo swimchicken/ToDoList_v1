@@ -261,17 +261,9 @@ struct Home: View {
                             
                             Spacer()
                             
-                            // 更多選項按鈕（新增同步功能）
-                            Menu {
-                                Button(action: {
-                                    performManualSync()
-                                }) {
-                                    Label("同步數據", systemImage: "arrow.triangle.2.circlepath")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .foregroundColor(.white)
-                            }
+                            // 更多選項按鈕（暫時無功能）
+                            Image(systemName: "ellipsis")
+                                .foregroundColor(.white)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 60)

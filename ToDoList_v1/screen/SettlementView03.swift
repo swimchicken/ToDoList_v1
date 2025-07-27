@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 // MARK: - Page03ProgressBarSegment (在 SettlementView03.swift 中定義，或從共用檔案引用)
 // 如果您決定將 ProgressBarSegment 做成共用檔案，請確保 SettlementView03 能存取到它
@@ -55,6 +56,45 @@ struct SettlementView03: View {
 
     private var tomorrow: Date {
         return Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+    }
+    
+    // MARK: - 鬧鐘相關功能
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("通知權限已獲得")
+            } else {
+                print("通知權限被拒絕")
+            }
+        }
+    }
+    
+    private func cancelExistingAlarms() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        print("已取消所有現有鬧鐘")
+    }
+    
+    private func setAlarm(hour: Int, minute: Int, ampm: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "鬧鐘"
+        content.body = "該起床了！"
+        content.sound = UNNotificationSound.default
+        
+        var dateComponents = DateComponents()
+        let hour24 = ampm == "AM" ? (hour == 12 ? 0 : hour) : (hour == 12 ? 12 : hour + 12)
+        dateComponents.hour = hour24
+        dateComponents.minute = minute
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        let request = UNNotificationRequest(identifier: "DailyAlarm", content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("設定鬧鐘失敗: \(error)")
+            } else {
+                print("鬧鐘設定成功: \(hour24):\(String(format: "%02d", minute))")
+            }
+        }
     }
 
     private func formatDateForDisplay(_ date: Date) -> (monthDay: String, weekday: String) {
@@ -251,6 +291,24 @@ struct SettlementView03: View {
                 // 保存到 UserDefaults，以便在應用重啟後仍能保持狀態
                 UserDefaults.standard.set(true, forKey: "isSleepMode")
                 UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
+                
+                // 設定鬧鐘功能
+                if alarmEnabled {
+                    // 請求通知權限
+                    requestNotificationPermission()
+                    
+                    // 取消現有的鬧鐘
+                    cancelExistingAlarms()
+                    
+                    // 設定新的鬧鐘
+                    setAlarm(hour: hourToSave, minute: minuteToSave, ampm: ampmToSave)
+                    
+                    print("已設定鬧鐘: \(alarmTimeFormatted)")
+                } else {
+                    // 如果不啟用鬧鐘，取消所有現有鬧鐘
+                    cancelExistingAlarms()
+                    print("已取消鬧鐘")
+                }
                 
                 // 完成設置並回到 Home 頁面
                 navigateToHome = true

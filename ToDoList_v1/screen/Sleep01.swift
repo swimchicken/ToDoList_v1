@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct Sleep01View: View {
     @Environment(\.presentationMode) var presentationMode
@@ -73,7 +74,20 @@ struct Sleep01View: View {
                         .font(Font.custom("Inria Sans", size: 47.93416).weight(.bold))
                         .multilineTextAlignment(.center).foregroundColor(.white)
                     Spacer()
-                    Text("...").font(.system(size: 30, weight: .bold)).foregroundColor(.white).padding(.trailing, 10)
+                    Menu {
+                        Button(role: .destructive, action: {
+                            cancelSleepMode()
+                        }) {
+                            Label("取消 Sleep Mode", systemImage: "moon.slash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(.white)
+                            .font(.system(size: 20))
+                            .padding(.trailing, 10)
+                    }
+                    .menuStyle(.automatic)
+                    .preferredColorScheme(.dark)
                 }.padding(.leading, 37)
                 HStack(spacing: 8) {
                     Image(systemName: "bell.and.waves.left.and.right")
@@ -169,6 +183,27 @@ struct Sleep01View: View {
                 calculateDayProgress(currentTime: receivedTime)
             }
         }
+        .preferredColorScheme(.dark)
+    }
+    
+    // MARK: - 取消 Sleep Mode 功能
+    private func cancelSleepMode() {
+        // 取消所有通知鬧鐘
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        
+        // 清除 UserDefaults 中的相關設定
+        UserDefaults.standard.removeObject(forKey: "isSleepMode")
+        UserDefaults.standard.removeObject(forKey: "alarmTimeString")
+        
+        // 更新共享設定（如果有使用）
+        if let sleepSettingsClass = NSClassFromString("ToDoList_v1.SettlementView03.SleepSettings") as? NSObject.Type {
+            // 這裡我們嘗試重置共享設定，但由於架構限制，主要依賴 UserDefaults
+        }
+        
+        print("已取消 Sleep Mode 並清除所有相關設定")
+        
+        // 導航回到 Home 頁面
+        navigateToHome = true
     }
     
     // 提取進度條計算邏輯到獨立函數
