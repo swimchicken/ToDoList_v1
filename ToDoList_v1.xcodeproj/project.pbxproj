@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		28C15EE52E3667D0008942E8 /* AlarmStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
@@ -85,6 +86,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmStateManager.swift; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
@@ -239,6 +241,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */,
 				7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */,
 				793D1B432DAE881D00E0B653 /* CloudKitHelper.swift */,
 				790FF7932DCA499200B9C70B /* CloudKitService.swift */,
@@ -490,6 +493,7 @@
 				793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */,
 				790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */,
 				7914F9882DEDD62D00BD4801 /* DelaySettlementManager.swift in Sources */,
+				28C15EE52E3667D0008942E8 /* AlarmStateManager.swift in Sources */,
 				7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */,
 				7911CE192D6AF60B0034BEE6 /* AppleSignInManager.swift in Sources */,
 				79F7C25D2D9414BE00B2E19E /* MultiComponentPicker.swift in Sources */,

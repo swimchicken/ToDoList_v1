@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct ToDoList_v1App: App {
+    @StateObject private var alarmStateManager = AlarmStateManager()
+    
     // 暫時註解掉 Cloud 版的 ModelContainer 初始化
     /*
     var sharedModelContainer: ModelContainer = {
@@ -30,6 +32,7 @@ struct ToDoList_v1App: App {
         WindowGroup {
             //ContentView()
             ContentView()
+                .environmentObject(alarmStateManager)
         }
         // 也暫時移除綁定 ModelContainer
         // .modelContainer(sharedModelContainer)

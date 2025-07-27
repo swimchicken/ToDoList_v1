@@ -1177,4 +1177,5 @@ struct RoundedCorner: Shape {
 
 #Preview {
     Home()
+        .environmentObject(AlarmStateManager())
 }
