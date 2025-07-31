@@ -64,6 +64,7 @@
 		79F7C2612D97E8C000B2E19E /* Event.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2602D97E8C000B2E19E /* Event.swift */; };
 		79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */; };
 		79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2642D99507100B2E19E /* SaveLast.swift */; };
+		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
 /* End PBXBuildFile section */
 
@@ -146,6 +147,7 @@
 		79F7C2602D97E8C000B2E19E /* Event.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Event.swift; sourceTree = "<group>"; };
 		79F7C2622D97FB0D00B2E19E /* UserInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoView.swift; sourceTree = "<group>"; };
 		79F7C2642D99507100B2E19E /* SaveLast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveLast.swift; sourceTree = "<group>"; };
+		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -239,6 +241,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				EB4188FE2E3797A600F69B82 /* SpeechManager.swift */,
 				7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */,
 				793D1B432DAE881D00E0B653 /* CloudKitHelper.swift */,
 				790FF7932DCA499200B9C70B /* CloudKitService.swift */,
@@ -468,6 +471,7 @@
 				79C66A332DB40B7300BF8703 /* Add.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
 				790BFDCA2DCF841200AFD044 /* DataSyncManager.swift in Sources */,
+				EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */,
 				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
 				792C41742DC9051D005CCE92 /* AddNote.swift in Sources */,
@@ -662,6 +666,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ToDoList-v1-Info.plist";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "我們需要存取您的麥克風，才能錄製您要轉換的語音。";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "我們需要您的語音權限，才能將您的語音轉換為待辦事項。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -697,6 +703,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ToDoList-v1-Info.plist";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "我們需要存取您的麥克風，才能錄製您要轉換的語音。";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "我們需要您的語音權限，才能將您的語音轉換為待辦事項。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

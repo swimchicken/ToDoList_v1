@@ -417,6 +417,8 @@ struct Home: View {
                                 showAddTaskSheet = true
                             }
                         },
+                        
+                        
                         isSleepMode: isSleepMode,
                         alarmTimeString: alarmTimeString,
                         dayProgress: dayProgress,
