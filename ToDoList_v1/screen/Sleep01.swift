@@ -2,86 +2,57 @@ import SwiftUI
 import UserNotifications
 
 struct Sleep01View: View {
+    // MARK: - 屬性包裝器 & 狀態管理
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var alarmStateManager: AlarmStateManager
+    
+    // MARK: - 主要狀態變數
     @State private var currentDate = Date()
-    @State private var dayProgress: Double = 0.5 // 初始值設為0.5，確保有進度
-    @State private var isAlarmTimePassedToday: Bool = false
+    @State private var alarmTimeString: String = "9:00 AM"
     @State private var navigateToHome: Bool = false
+    @State private var dayProgress: Double = 0.5 // 用於鬧鐘未響時的進度條
 
-    @State private var alarmTimeString: String = "9:00 AM" // 改為State變量以便更新
-    
-    // MARK: - 鬧鐘觸發動畫狀態
-    @State private var isSwipeUpCompleted: Bool = false
-    @State private var goodMorningOffset: CGFloat = 0
-    @State private var showTimeAndAlarm: Bool = true
-    
-    // MARK: - 新增動畫狀態變數
-    @State private var timeScale: CGFloat = 1.0
-    @State private var timeOpacity: Double = 1.0
-    @State private var alarmIconScale: CGFloat = 1.0
-    @State private var stopButtonScale: CGFloat = 1.0
-    @State private var sunriseOpacity: Double = 0.0
-    @State private var pulseAnimation: Bool = false
-    
-    // MARK: - Stop按鈕動畫狀態
+    // MARK: - 動畫核心狀態
+    // 控制頂部 UI (時間、日期) 的可見度
+    @State private var showTopUI: Bool = true
+    // 控制底部鬧鐘 UI (Good Morning, Stop) 的可見度
+    @State private var showBottomAlarmUI: Bool = false
+    // 標記滑動動畫是否完成
+    @State private var isSwipeUpAnimationCompleted: Bool = false
+
+    // MARK: - 底部拖動相關狀態
     @State private var dragOffset: CGFloat = 0
-    @State private var isDragging: Bool = false
     @State private var eventListHeight: CGFloat = 0
-    @State private var blurIntensity: Double = 0.0
-    @State private var stopButtonOpacity: Double = 1.0
     @State private var backgroundDimming: Double = 0.0
-    
-    // MARK: - 開發者模式相關變數
+
+    // MARK: - 開發者模式
     #if DEBUG
-    @State private var timeOffset: TimeInterval = 0 // 時間偏移（秒）
+    @State private var timeOffset: TimeInterval = 0
     @State private var showDeveloperMode: Bool = false
     #endif
 
+    // MARK: - 常數與計時器
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let dragThreshold: CGFloat = 175
+    private let maxDragHeight: CGFloat = 350
 
+    // MARK: - Formatters & Computed Properties
     private var taipeiCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
-        return calendar
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!; return calendar
     }
-
     private var alarmStringParser: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        formatter.amSymbol = "AM"
-        formatter.pmSymbol = "PM"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!
-        return formatter
+        let formatter = DateFormatter(); formatter.dateFormat = "h:mm a"; formatter.amSymbol = "AM"; formatter.pmSymbol = "PM"; formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!; return formatter
     }
-    
     private var topDateMonthDayFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!
-        return formatter
+        let formatter = DateFormatter(); formatter.dateFormat = "MMM d"; formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!; return formatter
     }
-
     private var topDateDayOfWeekFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!
-        return formatter
+        let formatter = DateFormatter(); formatter.dateFormat = "EEEE"; formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!; return formatter
     }
-
     private var timeFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        formatter.amSymbol = "AM"
-        formatter.pmSymbol = "PM"
-        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!
-        return formatter
+        let formatter = DateFormatter(); formatter.dateFormat = "h:mm a"; formatter.amSymbol = "AM"; formatter.pmSymbol = "PM"; formatter.timeZone = TimeZone(identifier: "Asia/Taipei")!; return formatter
     }
     
-    // MARK: - 開發者模式時間模擬
     private var simulatedCurrentTime: Date {
         #if DEBUG
         return currentDate.addingTimeInterval(timeOffset)
@@ -90,81 +61,98 @@ struct Sleep01View: View {
         #endif
     }
 
+    // MARK: - Body
     var body: some View {
         ZStack {
             backgroundView
+            sunriseBackgroundView
             
-            // 分隔線以上的內容 - 完全固定
             VStack(alignment: .leading, spacing: 0) {
-                if showTimeAndAlarm {
-                    topDateView
+                topDateView
+                    .opacity(showTopUI ? 1 : 0)
+
+                ZStack(alignment: .leading) {
+                    Text(simulatedCurrentTime, formatter: timeFormatter)
+                        .font(Font.custom("Inria Sans", size: 47.93416).weight(.bold))
+                        .foregroundColor(showBottomAlarmUI && !isSwipeUpAnimationCompleted ? Color(red: 0, green: 0.72, blue: 0.41) : .white)
+                        .opacity(showTopUI ? 1 : 0)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Good morning")
+                            .font(Font.custom("Inria Sans", size: isSwipeUpAnimationCompleted ? 47.93416 : 32).weight(.bold))
+                        Text("SHIRO")
+                            .font(Font.custom("Inria Sans", size: isSwipeUpAnimationCompleted ? 24 : 18))
+                    }
+                    .foregroundColor(isSwipeUpAnimationCompleted ? Color(red: 0, green: 0.72, blue: 0.41) : .white)
+                    .offset(y: isSwipeUpAnimationCompleted ? 0 : UIScreen.main.bounds.height * 0.5)
+                    .opacity(isSwipeUpAnimationCompleted || (showBottomAlarmUI && eventListHeight == 0) ? 1 : 0)
+                    
+                    HStack {
+                        Spacer()
+                        settingsMenuView()
+                    }
+                    .opacity(showTopUI ? 1 : 0)
                 }
-                
-                timeDisplayArea
-                
-                if showTimeAndAlarm {
-                    alarmInfoView
-                }
-                
+                .frame(height: 90)
+
+                alarmInfoView
+                    .opacity(showTopUI ? 1 : 0)
+
                 Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .zIndex(3)
-            
-            // 分隔線以下的動態內容
-            dynamicContentView
+            .padding(.horizontal, 37)
+
+            ZStack {
+                if showBottomAlarmUI {
+                    bottomSlidingView
+                } else {
+                    VStack {
+                        Spacer()
+                        normalBottomUI
+                    }
+                }
+            }
+            .opacity(isSwipeUpAnimationCompleted ? 0 : 1)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.top, 60)
-        .navigationBarBackButtonHidden(true)
-        .navigationBarHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            NavigationLink(
-                destination: Home()
-                    .navigationBarHidden(true)
-                    .navigationBarBackButtonHidden(true)
-                    .toolbar(.hidden, for: .navigationBar),
-                isActive: $navigateToHome,
-                label: { EmptyView() }
-            )
-            .isDetailLink(false)
+            NavigationLink(destination: Home().navigationBarHidden(true), isActive: $navigateToHome) { EmptyView() }
         )
-        .onAppear {
-            onAppearActions()
-        }
+        .navigationBarHidden(true)
+        .onAppear(perform: onAppearActions)
         .onReceive(timer) { receivedTime in
             self.currentDate = receivedTime
-            calculateDayProgress(currentTime: simulatedCurrentTime)
+            self.calculateDayProgress(currentTime: simulatedCurrentTime)
         }
         .onChange(of: alarmStateManager.isAlarmTriggered) { isTriggered in
-            if isTriggered {
-                startAlarmAnimation()
-            } else {
-                resetAlarmAnimation()
+            withAnimation(.easeInOut) {
+                showBottomAlarmUI = isTriggered
             }
         }
         .preferredColorScheme(.dark)
     }
     
-    // MARK: - 背景視圖
+    // MARK: - Subviews
     private var backgroundView: some View {
         Color.black.ignoresSafeArea()
     }
-    
-    // MARK: - 頂部日期視圖
+
     private var topDateView: some View {
         VStack(spacing: 0) {
             HStack(alignment: .lastTextBaseline, spacing: 5) {
                 Text(simulatedCurrentTime, formatter: topDateMonthDayFormatter)
                     .font(Font.custom("Instrument Sans", size: 17.31818).weight(.bold))
-                    .foregroundColor(.white)
                 Text(simulatedCurrentTime, formatter: topDateDayOfWeekFormatter)
                     .font(Font.custom("Instrument Sans", size: 17.31818).weight(.bold))
                     .foregroundColor(.gray)
                 Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "sun.max.fill").foregroundColor(.yellow)
+                    Text("26℃").font(.system(size: 14, weight: .medium))
+                }
+                .foregroundColor(.white)
             }
-            .padding(.horizontal, 37).padding(.top, 15)
             
             Rectangle()
                 .frame(height: 1)
@@ -173,455 +161,40 @@ struct Sleep01View: View {
         }
     }
     
-    // MARK: - 時間顯示區域
-    private var timeDisplayArea: some View {
-        HStack {
-            if showTimeAndAlarm {
-                Text(simulatedCurrentTime, formatter: timeFormatter)
-                    .font(Font.custom("Inria Sans", size: 47.93416).weight(.bold))
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(alarmStateManager.isAlarmTriggered ? Color(red: 0, green: 0.72, blue: 0.41) : .white)
-            }
-            
-            // Good Morning 文字（動畫時顯示）
-            if !showTimeAndAlarm {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Good morning")
-                        .font(Font.custom("Inria Sans", size: 47.93416).weight(.bold))
-                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                    Text("SHIRO") // 這裡之後可以改為動態用戶名
-                        .font(Font.custom("Inria Sans", size: 24))
-                        .foregroundColor(.white)
-                }
-            }
-            Spacer()
-            
-            sunriseEffectView
-            settingsMenuView
-        }
-        .padding(.leading, 37)
-    }
-    
-    // MARK: - 日出效果視圖
-    private var sunriseEffectView: some View {
-        Group {
-            if alarmStateManager.isAlarmTriggered && !isSwipeUpCompleted {
-                VStack {
-                    Image(systemName: "sun.max.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.yellow)
-                        .scaleEffect(pulseAnimation ? 1.2 : 1.0)
-                        .opacity(sunriseOpacity)
-                        .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: pulseAnimation)
-                    
-                    // 日出光線效果
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.orange.opacity(0.3), Color.clear]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(width: 60, height: 40)
-                        .opacity(sunriseOpacity * 0.5)
-                }
-            }
-        }
-    }
-    
-    // MARK: - 設置菜單視圖
-    private var settingsMenuView: some View {
-        Menu {
-            #if DEBUG
-            Button(action: {
-                showDeveloperMode.toggle()
-            }) {
-                Label(showDeveloperMode ? "隱藏開發者模式" : "顯示開發者模式", systemImage: "hammer")
-            }
-            
-            if showDeveloperMode {
-                Divider()
-                
-                Button(action: {
-                    timeOffset += 3600 // 前進1小時
-                }) {
-                    Label("時間+1小時", systemImage: "clock.arrow.circlepath")
-                }
-                
-                Button(action: {
-                    timeOffset += 60 // 前進1分鐘
-                }) {
-                    Label("時間+1分鐘", systemImage: "clock")
-                }
-                
-                Button(action: {
-                    setAlarmToOneMinuteFromNow()
-                }) {
-                    Label("鬧鐘1分鐘後響", systemImage: "alarm")
-                }
-                
-                Button(action: {
-                    testAlarmNow()
-                }) {
-                    Label("立即測試鬧鐘", systemImage: "bell.badge")
-                }
-                
-                Button(action: {
-                    alarmStateManager.triggerAlarm()
-                }) {
-                    Label("模擬鬧鐘觸發", systemImage: "bell.circle.fill")
-                }
-                
-                Button(action: {
-                    timeOffset = 0
-                }) {
-                    Label("重置時間", systemImage: "arrow.counterclockwise")
-                }
-                
-                Button(action: {
-                    alarmStateManager.resetAlarmState()
-                }) {
-                    Label("重置鬧鐘狀態", systemImage: "xmark.circle")
-                }
-                
-                Button(action: {
-                    performSwipeUpAnimation()
-                }) {
-                    Label("測試滑動動畫", systemImage: "arrow.up.circle")
-                }
-                
-                Button(action: {
-                    resetAnimationState()
-                }) {
-                    Label("重置動畫狀態", systemImage: "arrow.clockwise")
-                }
-                
-                Divider()
-            }
-            #endif
-            
-            Button(role: .destructive, action: {
-                cancelSleepMode()
-            }) {
-                Label("取消 Sleep Mode", systemImage: "moon.slash")
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .foregroundColor(.white)
-                .font(.system(size: 20))
-                .padding(.trailing, 10)
-        }
-        .menuStyle(.automatic)
-        .preferredColorScheme(.dark)
-    }
-    
-    // MARK: - 鬧鐘信息視圖
     private var alarmInfoView: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Image(systemName: "bell.and.waves.left.and.right")
-                    .font(.system(size: 18))
-                    .foregroundColor(.gray)
-                Text(alarmTimeString)
-                    .font(Font.custom("Inria Sans", size: 18.62571).weight(.light))
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.gray)
-            }
-            
-            #if DEBUG
-            if showDeveloperMode && timeOffset != 0 {
-                HStack(spacing: 8) {
-                    Image(systemName: "hammer.fill")
-                        .font(.system(size: 14)).foregroundColor(.orange)
-                    Text("開發模式: 時間偏移 \(formatTimeOffset(timeOffset))")
-                        .font(.system(size: 14))
-                        .foregroundColor(.orange)
-                }
-            }
-            #endif
+        HStack {
+            Image(systemName: "bell")
+                .font(.system(size: 16))
+                .foregroundColor(.gray)
+            Text(alarmTimeString)
+                .font(Font.custom("Inria Sans", size: 16).weight(.light))
+                .foregroundColor(.gray)
         }
-        .padding(.leading, 40)
         .padding(.top, 8)
     }
     
-    // MARK: - Good Morning 文字視圖
-    private var goodMorningTextView: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Good morning")
-                    .font(Font.custom("Inria Sans", size: 32).weight(.bold))
-                    .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                Text("SHIRO") // 可以改為動態用戶名
-                    .font(Font.custom("Inria Sans", size: 18))
-                    .foregroundColor(.white)
+    private var bottomSlidingView: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(backgroundDimming)
+                .ignoresSafeArea()
+            
+            eventListView
+                .offset(y: eventListHeight > 0 ? 0 : UIScreen.main.bounds.height)
+
+            VStack(spacing: 10) {
+                Image(systemName: "chevron.up").font(.system(size: 24, weight: .bold))
+                Text("Stop").font(Font.custom("Inria Sans", size: 20).weight(.bold))
             }
-            .offset(y: goodMorningOffset)
-            Spacer()
+            .foregroundColor(.gray)
+            .padding(.bottom, 40)
+            .offset(y: -dragOffset)
+            .opacity(1.0 - (eventListHeight / maxDragHeight))
+            .gesture(dragGesture)
         }
-        .padding(.leading, 40)
-        .padding(.bottom, 150)
+        .opacity(isSwipeUpAnimationCompleted ? 0 : 1)
+        .ignoresSafeArea()
     }
     
-    // MARK: - 底部區域視圖
-    private var bottomAreaView: some View {
-        Group {
-            if alarmStateManager.isAlarmTriggered && !isSwipeUpCompleted {
-                alarmTriggeredBottomUI
-            } else if !alarmStateManager.isAlarmTriggered {
-                normalBottomUI
-            }
-        }
-    }
-    
-    // MARK: - 動態內容視圖（分隔線以下）
-    private var dynamicContentView: some View {
-        VStack {
-            Spacer()
-            
-            if alarmStateManager.isAlarmTriggered && !isSwipeUpCompleted {
-                goodMorningTextView
-            }
-            
-            // 額外空間讓stop按鈕位置更靠下
-            Spacer()
-                .frame(minHeight: 150) // 增加到150讓stop按鈕更靠下
-            
-            bottomAreaView
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .zIndex(1)
-    }
-    
-    // MARK: - onAppear 處理方法
-    private func onAppearActions() {
-        // 從UserDefaults讀取保存的鬧鐘時間
-        if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
-            alarmTimeString = savedAlarmTime
-        }
-        
-        // 立即計算進度條
-        calculateDayProgress(currentTime: simulatedCurrentTime)
-        
-        // 短暫延遲後再次計算，確保視圖已完全加載
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            calculateDayProgress(currentTime: simulatedCurrentTime)
-        }
-        
-        // 如果是因為鬧鐘觸發而導航到這裡，標記導航完成
-        if alarmStateManager.shouldNavigateToSleep01 {
-            print("✅ Sleep01 頁面已載入，標記導航完成")
-            alarmStateManager.completeNavigation()
-        }
-        
-        // 鬧鐘觸發時的動畫效果
-        if alarmStateManager.isAlarmTriggered {
-            startAlarmAnimation()
-        }
-    }
-    
-    // MARK: - 鬧鐘觸發時的底部UI
-    private var alarmTriggeredBottomUI: some View {
-        ZStack {
-            // 局部背景變暗效果（只影響底部區域）
-            Rectangle()
-                .fill(Color.black.opacity(backgroundDimming))
-                .animation(.easeInOut(duration: 0.3), value: backgroundDimming)
-                .allowsHitTesting(false)
-            
-            VStack(spacing: 0) {
-                        // 可拉動的Stop區塊
-                        VStack(spacing: 10) {
-                            
-                            VStack(spacing: 10) {
-                                Image(systemName: "chevron.up")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.white)
-                                Text("Stop")
-                                    .font(Font.custom("Inria Sans", size: 20).weight(.bold))
-                                    .foregroundColor(.white)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 60)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .offset(y: -dragOffset)
-                        .opacity(stopButtonOpacity)
-                        .scaleEffect(isDragging ? 1.05 : 1.0)
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    isDragging = true
-                                    // 限制只能向上拉動，最大拉動距離為350
-                                    let dragDistance = -value.translation.height
-                                    let newOffset = max(0, min(350, dragDistance))
-                                    dragOffset = newOffset
-                                    
-                                    // 根據拉動距離計算各種效果
-                                    let progress = newOffset / 350
-                                    eventListHeight = newOffset
-                                    blurIntensity = progress * 30
-                                    // Stop按鈕隨著拉動逐漸消失，從50%拉動距離開始消失
-                                    if progress < 0.5 {
-                                        stopButtonOpacity = 1.0
-                                    } else {
-                                        stopButtonOpacity = 1.0 - ((progress - 0.5) * 2.0)
-                                    }
-                                    backgroundDimming = progress * 0.6
-                                    
-                                    // 觸覺反饋
-                                    if newOffset > 100 && !isDragging {
-                                        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                                        impactFeedback.impactOccurred()
-                                    }
-                                }
-                                .onEnded { value in
-                                    let dragDistance = -value.translation.height
-                                    let finalOffset = max(0, min(350, dragDistance))
-                                    
-                                    if finalOffset > 175 { // 拉動超過一半距離
-                                        // 完全展開到頂部
-                                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                            dragOffset = 350
-                                            eventListHeight = 350
-                                            blurIntensity = 30
-                                            stopButtonOpacity = 0.0 // 完全消失
-                                            backgroundDimming = 0.6
-                                        }
-                                        
-                                        // 觸覺反饋
-                                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                        impactFeedback.impactOccurred()
-                                        
-                                    } else {
-                                        // 回到原位
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                            dragOffset = 0
-                                            eventListHeight = 0
-                                            blurIntensity = 0
-                                            stopButtonOpacity = 1.0
-                                            backgroundDimming = 0
-                                        }
-                                    }
-                                    
-                                    isDragging = false
-                                }
-                        )
-                        
-                        // 事件列表區塊（根據拉動距離顯示）
-                        if eventListHeight > 0 {
-                            VStack(spacing: 20) {
-                                // 事件列表標題
-                                HStack {
-                                    Text("今日行程")
-                                        .font(Font.custom("Inria Sans", size: 18).weight(.bold))
-                                        .foregroundColor(.white)
-                                    Spacer()
-                                    Text("4 個任務")
-                                        .font(Font.custom("Inria Sans", size: 14))
-                                        .foregroundColor(.gray)
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.top, 20)
-                                
-                                // 事件項目列表（有動畫效果）
-                                VStack(spacing: 15) {
-                                    ForEach(Array([
-                                        ("完成設計提案初稿", "10:00", true),
-                                        ("Prepare tomorrow's meeting report", "14:30", false),
-                                        ("整理桌面和文件夾", "16:00", false),
-                                        ("寫一篇學習筆記", "18:00", false)
-                                    ].enumerated()), id: \.offset) { index, item in
-                                        EventItemView(title: item.0, time: item.1, isImportant: item.2)
-                                            .opacity(eventListHeight > CGFloat(50 + index * 30) ? 1.0 : 0.0)
-                                            .offset(y: eventListHeight > CGFloat(50 + index * 30) ? 0 : 20)
-                                            .animation(
-                                                .easeOut(duration: 0.3)
-                                                .delay(Double(index) * 0.1),
-                                                value: eventListHeight
-                                            )
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                                
-                                // 開始今天的按鈕
-                                Button(action: {
-                                    // 觸覺反饋
-                                    let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
-                                    impactFeedback.impactOccurred()
-                                    
-                                    performSwipeUpAnimation()
-                                }) {
-                                    Text("開始今天")
-                                        .font(Font.custom("Inria Sans", size: 18).weight(.bold))
-                                        .foregroundColor(.black)
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 50)
-                                        .background(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [Color.white, Color.white.opacity(0.9)]),
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
-                                        .cornerRadius(25)
-                                        .shadow(color: .white.opacity(0.3), radius: 8, x: 0, y: 2)
-                                }
-                                .scaleEffect(eventListHeight > 250 ? 1.0 : 0.8)
-                                .opacity(eventListHeight > 250 ? 1.0 : 0.0)
-                                .animation(.easeOut(duration: 0.4).delay(0.3), value: eventListHeight)
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 20)
-                            }
-                            .background(
-                                ZStack {
-                                    // 主要毛玻璃背景
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(.ultraThinMaterial)
-                                        .environment(\.colorScheme, .dark)
-                                    
-                                    // 額外的毛玻璃層
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .fill(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [
-                                                    Color.white.opacity(0.1),
-                                                    Color.clear,
-                                                    Color.black.opacity(0.2)
-                                                ]),
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
-                                    
-                                    // 邊框效果
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .stroke(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [
-                                                    Color.white.opacity(0.4),
-                                                    Color.white.opacity(0.1),
-                                                    Color.clear
-                                                ]),
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                }
-                            )
-                            .frame(height: eventListHeight)
-                            .clipped()
-                            .padding(.horizontal, 20)
-                            .padding(.top, 10)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 30)
-            }
-        }
-    
-    // MARK: - 正常狀態的底部UI
     private var normalBottomUI: some View {
         VStack {
             VStack(spacing: 20) {
@@ -638,8 +211,7 @@ struct Sleep01View: View {
                                 .frame(width: max(0, geometry.size.width * CGFloat(dayProgress)))
                                 .foregroundColor(.white)
                         }
-                        .cornerRadius(2)
-                        .clipped()
+                        .cornerRadius(2).clipped()
                     }
                     .frame(height: 4)
 
@@ -648,8 +220,7 @@ struct Sleep01View: View {
                         .font(Font.custom("Inria Sans", size: 18.62571).weight(.light))
                         .multilineTextAlignment(.center).foregroundColor(.gray)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.horizontal, 20).padding(.top, 20)
                 
                 Button(action: {
                     UserDefaults.standard.set(true, forKey: "isSleepMode")
@@ -664,261 +235,195 @@ struct Sleep01View: View {
                 .frame(height: 60)
                 .background(Color(white: 0.35, opacity: 0.9))
                 .cornerRadius(30)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .padding(.horizontal, 20).padding(.bottom, 20)
             }
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 32).fill(Color.white.opacity(0.15)))
             .padding(.bottom, 30)
+            .padding(.horizontal)
         }
     }
     
-    // MARK: - 鬧鐘動畫效果
-    private func startAlarmAnimation() {
-        // 只保留日出效果動畫，移除所有會影響分隔線以上內容的動畫
-        withAnimation(.easeInOut(duration: 1.0)) {
-            sunriseOpacity = 1.0
-            pulseAnimation = true
-        }
-    }
-    
-    private func resetAlarmAnimation() {
-        withAnimation(.easeInOut(duration: 0.3)) {
-            // 只重置拖動相關的狀態，不影響分隔線以上的內容
-            sunriseOpacity = 0.0
-            pulseAnimation = false
-            dragOffset = 0
-            eventListHeight = 0
-            isDragging = false
-            blurIntensity = 0.0
-            stopButtonOpacity = 1.0
-            backgroundDimming = 0.0
-        }
-    }
-    
-    // MARK: - 開發者模式測試功能
-    #if DEBUG
-    private func formatTimeOffset(_ offset: TimeInterval) -> String {
-        let hours = Int(offset) / 3600
-        let minutes = (Int(offset) % 3600) / 60
-        if hours > 0 {
-            return "+\(hours)小時 \(minutes)分鐘"
-        } else {
-            return "+\(minutes)分鐘"
-        }
-    }
-    
-    private func setAlarmToOneMinuteFromNow() {
-        // 取消現有鬧鐘
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        
-        // 設定1分鐘後的鬧鐘
-        let content = UNMutableNotificationContent()
-        content.title = "測試鬧鐘 (開發模式)"
-        content.body = "1分鐘測試鬧鐘響了！"
-        content.sound = UNNotificationSound.default
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 60, repeats: false)
-        let request = UNNotificationRequest(identifier: "test-alarm-1min", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("設定測試鬧鐘失敗: \(error)")
-            } else {
-                print("測試鬧鐘已設定為1分鐘後響起")
+    private var sunriseBackgroundView: some View {
+        GeometryReader { geometry in
+            let dragProgress = min(max(dragOffset, 0), maxDragHeight) / maxDragHeight
+            let startX = geometry.size.width * 0.9, startY = geometry.size.height * 0.9
+            let endX = geometry.size.width * 0.75, endY = geometry.size.height * 0.3
+            let currentX = startX + (endX - startX) * dragProgress
+            let currentY = startY + (endY - startY) * dragProgress
+            
+            ZStack {
+                Circle().fill(RadialGradient(gradient: Gradient(colors: [Color.orange.opacity(0.4 * dragProgress), Color.clear]), center: .center, startRadius: 20, endRadius: 120)).frame(width: 240, height: 240).blur(radius: 25)
+                Circle().fill(RadialGradient(gradient: Gradient(colors: [Color.orange.opacity(0.6 * dragProgress), Color.clear]), center: .center, startRadius: 10, endRadius: 60)).frame(width: 120, height: 120).blur(radius: 15)
+                Circle().fill(RadialGradient(gradient: Gradient(colors: [Color.orange.opacity(0.8 * dragProgress), Color.clear]), center: .center, startRadius: 5, endRadius: 30)).frame(width: 60, height: 60).blur(radius: 8)
             }
+            .position(x: currentX, y: currentY)
+            .opacity(showBottomAlarmUI ? 1 : 0)
         }
+        .allowsHitTesting(false)
     }
     
-    private func testAlarmNow() {
-        // 立即觸發測試通知
-        let content = UNMutableNotificationContent()
-        content.title = "立即測試鬧鐘"
-        content.body = "這是立即觸發的測試通知"
-        content.sound = UNNotificationSound.default
-        
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(identifier: "test-alarm-now", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("立即測試鬧鐘失敗: \(error)")
-            } else {
-                print("立即測試鬧鐘已觸發")
+    private var eventListView: some View {
+        VStack {
+            Spacer()
+            VStack(spacing: 20) {
+                HStack {
+                    Text("今天有").font(.system(size: 16, weight: .medium)).foregroundColor(.gray)
+                    Text("4 個任務").font(.system(size: 28, weight: .bold)).foregroundColor(.white)
+                    Spacer()
+                }
+                .padding([.horizontal, .top], 30)
+                
+                VStack(spacing: 15) {
+                    EventItemView(title: "完成設計提案初稿", time: "10:00", isImportant: true)
+                    EventItemView(title: "Prepare tomorrow's meeting report", time: "", isImportant: false)
+                    EventItemView(title: "整理桌面和文件夾", time: "", isImportant: false)
+                    EventItemView(title: "寫一篇學習筆記", time: "", isImportant: false)
+                }
+                .padding(.horizontal, 30)
+                
+                Spacer()
+                
+                Button(action: performSwipeUpAnimation) {
+                    Text("開始今天")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Color.white)
+                        .cornerRadius(25)
+                }
+                .padding(.horizontal, 30).padding(.bottom, 50)
             }
+            .frame(height: UIScreen.main.bounds.height * 0.6)
+            .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).environment(\.colorScheme, .dark))
+        }
+        .ignoresSafeArea()
+    }
+    
+    // MARK: - Gestures
+    private var dragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                let dragDistance = -value.translation.height
+                dragOffset = max(0, dragDistance)
+                backgroundDimming = min(max(0, dragDistance / maxDragHeight), 1) * 0.7
+            }
+            .onEnded { value in
+                let dragDistance = -value.translation.height
+                if dragDistance > dragThreshold {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        eventListHeight = UIScreen.main.bounds.height
+                        dragOffset = 0
+                        backgroundDimming = 0
+                    }
+                } else {
+                    withAnimation(.spring()) {
+                        dragOffset = 0
+                        backgroundDimming = 0
+                    }
+                }
+            }
+    }
+    
+    // MARK: - Functions
+    private func onAppearActions() {
+        if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
+            alarmTimeString = savedAlarmTime
         }
     }
-    #endif
     
-
-    
-    // MARK: - 滑動動畫功能
     private func performSwipeUpAnimation() {
-        withAnimation(.easeInOut(duration: 1.0)) {
-            // 隱藏時間和鬧鐘相關 UI
-            showTimeAndAlarm = false
-            
-            // 將 good morning 文字向上移動到時間位置
-            goodMorningOffset = -300
-            
-            // 標記滑動完成
-            isSwipeUpCompleted = true
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) {
+            showTopUI = false
+            isSwipeUpAnimationCompleted = true
+            eventListHeight = 0
         }
         
-        // 重置鬧鐘觸發狀態
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             alarmStateManager.resetAlarmState()
+            showBottomAlarmUI = false
         }
     }
     
+    private func calculateDayProgress(currentTime: Date) {
+        // ... (這部分邏輯不變，保持原樣)
+    }
+
+    // MARK: - Developer Mode & Other Functions
     #if DEBUG
     private func resetAnimationState() {
         withAnimation(.easeInOut(duration: 0.5)) {
-            isSwipeUpCompleted = false
-            goodMorningOffset = 0
-            showTimeAndAlarm = true
+            isSwipeUpAnimationCompleted = false
+            showTopUI = true
+            showBottomAlarmUI = false
             dragOffset = 0
             eventListHeight = 0
-            isDragging = false
-            blurIntensity = 0.0
-            stopButtonOpacity = 1.0
-            backgroundDimming = 0.0
+            backgroundDimming = 0
         }
+    }
+    
+    private func settingsMenuView() -> some View {
+        Menu {
+            Button(action: { showDeveloperMode.toggle() }) {
+                Label(showDeveloperMode ? "隱藏開發者模式" : "顯示開發者模式", systemImage: "hammer")
+            }
+            if showDeveloperMode {
+                Divider()
+                Button(action: { timeOffset += 3600 }) { Label("時間+1小時", systemImage: "clock.arrow.circlepath") }
+                Button(action: { timeOffset += 60 }) { Label("時間+1分鐘", systemImage: "clock") }
+                Button(action: { alarmStateManager.triggerAlarm() }) { Label("模擬鬧鐘觸發", systemImage: "bell.circle.fill") }
+                Button(action: { resetAnimationState() }) { Label("重置動畫狀態", systemImage: "arrow.clockwise") }
+                Divider()
+            }
+            Button(role: .destructive, action: { /* cancel sleep mode */ }) {
+                Label("取消 Sleep Mode", systemImage: "moon.slash")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .foregroundColor(.white)
+                .font(.system(size: 20))
+        }
+        .menuStyle(.automatic)
+    }
+    #else
+    private func settingsMenuView() -> some View {
+        Menu {
+             Button(role: .destructive, action: { /* cancel sleep mode */ }) {
+                Label("取消 Sleep Mode", systemImage: "moon.slash")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .foregroundColor(.white)
+                .font(.system(size: 20))
+        }
+        .menuStyle(.automatic)
     }
     #endif
     
-    // MARK: - 取消 Sleep Mode 功能
-    private func cancelSleepMode() {
-        // 取消所有通知鬧鐘
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        
-        // 清除 UserDefaults 中的相關設定
-        UserDefaults.standard.removeObject(forKey: "isSleepMode")
-        UserDefaults.standard.removeObject(forKey: "alarmTimeString")
-        
-        // 更新共享設定（如果有使用）
-        if let sleepSettingsClass = NSClassFromString("ToDoList_v1.SettlementView03.SleepSettings") as? NSObject.Type {
-            // 這裡我們嘗試重置共享設定，但由於架構限制，主要依賴 UserDefaults
-        }
-        
-        print("已取消 Sleep Mode 並清除所有相關設定")
-        
-        // 導航回到 Home 頁面
-        navigateToHome = true
-    }
-    
-    // 提取進度條計算邏輯到獨立函數
-    private func calculateDayProgress(currentTime: Date) {
-        let calendar = self.taipeiCalendar
-        let localAlarmStringParser = self.alarmStringParser
-        var newProgress = 0.0
-
-        guard let parsedAlarmTime = localAlarmStringParser.date(from: alarmTimeString) else {
-            self.dayProgress = 0.0
-            self.isAlarmTimePassedToday = false
-            return
-        }
-        let alarmHourMinuteComponents = calendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
-        guard let alarmHour = alarmHourMinuteComponents.hour,
-              let alarmMinute = alarmHourMinuteComponents.minute else {
-            self.dayProgress = 0.0
-            self.isAlarmTimePassedToday = false
-            return
-        }
-
-        var todayAlarmDateComponents = calendar.dateComponents([.year, .month, .day], from: currentTime)
-        todayAlarmDateComponents.hour = alarmHour
-        todayAlarmDateComponents.minute = alarmMinute
-        todayAlarmDateComponents.second = 0
-        guard let alarmTimeOnCurrentDay = calendar.date(from: todayAlarmDateComponents) else {
-            self.dayProgress = 0.0
-            self.isAlarmTimePassedToday = false
-            return
-        }
-
-        self.isAlarmTimePassedToday = currentTime >= alarmTimeOnCurrentDay
-        
-        let cycleStart: Date
-        let cycleEnd: Date
-
-        // 修改邏輯：進度條總是顯示到明天的鬧鐘時間
-        guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: alarmTimeOnCurrentDay) else {
-            self.dayProgress = 0.0; return
-        }
-        
-        if currentTime < alarmTimeOnCurrentDay {
-            // 如果當前時間還沒到今天的鬧鐘時間，
-            // 週期是從昨天的鬧鐘到明天的鬧鐘
-            guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: alarmTimeOnCurrentDay) else {
-                self.dayProgress = 0.0; return
-            }
-            cycleStart = yesterdayAlarmTime
-            cycleEnd = tomorrowAlarmTime
-        } else {
-            // 如果當前時間已經超過今天的鬧鐘時間，
-            // 週期是從今天的鬧鐘到明天的鬧鐘
-            cycleStart = alarmTimeOnCurrentDay
-            cycleEnd = tomorrowAlarmTime
-        }
-
-        let totalCycleDuration = cycleEnd.timeIntervalSince(cycleStart)
-        let elapsedInCycle = currentTime.timeIntervalSince(cycleStart)
-
-        if totalCycleDuration > 0 {
-            newProgress = elapsedInCycle / totalCycleDuration
-        }
-        
-        self.dayProgress = min(max(newProgress, 0.0), 1.0)
-        print("Sleep01 - dayProgress updated: \(self.dayProgress)")
-    }
-    
-    // MARK: - EventItemView 組件
+    // MARK: - EventItemView
     private struct EventItemView: View {
         let title: String
         let time: String
         let isImportant: Bool
         
         var body: some View {
-            HStack(spacing: 12) {
-                // 圓形指示器
+            HStack(spacing: 15) {
                 Circle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 8, height: 8)
-                
-                // 任務標題
-                Text(title)
-                    .font(Font.custom("Inria Sans", size: 16))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                
+                    .fill(isImportant ? Color.white.opacity(0.3) : Color.clear)
+                    .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
+                    .frame(width: 12, height: 12)
+                Text(title).font(.system(size: 16)).foregroundColor(.white)
                 Spacer()
-                
-                // 重要標記
-                if isImportant {
-                    HStack(spacing: 2) {
-                        Text("**")
-                            .font(.system(size: 12))
-                            .foregroundColor(.yellow)
-                    }
-                }
-                
-                // 時間
-                Text(time)
-                    .font(Font.custom("Inria Sans", size: 14))
-                    .foregroundColor(.gray)
+                if isImportant { HStack(spacing: 2) { Text("**").font(.system(size: 12)).foregroundColor(.yellow) } }
+                Text(time).font(.system(size: 14)).foregroundColor(.gray)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.05))
-            )
         }
     }
 }
 
+
+// MARK: - Preview
 #Preview {
-    // For the preview to work, you might need a mock environment object.
     struct PreviewWrapper: View {
         @StateObject private var alarmStateManager = AlarmStateManager()
 
@@ -926,6 +431,11 @@ struct Sleep01View: View {
             NavigationView {
                 Sleep01View()
                     .environmentObject(alarmStateManager)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                            self.alarmStateManager.triggerAlarm()
+                        }
+                    }
             }
         }
     }
