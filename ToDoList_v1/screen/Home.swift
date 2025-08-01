@@ -12,6 +12,8 @@ struct Home: View {
     @State private var currentDate: Date = Date()  // 添加當前時間狀態
     @State private var navigateToSettlementView: Bool = false // 導航到結算頁面
     @State private var navigateToSleep01View: Bool = false // 導航到Sleep01視圖
+    @State private var navigateToTestPage: Bool = false // 導航到測試頁面
+    @State private var navigateToLogin: Bool = false // 導航回登入頁面
     @State private var isSleepMode: Bool = false // 睡眠模式狀態
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
     @State private var dayProgress: Double = 0.0 // 與Sleep01相同，用來顯示進度條
@@ -221,7 +223,10 @@ struct Home: View {
                             dateText2: taiwanTime.weekday,
                             statusText: taiwanTime.timeStatus,
                             temperatureText: "26°C",
-                            showCalendarView: $showCalendarView
+                            showCalendarView: $showCalendarView,
+                            onAvatarTapped: {
+                                navigateToTestPage = true
+                            }
                         )
                         .frame(maxWidth: .infinity, maxHeight: 0)
                         
@@ -857,6 +862,7 @@ struct Home: View {
             NotificationCenter.default.removeObserver(self, name: Notification.Name("iCloudUserChanged"), object: nil)
             NotificationCenter.default.removeObserver(self, name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
             NotificationCenter.default.removeObserver(self, name: Notification.Name("CompletedDaysDataChanged"), object: nil)
+            NotificationCenter.default.removeObserver(self, name: .userDidLogout, object: nil)
         }
         .background(
             Group {
@@ -865,6 +871,14 @@ struct Home: View {
                 }
                 
                 NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) {
+                    EmptyView()
+                }
+                
+                NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) {
+                    EmptyView()
+                }
+                
+                NavigationLink(destination: Login(), isActive: $navigateToLogin) {
                     EmptyView()
                 }
             }
@@ -1053,6 +1067,31 @@ struct Home: View {
             // 強制更新視圖以顯示最新的完成狀態
             dataRefreshToken = UUID()
         }
+        
+        // 監聽用戶登出通知
+        NotificationCenter.default.addObserver(
+            forName: .userDidLogout,
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("NOTICE: Home 收到用戶登出通知，準備導航到登入頁面")
+            
+            // 重置所有視圖狀態
+            showToDoSheet = false
+            showAddTaskSheet = false
+            showCalendarView = false
+            showingDeleteView = false
+            navigateToSettlementView = false
+            navigateToSleep01View = false
+            navigateToTestPage = false
+            isSleepMode = false
+            
+            // 清空數據
+            toDoItems = []
+            
+            // 導航到登入頁面
+            navigateToLogin = true
+        }
     }
     
     // 執行手動同步
@@ -1156,6 +1195,11 @@ struct Home: View {
             }
         }
     }
+}
+
+// 通知擴展
+extension Notification.Name {
+    static let userDidLogout = Notification.Name("userDidLogout")
 }
 
 // 用於設置圓角的擴展

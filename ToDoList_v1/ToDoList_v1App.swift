@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import GoogleSignIn
 
 @main
 struct ToDoList_v1App: App {
@@ -33,8 +34,17 @@ struct ToDoList_v1App: App {
             //ContentView()
             ContentView()
                 .environmentObject(alarmStateManager)
+                .onOpenURL(perform: handleURL)  // 處理 Google Sign-In 回調
         }
         // 也暫時移除綁定 ModelContainer
         // .modelContainer(sharedModelContainer)
+    }
+    
+    // MARK: - Google Sign-In URL 處理
+    private func handleURL(_ url: URL) {
+        if GIDSignIn.sharedInstance.handle(url) {
+            return
+        }
+        print("收到 URL: \(url)")
     }
 }

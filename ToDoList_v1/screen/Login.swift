@@ -46,7 +46,7 @@ struct Login: View {
                         VStack(spacing: 16) {
                             // Google 登入按鈕
                             Button(action: {
-                                // 請依需求加入 Google 登入邏輯
+                                GoogleSignInManager.shared.performSignIn()
                             }) {
                                 HStack(spacing: 10) {
                                     Image("Google")
