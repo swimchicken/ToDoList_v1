@@ -152,7 +152,7 @@ struct HomeBottomView: View {
                         .onChange(of: geometry.size.width) { self.grayBoxWidth = $0 }
                 }
             )
-            // 修正點 1：將移動的元件放回 .overlay 中，並確保 alignment 為 .bottomTrailing
+            // 將移動的元件放回 .overlay 中，並確保 alignment 為 .bottomTrailing
             .overlay(alignment: .bottomTrailing) {
                 let bottomPadding: CGFloat = -10
                 let offset = (isTextInputMode && keyboardHeight > 0) ? -keyboardHeight + safeAreaInsets.bottom - bottomPadding : 0
@@ -235,6 +235,7 @@ struct HomeBottomView: View {
     private func endRecording() {
         isSavingRecording = true
         speechManager.stop { recognizedText in
+            // 這個 completion handler 會在2秒動畫結束後被呼叫
             isSavingRecording = false
             isRecording = false
             
@@ -343,7 +344,7 @@ struct HomeBottomView: View {
     }
 }
 
-// MARK: - Subviews (No changes needed below this line)
+// MARK: - Subviews
 
 struct ExpandableSoundButton: View {
     let namespace: Namespace.ID
@@ -366,7 +367,7 @@ struct ExpandableSoundButton: View {
     @State private var showRecordingContents = false
 
     private var currentWidth: CGFloat {
-        isRecording ? expandedWidth : 60
+        isRecording || isSaving ? expandedWidth : 60
     }
 
     var body: some View {
@@ -375,7 +376,7 @@ struct ExpandableSoundButton: View {
                 .fill(Color(red: 0, green: 0.72, blue: 0.41))
                 .matchedGeometryEffect(id: "aiButton", in: namespace)
 
-            if isRecording {
+            if isRecording || isSaving { // 在錄音或儲存時都顯示錄音視圖
                 if showRecordingContents {
                     recordingView
                 }
@@ -384,7 +385,7 @@ struct ExpandableSoundButton: View {
             }
         }
         .frame(width: currentWidth, height: 60)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording)
+        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording || isSaving)
         .onTapGesture {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 isTextInputMode = true
@@ -393,10 +394,17 @@ struct ExpandableSoundButton: View {
         .gesture(longPressGesture)
         .onChange(of: isRecording) { newValue in
             if newValue {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // 延遲顯示內容以配合展開動畫
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     showRecordingContents = true
                 }
-            } else {
+            } else if !isSaving { // 只有在不是儲存狀態時才隱藏
+                showRecordingContents = false
+            }
+        }
+        .onChange(of: isSaving) { newValue in
+            // 當儲存結束時，隱藏內容
+            if !newValue {
                 showRecordingContents = false
             }
         }
@@ -415,6 +423,7 @@ struct ExpandableSoundButton: View {
     
     private var recordingView: some View {
         HStack(spacing: 0) {
+            // 取消按鈕
             Button(action: { cancelRecording() }) {
                 ZStack {
                     ZStack {
@@ -433,47 +442,45 @@ struct ExpandableSoundButton: View {
                     .scaleEffect(cancelPressEffectScale)
                     .opacity(isOverCancelButton ? 1 : 0)
             )
+            .opacity(isSaving ? 0 : 1) // 儲存時隱藏取消按鈕
             .transition(.move(edge: .leading).combined(with: .opacity))
             
-            HStack {
-                Spacer()
-                AudioWaveformView(audioLevel: audioLevel)
-                Spacer()
+            // 將聲波圖和載入動畫放在 ZStack 中
+            ZStack {
+                AudioWaveformView(audioLevel: audioLevel, isSaving: $isSaving)
+                
+                if isSaving {
+                    LoadingIndicatorView()
+                }
             }
             .frame(maxWidth: .infinity)
             .transition(.opacity.combined(with: .scale))
             
+            // 完成按鈕
             ZStack {
-                if isSaving {
-                    LoadingIndicatorView()
-                } else {
+                ZStack {
                     ZStack {
-                        ZStack {
-                            Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
-                            Circle().stroke(Color.white, lineWidth: 1.5)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .frame(width: 50, height: 50)
-                        .opacity(isOverSendButton ? 0 : 1)
-                        
-                        ZStack {
-                            Circle().fill(Color.white)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                        }
-                        .frame(width: 50, height: 50)
-                        .opacity(isOverSendButton ? 1 : 0)
-                        
-                        Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
-                            .scaleEffect(pressEffectScale)
-                            .opacity(isOverSendButton ? 1 : 0)
+                        Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
+                        Circle().stroke(Color.white, lineWidth: 1.5)
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
                     }
+                    .frame(width: 50, height: 50)
+                    .opacity(isOverSendButton ? 0 : 1)
+                    
+                    ZStack {
+                        Circle().fill(Color.white)
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                    }
+                    .frame(width: 50, height: 50)
+                    .opacity(isOverSendButton ? 1 : 0)
+                    
+                    Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
+                        .scaleEffect(pressEffectScale)
+                        .opacity(isOverSendButton ? 1 : 0)
                 }
             }
             .frame(width: 60, height: 60)
+            .opacity(isSaving ? 0 : 1) // 儲存時隱藏完成按鈕
             .transition(.opacity)
         }
         .transition(.opacity)
@@ -573,8 +580,9 @@ struct TextInputView: View {
 
     var body: some View {
         ZStack {
+            // 將背景色固定為白色
             RoundedRectangle(cornerRadius: 30)
-                .fill(Color(.systemGray6))
+                .fill(Color.white)
                 .matchedGeometryEffect(id: "aiButton", in: namespace)
                 .overlay(
                     RoundedRectangle(cornerRadius: 30)
@@ -718,26 +726,66 @@ struct AnimatedGradientTextView: View {
     }
 }
 
+// 全新的 AudioWaveformView
 struct AudioWaveformView: View {
     let audioLevel: Double
-    @State private var waveformData: [Double] = Array(repeating: 0.2, count: 20)
+    @Binding var isSaving: Bool
+    
+    @State private var waveformData: [Double] = Array(repeating: 0, count: 30)
+    @State private var savingTimer: Timer?
     
     var body: some View {
         HStack(spacing: 2) {
             ForEach(0..<waveformData.count, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1)
+                RoundedRectangle(cornerRadius: 1.5)
                     .fill(Color.white)
-                    .frame(width: 3, height: max(4, waveformData[index] * 30))
-                    .animation(.easeInOut(duration: 0.1).delay(Double(index) * 0.01), value: waveformData[index])
+                    // 增加高度的乘數，讓起伏更明顯
+                    .frame(width: 3, height: max(4, waveformData[index] * 55))
             }
         }
+        .animation(.easeOut(duration: 0.1), value: waveformData)
         .onChange(of: audioLevel) { newLevel in
-            updateWaveform(with: newLevel)
+            // 只有在非儲存狀態下才根據真實音量更新
+            if !isSaving {
+                updateWaveform(with: newLevel)
+            }
+        }
+        .onChange(of: isSaving) { newValue in
+            if newValue {
+                // 進入儲存狀態，開始衰減動畫
+                startDecayAnimation()
+            } else {
+                // 結束儲存狀態，停止計時器
+                savingTimer?.invalidate()
+                savingTimer = nil
+            }
         }
     }
     
     private func updateWaveform(with level: Double) {
-        waveformData.removeFirst()
+        // 修正：從左到右更新
         waveformData.append(level)
+        if waveformData.count > 30 {
+            waveformData.removeFirst()
+        }
+    }
+    
+    private func startDecayAnimation() {
+        var decaySteps = 20 // 動畫持續 20 * 0.1 = 2 秒
+        savingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            guard decaySteps > 0 else {
+                // 動畫結束，全部歸零
+                waveformData = Array(repeating: 0, count: 30)
+                savingTimer?.invalidate()
+                savingTimer = nil
+                return
+            }
+            
+            let decayFactor = Double(decaySteps) / 20.0
+            let newLevel = Double.random(in: 0...0.3) * decayFactor // 產生衰減的隨機值
+            updateWaveform(with: newLevel)
+            
+            decaySteps -= 1
+        }
     }
 }
