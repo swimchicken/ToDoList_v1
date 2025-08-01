@@ -1,8 +1,8 @@
 import SwiftUI
 
-// MARK: - UI Helpers (解決圖 1 & 2 的錯誤)
+// MARK: - UI Helpers
 
-/// 新增：鍵盤監聽器，用於讀取鍵盤高度並觸發更新
+/// 鍵盤監聽器，用於讀取鍵盤高度並觸發更新
 struct KeyboardReadable: ViewModifier {
     @Binding var keyboardHeight: CGFloat
 
@@ -11,10 +11,15 @@ struct KeyboardReadable: ViewModifier {
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
                 guard let userInfo = notification.userInfo,
                       let keyboardFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-                self.keyboardHeight = keyboardFrame.height
+                // 使用動畫來更新高度，使變化更平滑
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5)) {
+                    self.keyboardHeight = keyboardFrame.height
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                self.keyboardHeight = 0
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5)) {
+                    self.keyboardHeight = 0
+                }
             }
     }
 }
@@ -30,7 +35,6 @@ extension View {
 
 /// 主頁底部視圖：包含物理場景和按鈕
 struct HomeBottomView: View {
-    // ... (屬性和回調維持不變) ...
     // 數據屬性
     let todoItems: [TodoItem]
     let refreshToken: UUID
@@ -41,7 +45,7 @@ struct HomeBottomView: View {
     let onEndTodayTapped: () -> Void
     let onReturnToTodayTapped: () -> Void
     let onAddButtonTapped: () -> Void
-
+    
     // 是否處於睡眠模式
     let isSleepMode: Bool
     let alarmTimeString: String
@@ -57,36 +61,34 @@ struct HomeBottomView: View {
     @State private var isSendingText = false
     
     @Namespace private var namespace
+    
+    // 新增：鍵盤高度狀態管理
     @State private var keyboardHeight: CGFloat = 0
 
     // 語音辨識管理器
     @StateObject private var speechManager = SpeechManager()
 
     var body: some View {
-        let bottomPadding: CGFloat = 20
-        let offset = isTextInputMode && keyboardHeight > 0 ? -(keyboardHeight - bottomPadding) : 0
-        
-        VStack {
-            Spacer()
-            
-            if !isSleepMode {
-                if isCurrentDay {
-                    currentDayView
+        ZStack { // 使用 ZStack 作為根視圖，以便忽略安全區域
+            VStack {
+                Spacer()
+                
+                if !isSleepMode {
+                    if isCurrentDay {
+                        currentDayView
+                    } else {
+                        otherDayView
+                    }
                 } else {
-                    otherDayView
+                    sleepModeView
                 }
-            } else {
-                sleepModeView
-            }
-            
-            if keyboardHeight == 0 {
+                
                 Spacer().frame(height: 20)
             }
         }
         .padding(.horizontal, 10)
-        .offset(y: offset)
-        .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: offset)
-        .keyboardReadable(height: $keyboardHeight)
+        .ignoresSafeArea(.keyboard, edges: .bottom) // 忽略鍵盤，防止灰色背景被推動
+        .keyboardReadable(height: $keyboardHeight) // 將鍵盤監聽器應用到根視圖
         .animation(.spring(response: 0.3), value: isCurrentDay)
         .animation(.spring(response: 0.3), value: isSleepMode)
         .onAppear {
@@ -97,24 +99,22 @@ struct HomeBottomView: View {
     // 當天視圖
     private var currentDayView: some View {
         ZStack {
+            // 圖層 1: 固定的背景和靜態按鈕
             VStack(spacing: 10) {
                 PhysicsSceneWrapper(
                     todoItems: todoItems,
                     refreshToken: refreshToken
                 )
                 
+                // 靜態按鈕區域
                 ZStack {
                     HStack {
                         Button(action: onEndTodayTapped) {
                             if isSyncing {
-                                HStack {
-                                    Text("同步中...")
-                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .black))
-                                }
+                                HStack { Text("同步中..."); ProgressView() }
                                 .frame(maxWidth: .infinity)
                             } else {
-                                Text("end today")
-                                    .frame(maxWidth: .infinity)
+                                Text("end today").frame(maxWidth: .infinity)
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -127,20 +127,15 @@ struct HomeBottomView: View {
                         
                         Button(action: onAddButtonTapped) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 77)
-                                    .fill(Color.gray)
-                                    .frame(width: 60, height: 60)
-                                Image(systemName: "plus")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.white)
+                                RoundedRectangle(cornerRadius: 77).fill(Color.gray)
+                                Image(systemName: "plus").foregroundColor(.white)
                             }
+                            .frame(width: 60, height: 60)
                         }
                         
                         Spacer()
                         
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: 60, height: 60)
+                        Rectangle().fill(Color.clear).frame(width: 60, height: 60)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -157,65 +152,79 @@ struct HomeBottomView: View {
                         .onChange(of: geometry.size.width) { self.grayBoxWidth = $0 }
                 }
             )
+            // 將移動的元件放回 .overlay 中，並確保 alignment 為 .bottomTrailing
             .overlay(alignment: .bottomTrailing) {
-                ZStack {
-                    if isTextInputMode {
-                        TextInputView(
-                            namespace: namespace,
-                            isTextInputMode: $isTextInputMode,
-                            isSending: $isSendingText,
-                            text: $newTodoText,
-                            width: max(60, grayBoxWidth - 20)
-                        )
-                    } else {
-                        ExpandableSoundButton(
-                            namespace: namespace,
-                            isRecording: $isRecording,
-                            isTextInputMode: $isTextInputMode,
-                            isSaving: $isSavingRecording,
-                            audioLevel: speechManager.audioLevel,
-                            onRecordingStart: startRecording,
-                            onRecordingEnd: endRecording,
-                            onRecordingCancel: cancelRecording,
-                            expandedWidth: max(60, grayBoxWidth - 20)
-                        )
+                let bottomPadding: CGFloat = -10
+                let offset = (isTextInputMode && keyboardHeight > 0) ? -keyboardHeight + safeAreaInsets.bottom - bottomPadding : 0
+
+                // 圖層 2: 會移動的元件 (輸入框 + 星星)
+                ZStack(alignment: .bottomTrailing) {
+                    // 星星
+                    VStack(spacing: 10) {
+                        Spacer()
+                        GeometryReader { geometry in
+                            let soundButtonCenterX = geometry.size.width - 42
+                            let soundButtonCenterY = 30.0
+                            
+                            ZStack {
+                                Image("Star 12")
+                                    .renderingMode(.template).resizable().scaledToFit()
+                                    .frame(width: 18, height: 18)
+                                    .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                    .position(x: soundButtonCenterX + 42, y: soundButtonCenterY - 30)
+                                
+                                Image("Star 12")
+                                    .renderingMode(.template).resizable().scaledToFit()
+                                    .frame(width: 10, height: 10)
+                                    .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                    .position(x: soundButtonCenterX + 50, y: soundButtonCenterY - 15)
+                            }
+                        }
+                        .frame(height: 60)
+                    }
+                    .allowsHitTesting(false)
+
+                    // 輸入框 / AI 按鈕
+                    ZStack {
+                        if isTextInputMode {
+                            TextInputView(
+                                namespace: namespace,
+                                isTextInputMode: $isTextInputMode,
+                                isSending: $isSendingText,
+                                text: $newTodoText,
+                                width: max(60, grayBoxWidth - 20)
+                            )
+                        } else {
+                            ExpandableSoundButton(
+                                namespace: namespace,
+                                isRecording: $isRecording,
+                                isTextInputMode: $isTextInputMode,
+                                isSaving: $isSavingRecording,
+                                audioLevel: speechManager.audioLevel,
+                                onRecordingStart: startRecording,
+                                onRecordingEnd: endRecording,
+                                onRecordingCancel: cancelRecording,
+                                expandedWidth: max(60, grayBoxWidth - 20)
+                            )
+                        }
                     }
                 }
                 .padding(12)
+                .offset(y: offset)
+                .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: offset)
             }
-            
-            // 顶层：外部星号
-            VStack(spacing: 10) {
-                PhysicsSceneWrapper(
-                    todoItems: todoItems,
-                    refreshToken: refreshToken
-                )
-                .opacity(0)
-                
-                GeometryReader { geometry in
-                    let soundButtonCenterX = geometry.size.width - 42
-                    let soundButtonCenterY = 30.0
-            
-                    ZStack {
-                        Image("Star 12")
-                            .renderingMode(.template).resizable().scaledToFit()
-                            .frame(width: 18, height: 18)
-                            .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                            .position(x: soundButtonCenterX + 42, y: soundButtonCenterY - 30)
-                        
-                        Image("Star 12")
-                            .renderingMode(.template).resizable().scaledToFit()
-                            .frame(width: 10, height: 10)
-                            .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                            .position(x: soundButtonCenterX + 50, y: soundButtonCenterY - 15)
-                    }
-                }
-                .frame(height: 60)
-                .allowsHitTesting(false)
-            }
-            .padding(12)
         }
         .transition(.opacity.combined(with: .scale))
+    }
+    
+    // 輔助屬性，用於獲取底部安全區域的高度
+    private var safeAreaInsets: UIEdgeInsets {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?
+            .windows
+            .first?
+            .safeAreaInsets ?? .zero
     }
     
     private func startRecording() {
@@ -226,6 +235,7 @@ struct HomeBottomView: View {
     private func endRecording() {
         isSavingRecording = true
         speechManager.stop { recognizedText in
+            // 這個 completion handler 會在2秒動畫結束後被呼叫
             isSavingRecording = false
             isRecording = false
             
@@ -243,6 +253,7 @@ struct HomeBottomView: View {
         isRecording = false
     }
     
+    // ... otherDayView and sleepModeView remain the same ...
     private var otherDayView: some View {
         HStack {
             Button(action: onReturnToTodayTapped) {
@@ -356,7 +367,7 @@ struct ExpandableSoundButton: View {
     @State private var showRecordingContents = false
 
     private var currentWidth: CGFloat {
-        isRecording ? expandedWidth : 60
+        isRecording || isSaving ? expandedWidth : 60
     }
 
     var body: some View {
@@ -365,7 +376,7 @@ struct ExpandableSoundButton: View {
                 .fill(Color(red: 0, green: 0.72, blue: 0.41))
                 .matchedGeometryEffect(id: "aiButton", in: namespace)
 
-            if isRecording {
+            if isRecording || isSaving { // 在錄音或儲存時都顯示錄音視圖
                 if showRecordingContents {
                     recordingView
                 }
@@ -374,7 +385,7 @@ struct ExpandableSoundButton: View {
             }
         }
         .frame(width: currentWidth, height: 60)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording)
+        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording || isSaving)
         .onTapGesture {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 isTextInputMode = true
@@ -383,10 +394,17 @@ struct ExpandableSoundButton: View {
         .gesture(longPressGesture)
         .onChange(of: isRecording) { newValue in
             if newValue {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // 延遲顯示內容以配合展開動畫
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     showRecordingContents = true
                 }
-            } else {
+            } else if !isSaving { // 只有在不是儲存狀態時才隱藏
+                showRecordingContents = false
+            }
+        }
+        .onChange(of: isSaving) { newValue in
+            // 當儲存結束時，隱藏內容
+            if !newValue {
                 showRecordingContents = false
             }
         }
@@ -405,6 +423,7 @@ struct ExpandableSoundButton: View {
     
     private var recordingView: some View {
         HStack(spacing: 0) {
+            // 取消按鈕
             Button(action: { cancelRecording() }) {
                 ZStack {
                     ZStack {
@@ -423,47 +442,45 @@ struct ExpandableSoundButton: View {
                     .scaleEffect(cancelPressEffectScale)
                     .opacity(isOverCancelButton ? 1 : 0)
             )
+            .opacity(isSaving ? 0 : 1) // 儲存時隱藏取消按鈕
             .transition(.move(edge: .leading).combined(with: .opacity))
             
-            HStack {
-                Spacer()
-                AudioWaveformView(audioLevel: audioLevel)
-                Spacer()
+            // 將聲波圖和載入動畫放在 ZStack 中
+            ZStack {
+                AudioWaveformView(audioLevel: audioLevel, isSaving: $isSaving)
+                
+                if isSaving {
+                    LoadingIndicatorView()
+                }
             }
             .frame(maxWidth: .infinity)
             .transition(.opacity.combined(with: .scale))
             
+            // 完成按鈕
             ZStack {
-                if isSaving {
-                    LoadingIndicatorView()
-                } else {
+                ZStack {
                     ZStack {
-                        ZStack {
-                            Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
-                            Circle().stroke(Color.white, lineWidth: 1.5)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .frame(width: 50, height: 50)
-                        .opacity(isOverSendButton ? 0 : 1)
-                        
-                        ZStack {
-                            Circle().fill(Color.white)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                        }
-                        .frame(width: 50, height: 50)
-                        .opacity(isOverSendButton ? 1 : 0)
-                        
-                        Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
-                            .scaleEffect(pressEffectScale)
-                            .opacity(isOverSendButton ? 1 : 0)
+                        Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
+                        Circle().stroke(Color.white, lineWidth: 1.5)
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
                     }
+                    .frame(width: 50, height: 50)
+                    .opacity(isOverSendButton ? 0 : 1)
+                    
+                    ZStack {
+                        Circle().fill(Color.white)
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                    }
+                    .frame(width: 50, height: 50)
+                    .opacity(isOverSendButton ? 1 : 0)
+                    
+                    Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
+                        .scaleEffect(pressEffectScale)
+                        .opacity(isOverSendButton ? 1 : 0)
                 }
             }
             .frame(width: 60, height: 60)
+            .opacity(isSaving ? 0 : 1) // 儲存時隱藏完成按鈕
             .transition(.opacity)
         }
         .transition(.opacity)
@@ -563,8 +580,9 @@ struct TextInputView: View {
 
     var body: some View {
         ZStack {
+            // 將背景色固定為白色
             RoundedRectangle(cornerRadius: 30)
-                .fill(Color(.systemGray6))
+                .fill(Color.white)
                 .matchedGeometryEffect(id: "aiButton", in: namespace)
                 .overlay(
                     RoundedRectangle(cornerRadius: 30)
@@ -630,9 +648,6 @@ struct TextInputView: View {
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 showContents = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                isTextFieldFocused = true
             }
         }
         .onChange(of: isTextInputMode) { newValue in
@@ -711,26 +726,66 @@ struct AnimatedGradientTextView: View {
     }
 }
 
+// 全新的 AudioWaveformView
 struct AudioWaveformView: View {
     let audioLevel: Double
-    @State private var waveformData: [Double] = Array(repeating: 0.2, count: 20)
+    @Binding var isSaving: Bool
+    
+    @State private var waveformData: [Double] = Array(repeating: 0, count: 30)
+    @State private var savingTimer: Timer?
     
     var body: some View {
         HStack(spacing: 2) {
             ForEach(0..<waveformData.count, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1)
+                RoundedRectangle(cornerRadius: 1.5)
                     .fill(Color.white)
-                    .frame(width: 3, height: max(4, waveformData[index] * 30))
-                    .animation(.easeInOut(duration: 0.1).delay(Double(index) * 0.01), value: waveformData[index])
+                    // 增加高度的乘數，讓起伏更明顯
+                    .frame(width: 3, height: max(4, waveformData[index] * 55))
             }
         }
+        .animation(.easeOut(duration: 0.1), value: waveformData)
         .onChange(of: audioLevel) { newLevel in
-            updateWaveform(with: newLevel)
+            // 只有在非儲存狀態下才根據真實音量更新
+            if !isSaving {
+                updateWaveform(with: newLevel)
+            }
+        }
+        .onChange(of: isSaving) { newValue in
+            if newValue {
+                // 進入儲存狀態，開始衰減動畫
+                startDecayAnimation()
+            } else {
+                // 結束儲存狀態，停止計時器
+                savingTimer?.invalidate()
+                savingTimer = nil
+            }
         }
     }
     
     private func updateWaveform(with level: Double) {
-        waveformData.removeFirst()
+        // 修正：從左到右更新
         waveformData.append(level)
+        if waveformData.count > 30 {
+            waveformData.removeFirst()
+        }
+    }
+    
+    private func startDecayAnimation() {
+        var decaySteps = 20 // 動畫持續 20 * 0.1 = 2 秒
+        savingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            guard decaySteps > 0 else {
+                // 動畫結束，全部歸零
+                waveformData = Array(repeating: 0, count: 30)
+                savingTimer?.invalidate()
+                savingTimer = nil
+                return
+            }
+            
+            let decayFactor = Double(decaySteps) / 20.0
+            let newLevel = Double.random(in: 0...0.3) * decayFactor // 產生衰減的隨機值
+            updateWaveform(with: newLevel)
+            
+            decaySteps -= 1
+        }
     }
 }
