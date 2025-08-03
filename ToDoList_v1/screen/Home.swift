@@ -259,6 +259,10 @@ struct Home: View {
                             }
                             .contentShape(Rectangle())
                             
+                            // Widget 測試按鈕（暫時註解，需要添加文件到 Target）
+                            // WidgetTestButton()
+                            //     .scaleEffect(0.8)
+                            
                             Spacer()
                             
                             // 更多選項按鈕（暫時無功能）
