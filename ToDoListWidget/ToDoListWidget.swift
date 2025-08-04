@@ -167,59 +167,187 @@ struct ToDoListWidgetEntryView : View {
 struct SmallWidgetView: View {
     let tasks: [TodoItem]
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 標題
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.blue)
-                Text("今日任務")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
+    // 計算完成進度
+    var completionProgress: Double {
+        guard !tasks.isEmpty else { return 0 }
+        let completedCount = tasks.filter { $0.status == .completed }.count
+        return Double(completedCount) / Double(tasks.count)
+    }
+    
+    // 排序任務：未完成優先，已完成在後，按優先級排序
+    var sortedTasks: [TodoItem] {
+        tasks.sorted { task1, task2 in
+            // 已完成的排在後面
+            if task1.status == .completed && task2.status != .completed {
+                return false
             }
-            
-            if tasks.isEmpty {
-                Spacer()
-                Text("今天沒有任務")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
-                Spacer()
-            } else {
-                // 顯示前3個任務
-                ForEach(tasks.prefix(3)) { task in
-                    HStack {
-                        Circle()
-                            .fill(priorityColor(task.priority))
-                            .frame(width: 8, height: 8)
-                        Text(task.title)
-                            .font(.caption)
-                            .lineLimit(1)
-                        Spacer()
-                    }
-                }
-                
-                if tasks.count > 3 {
-                    Text("還有 \(tasks.count - 3) 項任務")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
+            if task1.status != .completed && task2.status == .completed {
+                return true
             }
-        }
-        .padding()
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
+            // 相同完成狀態，按優先級排序
+            return task1.priority > task2.priority
         }
     }
     
-    func priorityColor(_ priority: Int) -> Color {
-        switch priority {
+    var body: some View {
+        ZStack {
+            // 深色背景
+            Color.black
+                .ignoresSafeArea()
+            
+            VStack(alignment: .leading, spacing: 8) {
+                // 頂部：標題和進度
+                HStack {
+                    Text("Today")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    // 進度百分比
+                    Text("\(Int(completionProgress * 100))%")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                // 進度條
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // 背景
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.white.opacity(0.2))
+                            .frame(height: 4)
+                        
+                        // 進度
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.green)
+                            .frame(width: geometry.size.width * CGFloat(completionProgress), height: 4)
+                    }
+                }
+                .frame(height: 4)
+                .padding(.bottom, 4)
+                
+                if tasks.isEmpty {
+                    Spacer()
+                    Text("今天沒有任務")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.6))
+                        .frame(maxWidth: .infinity)
+                    Spacer()
+                } else {
+                    // 顯示前3個任務（移除圓圈，只顯示文字）
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(sortedTasks.prefix(3)) { task in
+                            SmallTaskRowView(task: task)
+                        }
+                    }
+                    
+                    Spacer(minLength: 2)
+                    
+                    // 顯示剩餘任務數
+                    if sortedTasks.count > 3 {
+                        Text("+\(sortedTasks.count - 3)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white.opacity(0.5))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+        }
+        .containerBackground(for: .widget) {
+            Color.black
+        }
+    }
+}
+
+// MARK: - Small Task Row View (簡化版，無圓圈)
+struct SmallTaskRowView: View {
+    let task: TodoItem
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            // 優先級色塊（小而簡潔）
+            if task.status != .completed {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(priorityColor)
+                    .frame(width: 3, height: 14)
+            }
+            
+            // 任務標題
+            Text(task.title)
+                .font(.system(size: 12, weight: task.status == .completed ? .regular : .medium))
+                .foregroundColor(task.status == .completed ? .white.opacity(0.4) : .white)
+                .lineLimit(1)
+                .strikethrough(task.status == .completed)
+            
+            Spacer(minLength: 2)
+        }
+    }
+    
+    var priorityColor: Color {
+        switch task.priority {
         case 3: return .red
         case 2: return .orange
-        case 1: return .blue
+        case 1: return .green
+        default: return .gray
+        }
+    }
+}
+
+// MARK: - Task Row View (保留給舊版本使用)
+struct TaskRowView: View {
+    let task: TodoItem
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            // 狀態圓圈
+            ZStack {
+                Circle()
+                    .stroke(statusColor, lineWidth: 2)
+                    .frame(width: 20, height: 20)
+                
+                if task.status == .completed {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 20, height: 20)
+                }
+            }
+            
+            // 任務標題
+            Text(task.title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(task.status == .completed ? .white.opacity(0.5) : .white)
+                .lineLimit(1)
+                .strikethrough(task.status == .completed)
+            
+            Spacer()
+            
+            // 重要度標記
+            if task.priority == 3 {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.yellow)
+            }
+            
+            // 時間標記
+            if let taskDate = task.taskDate {
+                Text(taskDate, style: .time)
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.6))
+            }
+        }
+    }
+    
+    var statusColor: Color {
+        if task.status == .completed {
+            return .green
+        }
+        switch task.priority {
+        case 3: return .red
+        case 2: return .orange
+        case 1: return .green
         default: return .gray
         }
     }
@@ -229,90 +357,184 @@ struct SmallWidgetView: View {
 struct MediumWidgetView: View {
     let tasks: [TodoItem]
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // 標題行
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.blue)
-                    .font(.title2)
-                Text("今日任務")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Spacer()
-                Text("\(tasks.count) 項")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+    // 計算完成進度
+    var completionProgress: Double {
+        guard !tasks.isEmpty else { return 0 }
+        let completedCount = tasks.filter { $0.status == .completed }.count
+        return Double(completedCount) / Double(tasks.count)
+    }
+    
+    // 排序任務：未完成優先，已完成在後，按優先級排序
+    var sortedTasks: [TodoItem] {
+        tasks.sorted { task1, task2 in
+            // 已完成的排在後面
+            if task1.status == .completed && task2.status != .completed {
+                return false
             }
-            
-            if tasks.isEmpty {
-                Spacer()
-                HStack {
-                    Spacer()
-                    VStack {
-                        Image(systemName: "checkmark.seal")
-                            .font(.largeTitle)
-                            .foregroundColor(.green)
-                        Text("今天沒有任務")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                }
-                Spacer()
-            } else {
-                // 顯示前4個任務
-                VStack(spacing: 6) {
-                    ForEach(tasks.prefix(4)) { task in
-                        HStack {
-                            Circle()
-                                .fill(priorityColor(task.priority))
-                                .frame(width: 10, height: 10)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(task.title)
-                                    .font(.subheadline)
-                                    .lineLimit(1)
-                                if !task.note.isEmpty {
-                                    Text(task.note)
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                            
-                            Spacer()
-                            
-                            if task.isPinned {
-                                Image(systemName: "pin.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                        }
-                    }
-                }
-                
-                if tasks.count > 4 {
-                    HStack {
-                        Spacer()
-                        Text("還有 \(tasks.count - 4) 項任務")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
+            if task1.status != .completed && task2.status == .completed {
+                return true
             }
-        }
-        .padding()
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
+            // 相同完成狀態，按優先級排序
+            return task1.priority > task2.priority
         }
     }
     
-    func priorityColor(_ priority: Int) -> Color {
-        switch priority {
+    var body: some View {
+        ZStack {
+            // 深色背景
+            Color.black
+                .ignoresSafeArea()
+            
+            VStack(alignment: .leading, spacing: 10) {
+                // 頂部：標題、進度條和百分比在同一行
+                HStack(spacing: 12) {
+                    Text("Today")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    // 進度條
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // 背景
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.white.opacity(0.2))
+                                .frame(height: 6)
+                            
+                            // 進度
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.green)
+                                .frame(width: geometry.size.width * CGFloat(completionProgress), height: 6)
+                        }
+                    }
+                    .frame(height: 6)
+                    
+                    // 進度資訊
+                    Text("\(Int(completionProgress * 100))%")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 40, alignment: .trailing)
+                }
+                
+                if tasks.isEmpty {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        VStack {
+                            Image(systemName: "checkmark.seal")
+                                .font(.system(size: 40))
+                                .foregroundColor(.green)
+                            Text("今天沒有任務")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.6))
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                } else {
+                    // 顯示前3個任務
+                    VStack(spacing: 6) {
+                        ForEach(sortedTasks.prefix(3)) { task in
+                            MediumTaskRowView(task: task)
+                        }
+                    }
+                    
+                    if sortedTasks.count > 3 {
+                        HStack {
+                            Spacer()
+                            Text("還有 \(sortedTasks.count - 3) 項")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.white.opacity(0.5))
+                            Spacer()
+                        }
+                        .padding(.top, 2)
+                    }
+                    
+                    Spacer(minLength: 0)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+        .containerBackground(for: .widget) {
+            Color.black
+        }
+    }
+}
+
+// MARK: - Medium Task Row View
+struct MediumTaskRowView: View {
+    let task: TodoItem
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            // 狀態圓圈（稍微縮小）
+            ZStack {
+                Circle()
+                    .stroke(statusColor, lineWidth: 2)
+                    .frame(width: 20, height: 20)
+                
+                if task.status == .completed {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 20, height: 20)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.black)
+                }
+            }
+            
+            // 任務資訊
+            VStack(alignment: .leading, spacing: 2) {
+                Text(task.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(task.status == .completed ? .white.opacity(0.5) : .white)
+                    .lineLimit(1)
+                    .strikethrough(task.status == .completed)
+                
+                if !task.note.isEmpty {
+                    Text(task.note)
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.4))
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            // 右側資訊
+            HStack(spacing: 8) {
+                // 重要度標記
+                if task.priority == 3 {
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.yellow)
+                }
+                
+                // 固定標記
+                if task.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.orange)
+                }
+                
+                // 時間標記
+                if let taskDate = task.taskDate {
+                    Text(taskDate, style: .time)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
+        }
+    }
+    
+    var statusColor: Color {
+        if task.status == .completed {
+            return .green
+        }
+        switch task.priority {
         case 3: return .red
         case 2: return .orange
-        case 1: return .blue
+        case 1: return .green
         default: return .gray
         }
     }
@@ -322,96 +544,217 @@ struct MediumWidgetView: View {
 struct LargeWidgetView: View {
     let tasks: [TodoItem]
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 標題行
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.blue)
-                    .font(.title)
-                Text("今日任務")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-                VStack(alignment: .trailing) {
-                    Text(Date(), style: .date)
-                        .font(.caption)
-                    Text("\(tasks.count) 項待完成")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+    // 計算完成進度
+    var completionProgress: Double {
+        guard !tasks.isEmpty else { return 0 }
+        let completedCount = tasks.filter { $0.status == .completed }.count
+        return Double(completedCount) / Double(tasks.count)
+    }
+    
+    // 排序任務：未完成優先，已完成在後，按優先級排序
+    var sortedTasks: [TodoItem] {
+        tasks.sorted { task1, task2 in
+            // 已完成的排在後面
+            if task1.status == .completed && task2.status != .completed {
+                return false
             }
+            if task1.status != .completed && task2.status == .completed {
+                return true
+            }
+            // 相同完成狀態，按優先級排序
+            return task1.priority > task2.priority
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            // 深色背景
+            Color.black
+                .ignoresSafeArea()
             
-            Divider()
-            
-            if tasks.isEmpty {
-                Spacer()
-                VStack(spacing: 10) {
-                    Image(systemName: "checkmark.seal")
-                        .font(.system(size: 60))
-                        .foregroundColor(.green)
-                    Text("今天沒有任務")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                    Text("享受美好的一天！")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                // 頂部：標題和進度
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Today")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(.white)
+                        
+                        Text(Date(), style: .date)
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                    
+                    Spacer()
+                    
+                    // 進度資訊
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(Int(completionProgress * 100))%")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.green)
+                        
+                        Text("\(tasks.filter { $0.status == .completed }.count)/\(tasks.count) 完成")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                Spacer()
-            } else {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(tasks) { task in
-                            HStack {
-                                Circle()
-                                    .fill(priorityColor(task.priority))
-                                    .frame(width: 12, height: 12)
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack {
-                                        Text(task.title)
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                        if task.isPinned {
-                                            Image(systemName: "pin.fill")
-                                                .font(.caption)
-                                                .foregroundColor(.orange)
-                                        }
-                                    }
-                                    
-                                    if !task.note.isEmpty {
-                                        Text(task.note)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(2)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                // 優先級標籤
-                                Text(priorityText(task.priority))
-                                    .font(.caption2)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(priorityColor(task.priority).opacity(0.2))
-                                    .foregroundColor(priorityColor(task.priority))
-                                    .cornerRadius(4)
-                            }
-                            .padding(.vertical, 4)
+                
+                // 進度條
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // 背景
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.white.opacity(0.2))
+                            .frame(height: 8)
+                        
+                        // 進度
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.green)
+                            .frame(width: geometry.size.width * CGFloat(completionProgress), height: 8)
+                    }
+                }
+                .frame(height: 8)
+                
+                // 分隔線
+                Rectangle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(height: 0.5)
+                    .padding(.vertical, 3)
+                
+                if tasks.isEmpty {
+                    Spacer()
+                    VStack(spacing: 16) {
+                        Text("今天沒有任務")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.6))
+                        Text("享受美好的一天！")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
+                    .frame(maxWidth: .infinity)
+                    Spacer()
+                } else {
+                    // 任務列表（顯示前6個任務）
+                    VStack(spacing: 2) {
+                        ForEach(sortedTasks.prefix(6)) { task in
+                            LargeTaskRowView(task: task)
                             
-                            if task.id != tasks.last?.id {
-                                Divider()
+                            if task.id != sortedTasks.prefix(6).last?.id {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.1))
+                                    .frame(height: 0.5)
                             }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // 顯示剩餘任務數
+                    if sortedTasks.count > 6 {
+                        HStack {
+                            Spacer()
+                            Text("還有 \(sortedTasks.count - 6) 項任務")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.5))
+                            Spacer()
                         }
                     }
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
         }
-        .padding()
         .containerBackground(for: .widget) {
-            Color(.systemBackground)
+            Color.black
+        }
+    }
+}
+
+// MARK: - Large Task Row View
+struct LargeTaskRowView: View {
+    let task: TodoItem
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // 狀態圓圈
+            ZStack {
+                Circle()
+                    .stroke(statusColor, lineWidth: 2)
+                    .frame(width: 22, height: 22)
+                
+                if task.status == .completed {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 22, height: 22)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.black)
+                }
+            }
+            
+            // 任務資訊
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(task.title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(task.status == .completed ? .white.opacity(0.5) : .white)
+                        .strikethrough(task.status == .completed)
+                    
+                    if task.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                    }
+                }
+                
+                if !task.note.isEmpty {
+                    Text(task.note)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            // 右側資訊
+            VStack(alignment: .trailing, spacing: 6) {
+                // 優先級標籤
+                HStack(spacing: 4) {
+                    if task.priority == 3 {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(.yellow)
+                    }
+                    
+                    Text(priorityText(task.priority))
+                        .font(.system(size: 10, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(priorityColor(task.priority).opacity(0.2))
+                        .foregroundColor(priorityColor(task.priority))
+                        .cornerRadius(3)
+                }
+                
+                // 時間標記
+                if let taskDate = task.taskDate {
+                    Text(taskDate, style: .time)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.6))
+                }
+            }
+        }
+    }
+    
+    var statusColor: Color {
+        if task.status == .completed {
+            return .green
+        }
+        switch task.priority {
+        case 3: return .red
+        case 2: return .orange
+        case 1: return .green
+        default: return .gray
         }
     }
     
