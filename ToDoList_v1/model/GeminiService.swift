@@ -2,6 +2,60 @@ import Foundation
 
 // MARK: - Gemini API Data Structures
 
+/// 一個專門用來安全讀取專案機密資訊和設定的物件。
+enum AppSecrets {
+
+    /// 從 Info.plist 讀取 Gemini API Key。
+    static let apiKey: String = {
+        guard let key = value(for: "GeminiApiKey") else {
+            fatalError("無法在 Info.plist 中找到 Key 'GeminiApiKey'，請檢查您的設定。")
+        }
+        return key
+    }()
+
+    /// ★★★ 最終修正 ★★★
+    /// 由於 Xcode 在解析 .xcconfig 中的 URL 時出現無法解決的頑固問題，
+    /// 我們將 URL 直接定義在此處。URL 不是機密資訊，因此這是安全的作法。
+    /// 這可以保證 App 能夠正常運作，並繞過 Xcode 的設定問題。
+    static let apiURL: URL = {
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+        guard let url = URL(string: urlString) else {
+            // 這個錯誤理論上不應該發生，因為字串是固定的。
+            fatalError("內部 URL 字串無效: \(urlString)")
+        }
+        return url
+    }()
+
+    /// 一個統一的輔助函式，用來從 Info.plist 讀取值。
+    /// 它會自動清理掉多餘的引號和空格。
+    private static func value(for key: String) -> String? {
+        guard var rawValue = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+            print("❌ 讀取失敗：在 Info.plist 中找不到 Key 為 '\(key)' 的項目。")
+            return nil
+        }
+        
+        // 檢查值是否為未被替換的 xcconfig 變數
+        if rawValue.starts(with: "$(") {
+            print("❌ 設定錯誤：Key '\(key)' 的值 '\(rawValue)' 沒有被 .xcconfig 正確替換。請檢查 Build Settings 中的連結。")
+            return nil
+        }
+        
+        // 1. 去除字串前後可能存在的空格或換行符
+        rawValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 2. 如果字串被雙引號包住，就移除它們
+        if rawValue.hasPrefix("\"") && rawValue.hasSuffix("\"") {
+            rawValue = String(rawValue.dropFirst().dropLast())
+        }
+        
+        // 3. 再次去除可能存在的空格
+        rawValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return rawValue
+    }
+}
+
+
 // 這個結構對應 Gemini API 回傳的整個 JSON 物件
 struct GeminiResponse: Codable {
     let tasks: [TaskDetail]
@@ -33,10 +87,11 @@ struct TaskDetail: Codable, Identifiable {
 class GeminiService: ObservableObject {
     
     // 請在此處貼上您的 Gemini API 金鑰
-    private let apiKey = "AIzaSyCBn5Pbv6GKjItOsMIloa_nUTry-x5qtsw"
+    private let apiKey = AppSecrets.apiKey
     
     // 修正：將模型名稱更新為 gemini-2.5-flash-lite
-    private let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent")!
+    private let apiURL = AppSecrets.apiURL
+    //private let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent")!
 
     /// 分析使用者輸入的文字，並回傳結構化的任務資料
     /// - Parameters:

@@ -66,6 +66,9 @@
 		79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F7C2642D99507100B2E19E /* SaveLast.swift */; };
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB4189012E3F817A00F69B82 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4189002E3F816A00F69B82 /* GeminiService.swift */; };
+		EB41895B2E40FF0900F69B82 /* Keys.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */; };
+		EB41895C2E40FF0900F69B82 /* Keys.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */; };
+		EB41895D2E40FF0900F69B82 /* Keys.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
 /* End PBXBuildFile section */
 
@@ -150,6 +153,7 @@
 		79F7C2642D99507100B2E19E /* SaveLast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveLast.swift; sourceTree = "<group>"; };
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB4189002E3F816A00F69B82 /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
+		EB41895A2E40FF0900F69B82 /* Keys.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Keys.xcconfig; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -211,6 +215,7 @@
 				7911CDE72D633BAD0034BEE6 /* Item.swift */,
 				7911CDE92D633BB60034BEE6 /* Assets.xcassets */,
 				7911CDEB2D633BB60034BEE6 /* Preview Content */,
+				EB41895A2E40FF0900F69B82 /* Keys.xcconfig */,
 			);
 			path = ToDoList_v1;
 			sourceTree = "<group>";
@@ -420,6 +425,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EB41895B2E40FF0900F69B82 /* Keys.xcconfig in Resources */,
 				7911CDED2D633BB60034BEE6 /* Preview Assets.xcassets in Resources */,
 				79F7C2472D926DD500B2E19E /* MyProject.entitlements in Resources */,
 				7911CDEA2D633BB60034BEE6 /* Assets.xcassets in Resources */,
@@ -430,6 +436,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EB41895C2E40FF0900F69B82 /* Keys.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -437,6 +444,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EB41895D2E40FF0900F69B82 /* Keys.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -539,6 +547,7 @@
 /* Begin XCBuildConfiguration section */
 		7911CE042D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -602,6 +611,7 @@
 		};
 		7911CE052D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -658,6 +668,7 @@
 		};
 		7911CE072D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -695,6 +706,7 @@
 		};
 		7911CE082D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -732,6 +744,7 @@
 		};
 		7911CE0A2D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -751,6 +764,7 @@
 		};
 		7911CE0B2D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -770,6 +784,7 @@
 		};
 		7911CE0D2D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
@@ -787,6 +802,7 @@
 		};
 		7911CE0E2D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = EB41895A2E40FF0900F69B82 /* Keys.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
