@@ -747,11 +747,19 @@ struct Home: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // 應用進入前台時檢查 Widget 更新
+            checkAndSyncWidgetUpdates()
+            loadTodoItems()
+        }
         .onAppear {
             // 設置定時器每分鐘更新時間
             timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
                 currentDate = Date()
             }
+            
+            // 檢查並同步 Widget 的更新
+            checkAndSyncWidgetUpdates()
             
             // 從 CloudKit 載入待辦事項
             loadTodoItems()
@@ -759,6 +767,11 @@ struct Home: View {
             // 在主線程延遲0.5秒後再次載入，確保視圖更新
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 loadTodoItems()  // 再次載入以確保物理場景正確顯示
+            }
+            
+            // 設置定時器定期檢查 Widget 更新（每10秒檢查一次）
+            Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+                checkAndSyncWidgetUpdates()
             }
             
             // 檢查是否需要顯示結算頁面（有未完成的結算）
@@ -1095,6 +1108,41 @@ struct Home: View {
                     loadTodoItems()
                 }
             }
+        }
+    }
+    
+    // 檢查並同步 Widget 的更新
+    private func checkAndSyncWidgetUpdates() {
+        // 使用 WidgetDataManager 檢查是否有來自 Widget 的更新
+        if let updatedTasks = WidgetDataManager.shared.syncWidgetUpdatesToLocal() {
+            print("檢測到 Widget 更新，同步 \(updatedTasks.count) 個任務")
+            
+            // 更新本地數據
+            for task in updatedTasks {
+                // 更新本地數據庫
+                LocalDataManager.shared.updateTodoItem(task)
+                
+                // 更新當前視圖的數據
+                if let index = toDoItems.firstIndex(where: { $0.id == task.id }) {
+                    toDoItems[index] = task
+                }
+            }
+            
+            // 同步到雲端
+            DataSyncManager.shared.performSync { result in
+                switch result {
+                case .success(let syncCount):
+                    print("Widget 更新已同步到雲端，同步了 \(syncCount) 個項目")
+                case .failure(let error):
+                    print("同步 Widget 更新到雲端失敗: \(error)")
+                }
+            }
+            
+            // 更新 Widget 數據（確保 Widget 顯示最新狀態）
+            WidgetDataManager.shared.saveTodayTasksForWidget(toDoItems)
+            
+            // 強制刷新視圖
+            dataRefreshToken = UUID()
         }
     }
     

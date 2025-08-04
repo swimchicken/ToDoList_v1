@@ -16,6 +16,8 @@ class WidgetDataManager {
     
     // UserDefaults key
     private let todayTasksKey = "widget_today_tasks"
+    private let widgetUpdatedKey = "widget_data_updated"
+    private let widgetLastUpdateKey = "widget_last_update"
     
     private init() {}
     
@@ -97,5 +99,40 @@ class WidgetDataManager {
         
         sharedDefaults.removeObject(forKey: todayTasksKey)
         print("✅ 已清除 Widget 數據")
+    }
+    
+    /// 檢查 Widget 是否有更新
+    func checkForWidgetUpdates() -> Bool {
+        guard let sharedDefaults = UserDefaults(suiteName: appGroupID) else {
+            return false
+        }
+        
+        return sharedDefaults.bool(forKey: widgetUpdatedKey)
+    }
+    
+    /// 清除 Widget 更新標記
+    func clearWidgetUpdateFlag() {
+        guard let sharedDefaults = UserDefaults(suiteName: appGroupID) else {
+            return
+        }
+        
+        sharedDefaults.set(false, forKey: widgetUpdatedKey)
+        sharedDefaults.synchronize()
+    }
+    
+    /// 同步 Widget 的更新到本地數據
+    func syncWidgetUpdatesToLocal() -> [TodoItem]? {
+        guard checkForWidgetUpdates() else {
+            return nil
+        }
+        
+        // 載入 Widget 更新後的數據
+        let updatedTasks = loadTodayTasksFromWidget()
+        
+        // 清除更新標記
+        clearWidgetUpdateFlag()
+        
+        print("✅ 已同步 Widget 更新的 \(updatedTasks.count) 個任務")
+        return updatedTasks
     }
 }

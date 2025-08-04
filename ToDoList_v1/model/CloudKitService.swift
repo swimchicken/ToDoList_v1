@@ -402,55 +402,76 @@ class CloudKitService {
         
         // 創建 CKRecord 物件
         let recordID = CKRecord.ID(recordName: todoItem.id.uuidString, zoneID: defaultZoneID)
-        let record = CKRecord(recordType: "TodoItem", recordID: recordID)
         
-        print("DEBUG: 使用 CKRecord.ID - recordName: \(recordID.recordName), zoneID: \(recordID.zoneID.zoneName)")
-        
-        // 設置記錄欄位
-        record.setValue(todoItem.id.uuidString, forKey: "id")
-        // 使用當前 iCloud 用戶 ID 而不是傳入的 userID
-        record.setValue(currentUserID, forKey: "userID")
-        record.setValue(todoItem.title, forKey: "title")
-        record.setValue(todoItem.priority, forKey: "priority")
-        record.setValue(todoItem.isPinned, forKey: "isPinned")
-        
-        // 處理可選的任務日期
-        if let taskDate = todoItem.taskDate {
-            record.setValue(taskDate, forKey: "taskDate")
-        } else {
-            record.setValue(nil, forKey: "taskDate")
-        }
-        
-        record.setValue(todoItem.note, forKey: "note")
-        record.setValue(todoItem.status.rawValue, forKey: "status")
-        record.setValue(todoItem.createdAt, forKey: "createdAt")
-        record.setValue(todoItem.updatedAt, forKey: "updatedAt")
-        record.setValue(todoItem.correspondingImageID, forKey: "correspondingImageID")
-        
-        print("DEBUG: CKRecord 已設置完所有欄位，準備儲存到 CloudKit")
-        print("DEBUG: CloudKit container identifier: \(container.containerIdentifier ?? "未知")")
-        
-        // 儲存到 CloudKit
-        privateDatabase.save(record) { (savedRecord, error) in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("ERROR: 儲存待辦事項失敗 - \(error.localizedDescription)")
-                    self.handleCloudKitError(error, completion: completion)
-                    return
+        // 先嘗試獲取現有記錄
+        privateDatabase.fetch(withRecordID: recordID) { [weak self] existingRecord, fetchError in
+            guard let self = self else { return }
+            
+            let record: CKRecord
+            
+            if let existingRecord = existingRecord {
+                // 記錄已存在，使用現有記錄進行更新
+                print("DEBUG: 找到現有記錄，進行更新操作 - ID: \(recordID.recordName)")
+                record = existingRecord
+            } else if let error = fetchError as? CKError, error.code == .unknownItem {
+                // 記錄不存在，創建新記錄
+                print("DEBUG: 記錄不存在，創建新記錄 - ID: \(recordID.recordName)")
+                record = CKRecord(recordType: "TodoItem", recordID: recordID)
+            } else {
+                // 其他錯誤
+                print("ERROR: 獲取記錄時發生錯誤 - \(fetchError?.localizedDescription ?? "未知錯誤")")
+                completion(.failure(fetchError ?? NSError(domain: "CloudKitService", code: 500, userInfo: [NSLocalizedDescriptionKey: "無法獲取記錄"])))
+                return
+            }
+            
+            print("DEBUG: 使用 CKRecord.ID - recordName: \(recordID.recordName), zoneID: \(recordID.zoneID.zoneName)")
+            
+            // 設置記錄欄位
+            record.setValue(todoItem.id.uuidString, forKey: "id")
+            // 使用當前 iCloud 用戶 ID 而不是傳入的 userID
+            record.setValue(currentUserID, forKey: "userID")
+            record.setValue(todoItem.title, forKey: "title")
+            record.setValue(todoItem.priority, forKey: "priority")
+            record.setValue(todoItem.isPinned, forKey: "isPinned")
+            
+            // 處理可選的任務日期
+            if let taskDate = todoItem.taskDate {
+                record.setValue(taskDate, forKey: "taskDate")
+            } else {
+                record.setValue(nil, forKey: "taskDate")
+            }
+            
+            record.setValue(todoItem.note, forKey: "note")
+            record.setValue(todoItem.status.rawValue, forKey: "status")
+            record.setValue(todoItem.createdAt, forKey: "createdAt")
+            record.setValue(todoItem.updatedAt, forKey: "updatedAt")
+            record.setValue(todoItem.correspondingImageID, forKey: "correspondingImageID")
+            
+            print("DEBUG: CKRecord 已設置完所有欄位，準備儲存到 CloudKit")
+            print("DEBUG: CloudKit container identifier: \(self.container.containerIdentifier ?? "未知")")
+            
+            // 儲存到 CloudKit
+            self.privateDatabase.save(record) { (savedRecord, error) in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        print("ERROR: 儲存待辦事項失敗 - \(error.localizedDescription)")
+                        self.handleCloudKitError(error, completion: completion)
+                        return
+                    }
+                    
+                    guard let savedRecord = savedRecord else {
+                        let error = NSError(domain: "CloudKitService", code: 500, userInfo: [NSLocalizedDescriptionKey: "無法儲存記錄"])
+                        print("ERROR: 儲存成功但返回的記錄為空")
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    print("SUCCESS: 待辦事項已成功儲存到 CloudKit - ID: \(savedRecord.recordID.recordName)")
+                    
+                    // 從已儲存的記錄重新創建 TodoItem
+                    let savedTodoItem = self.todoItemFromRecord(savedRecord)
+                    completion(.success(savedTodoItem))
                 }
-                
-                guard let savedRecord = savedRecord else {
-                    let error = NSError(domain: "CloudKitService", code: 500, userInfo: [NSLocalizedDescriptionKey: "無法儲存記錄"])
-                    print("ERROR: 儲存成功但返回的記錄為空")
-                    completion(.failure(error))
-                    return
-                }
-                
-                print("SUCCESS: 待辦事項已成功儲存到 CloudKit - ID: \(savedRecord.recordID.recordName)")
-                
-                // 從已儲存的記錄重新創建 TodoItem
-                let savedTodoItem = self.todoItemFromRecord(savedRecord)
-                completion(.success(savedTodoItem))
             }
         }
     }
