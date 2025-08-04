@@ -7,6 +7,64 @@
 
 import WidgetKit
 import SwiftUI
+import AppIntents
+
+// MARK: - Toggle Task Intent
+struct ToggleTaskIntent: AppIntent {
+    static var title: LocalizedStringResource = "Toggle Task Status"
+    
+    @Parameter(title: "Task ID")
+    var taskId: String
+    
+    init() {}
+    
+    init(taskId: String) {
+        self.taskId = taskId
+    }
+    
+    func perform() async throws -> some IntentResult {
+        // 使用簡化的方式直接操作 UserDefaults
+        guard let sharedDefaults = UserDefaults(suiteName: "group.com.fcu.ToDolist") else {
+            return .result()
+        }
+        
+        // 載入 Widget 任務數據
+        if let data = sharedDefaults.data(forKey: "widget_today_tasks") {
+            do {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                var tasks = try decoder.decode([TodoItem].self, from: data)
+                
+                // 找到並更新任務
+                if let index = tasks.firstIndex(where: { $0.id.uuidString == taskId }) {
+                    // 切換狀態
+                    if tasks[index].status == TodoStatus.completed {
+                        tasks[index].status = TodoStatus.toBeStarted
+                    } else {
+                        tasks[index].status = TodoStatus.completed
+                    }
+                    
+                    // 保存更新後的數據
+                    let encoder = JSONEncoder()
+                    encoder.dateEncodingStrategy = .iso8601
+                    let updatedData = try encoder.encode(tasks)
+                    sharedDefaults.set(updatedData, forKey: "widget_today_tasks")
+                    
+                    // 通知主應用同步（可選）
+                    sharedDefaults.set(true, forKey: "widget_data_updated")
+                    sharedDefaults.set(Date(), forKey: "widget_last_update")
+                }
+            } catch {
+                print("Widget: 更新任務失敗 - \(error)")
+            }
+        }
+        
+        // 刷新 Widget
+        WidgetCenter.shared.reloadAllTimelines()
+        
+        return .result()
+    }
+}
 
 // MARK: - Timeline Provider
 struct Provider: TimelineProvider {
@@ -432,7 +490,7 @@ struct MediumWidgetView: View {
                     Spacer()
                 } else {
                     // 顯示前3個任務
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         ForEach(sortedTasks.prefix(3)) { task in
                             MediumTaskRowView(task: task)
                         }
@@ -485,11 +543,30 @@ struct MediumTaskRowView: View {
             
             // 任務資訊
             VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(task.status == .completed ? .white.opacity(0.5) : .white)
-                    .lineLimit(1)
-                    .strikethrough(task.status == .completed)
+                HStack(spacing: 4) {
+                    Text(task.title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(task.status == .completed ? .white.opacity(0.5) : .white)
+                        .lineLimit(1)
+                        .strikethrough(task.status == .completed)
+                    
+                    // 優先級星星（1-3顆）
+                    if task.priority > 0 && task.priority <= 3 {
+                        HStack(spacing: 1) {
+                            ForEach(0..<task.priority, id: \.self) { _ in
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
+                    }
+                    
+                    if task.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                    }
+                }
                 
                 if !task.note.isEmpty {
                     Text(task.note)
@@ -501,28 +578,11 @@ struct MediumTaskRowView: View {
             
             Spacer()
             
-            // 右側資訊
-            HStack(spacing: 8) {
-                // 重要度標記
-                if task.priority == 3 {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.yellow)
-                }
-                
-                // 固定標記
-                if task.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.orange)
-                }
-                
-                // 時間標記
-                if let taskDate = task.taskDate {
-                    Text(taskDate, style: .time)
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.6))
-                }
+            // 時間標記
+            if let taskDate = task.taskDate {
+                Text(taskDate, style: .time)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.6))
             }
         }
     }
@@ -635,7 +695,7 @@ struct LargeWidgetView: View {
                     Spacer()
                 } else {
                     // 任務列表（顯示前6個任務）
-                    VStack(spacing: 2) {
+                    VStack(spacing: 4) {
                         ForEach(sortedTasks.prefix(6)) { task in
                             LargeTaskRowView(task: task)
                             
@@ -676,29 +736,43 @@ struct LargeTaskRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 狀態圓圈
-            ZStack {
-                Circle()
-                    .stroke(statusColor, lineWidth: 2)
-                    .frame(width: 22, height: 22)
-                
-                if task.status == .completed {
+            // 狀態圓圈（可點擊）
+            Button(intent: ToggleTaskIntent(taskId: task.id.uuidString)) {
+                ZStack {
                     Circle()
-                        .fill(statusColor)
+                        .stroke(statusColor, lineWidth: 2)
                         .frame(width: 22, height: 22)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.black)
+                    
+                    if task.status == .completed {
+                        Circle()
+                            .fill(statusColor)
+                            .frame(width: 22, height: 22)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.black)
+                    }
                 }
             }
+            .buttonStyle(.plain)
             
             // 任務資訊
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
                     Text(task.title)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(task.status == .completed ? .white.opacity(0.5) : .white)
                         .strikethrough(task.status == .completed)
+                    
+                    // 優先級星星（1-3顆）
+                    if task.priority > 0 && task.priority <= 3 {
+                        HStack(spacing: 2) {
+                            ForEach(0..<task.priority, id: \.self) { _ in
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
+                    }
                     
                     if task.isPinned {
                         Image(systemName: "pin.fill")
@@ -717,31 +791,11 @@ struct LargeTaskRowView: View {
             
             Spacer()
             
-            // 右側資訊
-            VStack(alignment: .trailing, spacing: 6) {
-                // 優先級標籤
-                HStack(spacing: 4) {
-                    if task.priority == 3 {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.yellow)
-                    }
-                    
-                    Text(priorityText(task.priority))
-                        .font(.system(size: 10, weight: .medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(priorityColor(task.priority).opacity(0.2))
-                        .foregroundColor(priorityColor(task.priority))
-                        .cornerRadius(3)
-                }
-                
-                // 時間標記
-                if let taskDate = task.taskDate {
-                    Text(taskDate, style: .time)
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.6))
-                }
+            // 右側資訊 - 只有時間
+            if let taskDate = task.taskDate {
+                Text(taskDate, style: .time)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.6))
             }
         }
     }
