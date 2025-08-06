@@ -35,6 +35,7 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
 // MARK: - SettlementView03.swift
 struct SettlementView03: View {
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var alarmStateManager: AlarmStateManager
     @State private var selectedHour: Int = 8
     @State private var selectedMinute: Int = 0
     @State private var selectedAmPm: Int = 1
@@ -134,16 +135,11 @@ struct SettlementView03: View {
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .background(
-            // 使用 isDetailLink: false 可以讓導航回到根視圖
             NavigationLink(
-                destination: Home()
-                    .navigationBarHidden(true)
-                    .navigationBarBackButtonHidden(true)
-                    .toolbar(.hidden, for: .navigationBar), 
+                destination: EmptyView(), // 暫時用EmptyView，我們會通過programmatic navigation處理
                 isActive: $navigateToHome,
                 label: { EmptyView() }
             )
-            .isDetailLink(false) // 這會重置導航堆疊
         )
     }
 
@@ -284,13 +280,12 @@ struct SettlementView03: View {
                 
                 print("保存鬧鐘設置: \(alarmTimeFormatted), 啟用: \(alarmEnabled)")
                 
-                // 保存到共享設置
+                // 使用AlarmStateManager啟動睡眠模式
+                alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
+                
+                // 保留舊的共享設置（如果其他地方還在使用）
                 SleepSettings.shared.isSleepMode = true
                 SleepSettings.shared.alarmTime = alarmTimeFormatted
-                
-                // 保存到 UserDefaults，以便在應用重啟後仍能保持狀態
-                UserDefaults.standard.set(true, forKey: "isSleepMode")
-                UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
                 
                 // 設定鬧鐘功能
                 if alarmEnabled {
@@ -311,7 +306,22 @@ struct SettlementView03: View {
                 }
                 
                 // 完成設置並回到 Home 頁面
-                navigateToHome = true
+                print("SettlementView03 - 準備返回Home並顯示sleep mode")
+                
+                // 設置一個標記，告訴整個導航鏈需要返回到Home
+                UserDefaults.standard.set(true, forKey: "shouldReturnToHomeWithSleepMode")
+                
+                // 立即發送通知，告訴Home和其他視圖準備顯示sleep mode
+                NotificationCenter.default.post(
+                    name: Notification.Name("ReturnToHomeWithSleepMode"), 
+                    object: nil
+                )
+                
+                // 延遲一點時間後觸發導航返回
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    print("SettlementView03 - 執行dismiss")
+                    self.presentationMode.wrappedValue.dismiss()
+                }
             }) { 
                 Text("Finish")
                     .font(Font.custom("Inria Sans", size: 20).weight(.bold))
@@ -327,4 +337,5 @@ struct SettlementView03: View {
 
 #Preview {
     SettlementView03()
+        .environmentObject(AlarmStateManager())
 }

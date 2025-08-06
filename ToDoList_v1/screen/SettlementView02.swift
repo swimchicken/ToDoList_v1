@@ -214,8 +214,39 @@ struct SettlementView02: View {
             print("SettlementView02 - onAppear: 移动未完成任务设置 = \(moveTasksToTomorrow)")
             print("SettlementView02 - onAppear: 未完成任务数量 = \(uncompletedTasks.count)")
             
+            // 檢查是否需要返回到Home
+            let shouldReturnToHome = UserDefaults.standard.bool(forKey: "shouldReturnToHomeWithSleepMode")
+            print("SettlementView02 - onAppear檢查標記: shouldReturnToHomeWithSleepMode = \(shouldReturnToHome)")
+            
+            if shouldReturnToHome {
+                print("SettlementView02 - 檢測到需要返回Home，立即dismiss（保留標記）")
+                // 不要在這裡清除標記，讓它傳遞到SettlementView
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    print("SettlementView02 - 執行dismiss")
+                    self.presentationMode.wrappedValue.dismiss()
+                }
+                return
+            }
+            
+            // 監聽返回Home並顯示Sleep Mode的通知
+            NotificationCenter.default.addObserver(
+                forName: Notification.Name("ReturnToHomeWithSleepMode"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                print("SettlementView02 - 收到返回Home通知，準備dismiss")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.presentationMode.wrappedValue.dismiss()
+                }
+            }
+            
             // 重新載入任務列表以確保數據同步
             loadTasksFromDataManager()
+        }
+        .onDisappear {
+            // 移除通知觀察者
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("ReturnToHomeWithSleepMode"), object: nil)
         }
         .background(
             NavigationLink(destination: SettlementView03(), isActive: $navigateToSettlementView03) {

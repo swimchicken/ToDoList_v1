@@ -35,7 +35,8 @@ struct GreenCircleImageView: View {
 
 
 struct SettlementView: View {
-
+    @Environment(\.presentationMode) var presentationMode
+    
     // 任務數據
     @State private var completedTasks: [TodoItem] = []
     @State private var uncompletedTasks: [TodoItem] = []
@@ -253,6 +254,21 @@ struct SettlementView: View {
             .padding(.horizontal, 12)
         }
         .onAppear {
+            // 檢查是否需要返回到Home
+            let shouldReturnToHome = UserDefaults.standard.bool(forKey: "shouldReturnToHomeWithSleepMode")
+            print("SettlementView - onAppear檢查標記: shouldReturnToHomeWithSleepMode = \(shouldReturnToHome)")
+            
+            if shouldReturnToHome {
+                print("SettlementView - 檢測到需要返回Home，清除標記並dismiss")
+                UserDefaults.standard.removeObject(forKey: "shouldReturnToHomeWithSleepMode")
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    print("SettlementView - 執行dismiss到Home")
+                    self.presentationMode.wrappedValue.dismiss()
+                }
+                return
+            }
+            
             // 檢查是否有主動結算標記
             let isActiveEndDay = UserDefaults.standard.bool(forKey: "isActiveEndDay")
             
@@ -398,6 +414,16 @@ struct SettlementView: View {
             queue: .main
         ) { _ in
             self.handleDataRefreshed()
+        }
+        
+        // 監聽返回Home並顯示Sleep Mode的通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("ReturnToHomeWithSleepMode"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("SettlementView - 收到返回Home通知，準備dismiss")
+            self.presentationMode.wrappedValue.dismiss()
         }
         
         print("SettlementView - 已設置數據變更監聽")

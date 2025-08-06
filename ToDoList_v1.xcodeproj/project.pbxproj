@@ -93,6 +93,7 @@
 		2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignInManager.swift; sourceTree = "<group>"; };
 		2862192D2E3BD073003C05D8 /* TestPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestPage.swift; sourceTree = "<group>"; };
 		286219342E3BD557003C05D8 /* client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist"; sourceTree = "<group>"; };
+		288C707A2E410D67000902B1 /* APIConfig.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = APIConfig.plist; sourceTree = "<group>"; };
 		28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmStateManager.swift; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
@@ -188,6 +189,7 @@
 		7911CDD72D633BAD0034BEE6 = {
 			isa = PBXGroup;
 			children = (
+				288C707A2E410D67000902B1 /* APIConfig.plist */,
 				286219342E3BD557003C05D8 /* client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist */,
 				7911CDE22D633BAD0034BEE6 /* ToDoList_v1 */,
 				7911CDF52D633BB60034BEE6 /* ToDoList_v1Tests */,

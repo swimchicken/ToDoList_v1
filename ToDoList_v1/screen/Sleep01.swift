@@ -9,8 +9,7 @@ struct Sleep01View: View {
     // MARK: - 主要狀態變數
     @State private var currentDate = Date()
     @State private var alarmTimeString: String = "9:00 AM"
-    @State private var navigateToHome: Bool = false
-    @State private var dayProgress: Double = 0.5 // 用於鬧鐘未響時的進度條
+    // 移除本地進度條變數，改用AlarmStateManager的共享狀態
 
     // MARK: - 動畫核心狀態
     // 控制頂部 UI (時間、日期) 的可見度
@@ -116,14 +115,10 @@ struct Sleep01View: View {
         }
         .padding(.top, 60)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            NavigationLink(destination: Home().navigationBarHidden(true), isActive: $navigateToHome) { EmptyView() }
-        )
         .navigationBarHidden(true)
         .onAppear(perform: onAppearActions)
         .onReceive(timer) { receivedTime in
             self.currentDate = receivedTime
-            self.calculateDayProgress(currentTime: simulatedCurrentTime)
         }
         .onChange(of: alarmStateManager.isAlarmTriggered) { isTriggered in
             withAnimation(.easeInOut) {
@@ -208,7 +203,7 @@ struct Sleep01View: View {
                         ZStack(alignment: .leading) {
                             Rectangle().foregroundColor(Color.gray.opacity(0.35))
                             Rectangle()
-                                .frame(width: max(0, geometry.size.width * CGFloat(dayProgress)))
+                                .frame(width: max(0, geometry.size.width * CGFloat(alarmStateManager.sleepProgress)))
                                 .foregroundColor(.white)
                         }
                         .cornerRadius(2).clipped()
@@ -223,9 +218,8 @@ struct Sleep01View: View {
                 .padding(.horizontal, 20).padding(.top, 20)
                 
                 Button(action: {
-                    UserDefaults.standard.set(true, forKey: "isSleepMode")
-                    UserDefaults.standard.set(alarmTimeString, forKey: "alarmTimeString")
-                    navigateToHome = true
+                    alarmStateManager.startSleepMode(alarmTime: alarmTimeString)
+                    presentationMode.wrappedValue.dismiss()
                 }) {
                     Text("back to home page")
                         .font(Font.custom("Inria Sans", size: 20).weight(.bold))
@@ -344,10 +338,6 @@ struct Sleep01View: View {
             showBottomAlarmUI = false
         }
     }
-    
-    private func calculateDayProgress(currentTime: Date) {
-        // ... (這部分邏輯不變，保持原樣)
-    }
 
     // MARK: - Developer Mode & Other Functions
     #if DEBUG
@@ -375,7 +365,11 @@ struct Sleep01View: View {
                 Button(action: { resetAnimationState() }) { Label("重置動畫狀態", systemImage: "arrow.clockwise") }
                 Divider()
             }
-            Button(role: .destructive, action: { /* cancel sleep mode */ }) {
+            Button(role: .destructive, action: { 
+                // 取消睡眠模式
+                alarmStateManager.endSleepMode()
+                presentationMode.wrappedValue.dismiss()
+            }) {
                 Label("取消 Sleep Mode", systemImage: "moon.slash")
             }
         } label: {
@@ -388,7 +382,11 @@ struct Sleep01View: View {
     #else
     private func settingsMenuView() -> some View {
         Menu {
-             Button(role: .destructive, action: { /* cancel sleep mode */ }) {
+             Button(role: .destructive, action: { 
+                // 取消睡眠模式
+                alarmStateManager.endSleepMode()
+                presentationMode.wrappedValue.dismiss()
+            }) {
                 Label("取消 Sleep Mode", systemImage: "moon.slash")
             }
         } label: {
