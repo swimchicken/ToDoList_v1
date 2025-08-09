@@ -35,12 +35,12 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
 // MARK: - SettlementView03.swift
 struct SettlementView03: View {
     @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var alarmStateManager: AlarmStateManager
+    @Binding var dismissToHome: Bool
     @State private var selectedHour: Int = 8
     @State private var selectedMinute: Int = 0
     @State private var selectedAmPm: Int = 1
     @State private var isAlarmDisabled: Bool = false
-    @State private var navigateToHome: Bool = false
+    // 由 Home 端負責關閉整個結算導覽鏈（透過通知），不在此再推一個 Home
     
     // 引用已完成日期數據管理器
     private let completeDayDataManager = CompleteDayDataManager.shared
@@ -134,13 +134,7 @@ struct SettlementView03: View {
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .background(
-            NavigationLink(
-                destination: EmptyView(), // 暫時用EmptyView，我們會通過programmatic navigation處理
-                isActive: $navigateToHome,
-                label: { EmptyView() }
-            )
-        )
+        // 不在本頁直接導航到 Home，改由通知 Home 將根層的 isActive 綁定設為 false 以彈回 Home
     }
 
     // MARK: - Sub-views for SettlementView03
@@ -252,7 +246,7 @@ struct SettlementView03: View {
             Button(action: {
                 // 返回上一頁
                 self.presentationMode.wrappedValue.dismiss()
-            }) { 
+            }) {
                 Text("返回")
                     .font(Font.custom("Inria Sans", size: 20))
                     .foregroundColor(.white)
@@ -280,12 +274,13 @@ struct SettlementView03: View {
                 
                 print("保存鬧鐘設置: \(alarmTimeFormatted), 啟用: \(alarmEnabled)")
                 
-                // 使用AlarmStateManager啟動睡眠模式
-                alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
-                
-                // 保留舊的共享設置（如果其他地方還在使用）
+                // 保存到共享設置
                 SleepSettings.shared.isSleepMode = true
                 SleepSettings.shared.alarmTime = alarmTimeFormatted
+                
+                // 保存到 UserDefaults，以便在應用重啟後仍能保持狀態
+                UserDefaults.standard.set(true, forKey: "isSleepMode")
+                UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
                 
                 // 設定鬧鐘功能
                 if alarmEnabled {
@@ -305,24 +300,22 @@ struct SettlementView03: View {
                     print("已取消鬧鐘")
                 }
                 
-                // 完成設置並回到 Home 頁面
-                print("SettlementView03 - 準備返回Home並顯示sleep mode")
-                
-                // 設置一個標記，告訴整個導航鏈需要返回到Home
-                UserDefaults.standard.set(true, forKey: "shouldReturnToHomeWithSleepMode")
-                
-                // 立即發送通知，告訴Home和其他視圖準備顯示sleep mode
+                // 直接關閉由 Home 控制的結算導覽，設為 false 來關閉 NavigationLink
+                dismissToHome = false
+
+                // 發送通知，確保 Home 同步切換到睡眠模式和處理結算完成
                 NotificationCenter.default.post(
-                    name: Notification.Name("ReturnToHomeWithSleepMode"), 
-                    object: nil
+                    name: Notification.Name("SettlementFlowFinished"),
+                    object: nil,
+                    userInfo: [
+                        "alarmTime": alarmTimeFormatted,
+                        "alarmEnabled": alarmEnabled
+                    ]
                 )
-                
-                // 延遲一點時間後觸發導航返回
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    print("SettlementView03 - 執行dismiss")
-                    self.presentationMode.wrappedValue.dismiss()
+                    dismissToHome = false
                 }
-            }) { 
+            }) {
                 Text("Finish")
                     .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                     .multilineTextAlignment(.center)
@@ -336,6 +329,5 @@ struct SettlementView03: View {
 }
 
 #Preview {
-    SettlementView03()
-        .environmentObject(AlarmStateManager())
+    SettlementView03(dismissToHome: .constant(false))
 }
