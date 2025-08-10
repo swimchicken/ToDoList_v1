@@ -273,7 +273,7 @@ struct Home: View {
                                 .foregroundColor(.white)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 60)
+                        .padding(.top, 30)
                         
                         // 節日區塊
                         VStack(spacing: 0) {
@@ -331,7 +331,7 @@ struct Home: View {
                     .padding(.vertical, 24)
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 60)
+                .padding(.vertical, 30)
                 .zIndex(1) // 設置主界面内容的層級
                 
                 // 3. 底部灰色容器：根據睡眠模式和當天狀態顯示不同的UI
