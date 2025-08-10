@@ -49,6 +49,11 @@ struct ToDoList_v1App: App {
     private func handleURL(_ url: URL) {
         if GIDSignIn.sharedInstance.handle(url) {
             return
+        }
+        print("收到 URL: \(url)")
+    }
+    
+    // MARK: - Widget 數據管理
     /// 更新 Widget 數據
     private func updateWidgetData() {
         // 獲取所有任務並更新 Widget
@@ -106,7 +111,6 @@ struct ToDoList_v1App: App {
             print("  1. 主應用和 Widget Extension 都已添加 App Groups capability")
             print("  2. 兩個 targets 都使用相同的 App Group ID: group.com.fcu.ToDolist")
         }
-        print("收到 URL: \(url)")
         
         print("=== 測試結束 ===\n")
     }
