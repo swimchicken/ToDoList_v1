@@ -5,6 +5,7 @@ import CloudKit
 
 
 struct Home: View {
+    @EnvironmentObject var alarmStateManager: AlarmStateManager
     @State private var showCalendarView: Bool = false
     @State private var updateStatus: String = ""
     @State private var showToDoSheet: Bool = false
@@ -12,9 +13,10 @@ struct Home: View {
     @State private var currentDate: Date = Date()  // 添加當前時間狀態
     @State private var navigateToSettlementView: Bool = false // 導航到結算頁面
     @State private var navigateToSleep01View: Bool = false // 導航到Sleep01視圖
-    @State private var isSleepMode: Bool = false // 睡眠模式狀態
-    @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
-    @State private var dayProgress: Double = 0.0 // 與Sleep01相同，用來顯示進度條
+    @State private var navigateToTestPage: Bool = false // 導航到測試頁面
+    @State private var navigateToLogin: Bool = false // 導航回登入頁面
+    @State private var navigationViewID = UUID()
+    // 移除本地睡眠狀態變數，改用AlarmStateManager的共享狀態
     
     // 用於監控數據變化的屬性
     @State private var dataRefreshToken: UUID = UUID() // 用於強制視圖刷新
@@ -91,8 +93,6 @@ struct Home: View {
         return (monthDay: monthDay, weekday: weekday, timeStatus: timeStatus)
     }
     
-    // 用於更新睡眠模式下的進度條 - 更改為每秒更新一次，使動畫更流暢
-    private let sleepModeTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     private var taipeiCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -221,7 +221,10 @@ struct Home: View {
                             dateText2: taiwanTime.weekday,
                             statusText: taiwanTime.timeStatus,
                             temperatureText: "26°C",
-                            showCalendarView: $showCalendarView
+                            showCalendarView: $showCalendarView,
+                            onAvatarTapped: {
+                                navigateToTestPage = true
+                            }
                         )
                         .frame(maxWidth: .infinity, maxHeight: 0)
                         
@@ -421,11 +424,9 @@ struct Home: View {
                                 showAddTaskSheet = true
                             }
                         },
-                        
-                        
-                        isSleepMode: isSleepMode,
-                        alarmTimeString: alarmTimeString,
-                        dayProgress: dayProgress,
+                        isSleepMode: alarmStateManager.isSleepModeActive,
+                        alarmTimeString: alarmStateManager.alarmTimeString,
+                        dayProgress: alarmStateManager.sleepProgress,
                         onSleepButtonTapped: {
                             // 導航到Sleep01頁面
                             navigateToSleep01View = true
@@ -738,6 +739,7 @@ struct Home: View {
             }
             
         }
+        .id(navigationViewID)
         
         .animation(.easeOut, value: showToDoSheet)
         .animation(.easeOut, value: showAddTaskSheet)
@@ -759,6 +761,36 @@ struct Home: View {
             // 在主線程延遲0.5秒後再次載入，確保視圖更新
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 loadTodoItems()  // 再次載入以確保物理場景正確顯示
+            }
+            
+            // 新增：延遲更長時間執行強制同步，確保 CloudKit 認證完成
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                print("執行強制同步，確保雲端資料完整載入")
+                dataSyncManager.performSync { result in
+                    switch result {
+                    case .success(let count):
+                        print("強制同步完成，同步了 \(count) 個項目")
+                        if count > 0 {
+                            // 如果有新資料，重新載入一次
+                            DispatchQueue.main.async {
+                                loadTodoItems()
+                            }
+                        } else {
+                            // 即使沒有新資料，也再執行一次 fetchTodoItems 確保從雲端拉取
+                            print("強制同步沒有新資料，再次嘗試從雲端拉取")
+                            DispatchQueue.main.async {
+                                loadTodoItems()
+                            }
+                        }
+                    case .failure(let error):
+                        print("強制同步失敗: \(error.localizedDescription)")
+                        // 同步失敗時，再試一次直接載入
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            print("同步失敗，再次嘗試載入資料")
+                            loadTodoItems()
+                        }
+                    }
+                }
             }
             
             // 檢查是否需要顯示結算頁面（有未完成的結算）
@@ -807,31 +839,7 @@ struct Home: View {
                 print("不需要顯示結算頁面，正常進入Home畫面")
             }
             
-            // 從 UserDefaults 讀取保存的狀態
-            // 檢查睡眠模式是否開啟
-            let sleepModeEnabled = UserDefaults.standard.bool(forKey: "isSleepMode")
-            
-            // 如果睡眠模式被啟用，載入設置
-            if sleepModeEnabled {
-                isSleepMode = true
-                
-                // 讀取保存的鬧鐘時間
-                if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
-                    alarmTimeString = savedAlarmTime
-                }
-                
-                // 立即計算進度條，並延遲一點時間再更新一次確保動畫平滑
-                updateDayProgress(currentTime: Date())
-                // 延遲100毫秒再次更新，確保動畫平滑
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    updateDayProgress(currentTime: Date())
-                }
-                
-                print("載入睡眠模式: 開啟, 鬧鐘時間: \(alarmTimeString)")
-            } else {
-                isSleepMode = false
-                print("載入睡眠模式: 關閉")
-            }
+            // 睡眠模式狀態現在由AlarmStateManager管理，不需要在這裡初始化
             
             // 設置監聽資料變化的通知
             setupDataChangeObservers()
@@ -849,12 +857,6 @@ struct Home: View {
                 updateStatus = "找不到 Apple 使用者 ID"
             }
         }
-        .onReceive(sleepModeTimer) { receivedTime in
-            // 如果處於睡眠模式，更新進度條
-            if isSleepMode {
-                updateDayProgress(currentTime: receivedTime)
-            }
-        }
         .onDisappear {
             // 清除定時器
             timer?.invalidate()
@@ -863,6 +865,8 @@ struct Home: View {
             NotificationCenter.default.removeObserver(self, name: Notification.Name("iCloudUserChanged"), object: nil)
             NotificationCenter.default.removeObserver(self, name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
             NotificationCenter.default.removeObserver(self, name: Notification.Name("CompletedDaysDataChanged"), object: nil)
+            NotificationCenter.default.removeObserver(self, name: .userDidLogout, object: nil)
+            NotificationCenter.default.removeObserver(self, name: Notification.Name("SleepModeStateChanged"), object: nil)
         }
         .background(
             Group {
@@ -871,6 +875,14 @@ struct Home: View {
                 }
                 
                 NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) {
+                    EmptyView()
+                }
+                
+                NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) {
+                    EmptyView()
+                }
+                
+                NavigationLink(destination: Login(), isActive: $navigateToLogin) {
                     EmptyView()
                 }
             }
@@ -932,69 +944,6 @@ struct Home: View {
         .scrollIndicators(.hidden)
     }
     
-    // 更新睡眠模式下的進度條
-    private func updateDayProgress(currentTime: Date) {
-        let calendar = self.taipeiCalendar
-        let localAlarmStringParser = self.alarmStringParser
-        var newProgress = 0.0
-        
-        guard let parsedAlarmTime = localAlarmStringParser.date(from: alarmTimeString) else {
-            self.dayProgress = 0.0
-            return
-        }
-        
-        let alarmHourMinuteComponents = calendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
-        guard let alarmHour = alarmHourMinuteComponents.hour,
-              let alarmMinute = alarmHourMinuteComponents.minute else {
-            self.dayProgress = 0.0
-            return
-        }
-
-        var todayAlarmDateComponents = calendar.dateComponents([.year, .month, .day], from: currentTime)
-        todayAlarmDateComponents.hour = alarmHour
-        todayAlarmDateComponents.minute = alarmMinute
-        todayAlarmDateComponents.second = 0
-        
-        guard let alarmTimeOnCurrentDay = calendar.date(from: todayAlarmDateComponents) else {
-            self.dayProgress = 0.0
-            return
-        }
-
-        let isAlarmTimePassedToday = currentTime >= alarmTimeOnCurrentDay
-        
-        let cycleStart: Date
-        let cycleEnd: Date
-
-        // 修改邏輯：進度條總是顯示到明天的鬧鐘時間
-        guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: alarmTimeOnCurrentDay) else {
-            self.dayProgress = 0.0; return
-        }
-        
-        if currentTime < alarmTimeOnCurrentDay {
-            // 如果當前時間還沒到今天的鬧鐘時間，
-            // 週期是從昨天的鬧鐘到明天的鬧鐘
-            guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: alarmTimeOnCurrentDay) else {
-                self.dayProgress = 0.0; return
-            }
-            cycleStart = yesterdayAlarmTime
-            cycleEnd = tomorrowAlarmTime
-        } else {
-            // 如果當前時間已經超過今天的鬧鐘時間，
-            // 週期是從今天的鬧鐘到明天的鬧鐘
-            cycleStart = alarmTimeOnCurrentDay
-            cycleEnd = tomorrowAlarmTime
-        }
-
-        let totalCycleDuration = cycleEnd.timeIntervalSince(cycleStart)
-        let elapsedInCycle = currentTime.timeIntervalSince(cycleStart)
-
-        if totalCycleDuration > 0 {
-            newProgress = elapsedInCycle / totalCycleDuration
-        }
-        
-        self.dayProgress = min(max(newProgress, 0.0), 1.0)
-        print("Home - dayProgress updated: \(self.dayProgress)")
-    }
     
     // 設置監聽數據變化的觀察者
     private func setupDataChangeObservers() {
@@ -1009,8 +958,8 @@ struct Home: View {
             // 強制刷新數據
             dataRefreshToken = UUID()
             
-            // 清除當前視圖的狀態
-            isSleepMode = false
+            // 清除睡眠模式（現在由AlarmStateManager管理）
+            alarmStateManager.endSleepMode()
             
         }
         
@@ -1059,6 +1008,47 @@ struct Home: View {
             // 強制更新視圖以顯示最新的完成狀態
             dataRefreshToken = UUID()
         }
+        
+        // 監聽用戶登出通知
+        NotificationCenter.default.addObserver(
+            forName: .userDidLogout,
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("NOTICE: Home 收到用戶登出通知，準備導航到登入頁面")
+            
+            // 重置所有視圖狀態
+            showToDoSheet = false
+            showAddTaskSheet = false
+            showCalendarView = false
+            showingDeleteView = false
+            navigateToSettlementView = false
+            navigateToSleep01View = false
+            navigateToTestPage = false
+            alarmStateManager.endSleepMode()
+            
+            // 清空數據
+            toDoItems = []
+            
+            // 導航到登入頁面
+            navigateToLogin = true
+        }
+        
+        // 監聽睡眠模式狀態變更通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("SleepModeStateChanged"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("NOTICE: Home 收到睡眠模式狀態變更通知")
+            
+            // 強制重新載入AlarmStateManager狀態
+            alarmStateManager.forceReloadState()
+            
+            // 強制刷新UI
+            dataRefreshToken = UUID()
+        }
+        
     }
     
     // 執行手動同步
@@ -1164,6 +1154,11 @@ struct Home: View {
     }
 }
 
+// 通知擴展
+extension Notification.Name {
+    static let userDidLogout = Notification.Name("userDidLogout")
+}
+
 // 用於設置圓角的擴展
 extension View {
     func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
@@ -1183,4 +1178,6 @@ struct RoundedCorner: Shape {
 
 #Preview {
     Home()
+        .environmentObject(AlarmStateManager())
 }
+    

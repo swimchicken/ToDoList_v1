@@ -10,6 +10,7 @@ struct UserInfoView: View {
     let statusText: String
     let temperatureText: String
     @Binding var showCalendarView: Bool  // 添加綁定屬性來控制日曆視圖的顯示
+    let onAvatarTapped: () -> Void  // 添加頭像點擊回調
     
     var body: some View {
         ZStack {
@@ -17,12 +18,14 @@ struct UserInfoView: View {
 //            Color.gray.opacity(0.2) //For check view
             
             HStack(spacing: 16) {
-                // 頭像
-                Image(avatarImageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 45, height: 45)
-                    .clipShape(Circle())
+                // 頭像 - 添加點擊功能
+                Button(action: onAvatarTapped) {
+                    Image(avatarImageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 45, height: 45)
+                        .clipShape(Circle())
+                }
                 
                 Spacer()
                 

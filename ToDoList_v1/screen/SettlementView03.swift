@@ -35,11 +35,13 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
 // MARK: - SettlementView03.swift
 struct SettlementView03: View {
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var alarmStateManager: AlarmStateManager
+    @State private var navigateToHome: Bool = false
     @State private var selectedHour: Int = 8
     @State private var selectedMinute: Int = 0
     @State private var selectedAmPm: Int = 1
     @State private var isAlarmDisabled: Bool = false
-    @State private var navigateToHome: Bool = false
+    // 由 Home 端負責關閉整個結算導覽鏈（透過通知），不在此再推一個 Home
     
     // 引用已完成日期數據管理器
     private let completeDayDataManager = CompleteDayDataManager.shared
@@ -256,7 +258,7 @@ struct SettlementView03: View {
             Button(action: {
                 // 返回上一頁
                 self.presentationMode.wrappedValue.dismiss()
-            }) { 
+            }) {
                 Text("返回")
                     .font(Font.custom("Inria Sans", size: 20))
                     .foregroundColor(.white)
@@ -310,9 +312,18 @@ struct SettlementView03: View {
                     print("已取消鬧鐘")
                 }
                 
+                // 使用 AlarmStateManager 啟動睡眠模式
+                alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
+                
+                // 保存到共享設置（為了兼容性保留）
+                SleepSettings.shared.isSleepMode = true
+                SleepSettings.shared.alarmTime = alarmTimeFormatted
+                
+                print("已啟動睡眠模式: \(alarmTimeFormatted)")
+                
                 // 完成設置並回到 Home 頁面
                 navigateToHome = true
-            }) { 
+            }) {
                 Text("Finish")
                     .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                     .multilineTextAlignment(.center)
@@ -327,4 +338,5 @@ struct SettlementView03: View {
 
 #Preview {
     SettlementView03()
+        .environmentObject(AlarmStateManager())
 }
