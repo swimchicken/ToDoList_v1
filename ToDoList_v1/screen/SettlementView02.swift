@@ -75,7 +75,7 @@ struct SettlementView02: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 15) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         // 进度条部分
                         ProgressBarView()
@@ -83,7 +83,7 @@ struct SettlementView02: View {
                         // 勾选图标部分
                         CheckmarkView()
                     }
-                    .padding(.top, 5)
+                    .padding(.top, 0)
                     // ... (SettlementView02 的其餘頂部內容，如您之前提供)
                     // 分隔线
                     DividerView()
@@ -99,7 +99,7 @@ struct SettlementView02: View {
                     Image("Vector 81").resizable().aspectRatio(contentMode: .fit).frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 12)
-                .padding(.bottom, 15)
+                .padding(.bottom, 2)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 15) {
@@ -121,7 +121,7 @@ struct SettlementView02: View {
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, 12)
             }
-            .padding(.top, 60)
+//            .padding(.top, 1)
 
             VStack(spacing: 0) {
                 if showTodoQueue {
@@ -304,7 +304,7 @@ struct DividerView: View {
         Rectangle()
             .frame(height: 1)
             .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
-            .padding(.vertical, 10)
+            .padding(.vertical, 4)
     }
 }
 
@@ -592,6 +592,7 @@ struct AddTaskButton: View {
                             .keyboardType(.default)
                             .colorScheme(.dark)
                             .focused($isTextFieldFocused)
+                            .submitLabel(.done)
                             .onChange(of: isTextFieldFocused) { newValue in
                                 isKeyboardVisible = newValue
                                 
