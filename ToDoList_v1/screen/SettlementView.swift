@@ -35,8 +35,6 @@ struct GreenCircleImageView: View {
 
 
 struct SettlementView: View {
-    // 由 Home 傳入的綁定，用於在流程完成時關閉導覽
-    @Binding var dismissToHome: Bool
 
     // 任務數據
     @State private var completedTasks: [TodoItem] = []
@@ -290,9 +288,8 @@ struct SettlementView: View {
             NavigationLink(
                 destination: SettlementView02(
                     uncompletedTasks: uncompletedTasks,
-                    moveTasksToTomorrow: moveUncompletedTasksToTomorrow,
-                    dismissToHome: $dismissToHome
-                ),
+                    moveTasksToTomorrow: moveUncompletedTasksToTomorrow
+                ), 
                 isActive: $navigateToSettlementView02
             ) {
                 EmptyView()
@@ -644,6 +641,7 @@ struct BottomControlsView: View {
 // MARK: - Preview
 struct SettlementView_Previews: PreviewProvider {
     static var previews: some View {
-        SettlementView(dismissToHome: .constant(false))
+        SettlementView()
+            .environmentObject(AlarmStateManager())
     }
 }

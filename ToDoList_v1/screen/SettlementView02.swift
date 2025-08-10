@@ -29,8 +29,6 @@ struct S02ProgressBarSegment: View {
 // MARK: - SettlementView02.swift
 struct SettlementView02: View {
     @Environment(\.presentationMode) var presentationMode
-    // 由 root 傳入的綁定，用於在流程完成時關閉導覽
-    @Binding var dismissToHome: Bool
     
     // 接收從SettlementView傳遞的未完成任務和設置
     let uncompletedTasks: [TodoItem]
@@ -43,10 +41,9 @@ struct SettlementView02: View {
     @State private var allTodoItems: [TodoItem] = []
     
     // 初始化方法 - 接收未完成任務和是否移至明日的設置
-    init(uncompletedTasks: [TodoItem], moveTasksToTomorrow: Bool, dismissToHome: Binding<Bool>) {
+    init(uncompletedTasks: [TodoItem], moveTasksToTomorrow: Bool) {
         self.uncompletedTasks = uncompletedTasks
         self.moveTasksToTomorrow = moveTasksToTomorrow
-        self._dismissToHome = dismissToHome
         
         // 如果選擇將未完成任務移至明日，則使用這些任務初始化明日任務列表
         // 否則使用空列表
@@ -221,7 +218,7 @@ struct SettlementView02: View {
             loadTasksFromDataManager()
         }
         .background(
-            NavigationLink(destination: SettlementView03(dismissToHome: $dismissToHome), isActive: $navigateToSettlementView03) {
+            NavigationLink(destination: SettlementView03(), isActive: $navigateToSettlementView03) {
                 EmptyView()
             }
         )
@@ -1152,6 +1149,7 @@ struct SettlementView02_Previews: PreviewProvider {
             TodoItem(id: UUID(), userID: "testUser", title: "测试任务2", priority: 1, isPinned: true, taskDate: nil, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
         ]
         
-        SettlementView02(uncompletedTasks: testItems, moveTasksToTomorrow: true, dismissToHome: .constant(false))
+        SettlementView02(uncompletedTasks: testItems, moveTasksToTomorrow: true)
+            .environmentObject(AlarmStateManager())
     }
 }

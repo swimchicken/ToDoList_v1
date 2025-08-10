@@ -35,7 +35,8 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
 // MARK: - SettlementView03.swift
 struct SettlementView03: View {
     @Environment(\.presentationMode) var presentationMode
-    @Binding var dismissToHome: Bool
+    @EnvironmentObject var alarmStateManager: AlarmStateManager
+    @State private var navigateToHome: Bool = false
     @State private var selectedHour: Int = 8
     @State private var selectedMinute: Int = 0
     @State private var selectedAmPm: Int = 1
@@ -134,7 +135,18 @@ struct SettlementView03: View {
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        // 不在本頁直接導航到 Home，改由通知 Home 將根層的 isActive 綁定設為 false 以彈回 Home
+        .background(
+            // 使用 isDetailLink: false 可以讓導航回到根視圖
+            NavigationLink(
+                destination: Home()
+                    .navigationBarHidden(true)
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.hidden, for: .navigationBar), 
+                isActive: $navigateToHome,
+                label: { EmptyView() }
+            )
+            .isDetailLink(false) // 這會重置導航堆疊
+        )
     }
 
     // MARK: - Sub-views for SettlementView03
@@ -300,21 +312,17 @@ struct SettlementView03: View {
                     print("已取消鬧鐘")
                 }
                 
-                // 直接關閉由 Home 控制的結算導覽，設為 false 來關閉 NavigationLink
-                dismissToHome = false
-
-                // 發送通知，確保 Home 同步切換到睡眠模式和處理結算完成
-                NotificationCenter.default.post(
-                    name: Notification.Name("SettlementFlowFinished"),
-                    object: nil,
-                    userInfo: [
-                        "alarmTime": alarmTimeFormatted,
-                        "alarmEnabled": alarmEnabled
-                    ]
-                )
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    dismissToHome = false
-                }
+                // 使用 AlarmStateManager 啟動睡眠模式
+                alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
+                
+                // 保存到共享設置（為了兼容性保留）
+                SleepSettings.shared.isSleepMode = true
+                SleepSettings.shared.alarmTime = alarmTimeFormatted
+                
+                print("已啟動睡眠模式: \(alarmTimeFormatted)")
+                
+                // 完成設置並回到 Home 頁面
+                navigateToHome = true
             }) {
                 Text("Finish")
                     .font(Font.custom("Inria Sans", size: 20).weight(.bold))
@@ -329,5 +337,6 @@ struct SettlementView03: View {
 }
 
 #Preview {
-    SettlementView03(dismissToHome: .constant(false))
+    SettlementView03()
+        .environmentObject(AlarmStateManager())
 }

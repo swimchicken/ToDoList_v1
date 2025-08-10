@@ -208,7 +208,8 @@ class AlarmStateManager: ObservableObject {
             UserDefaults.standard.set(currentTime, forKey: "sleepStartTime")
         }
         
-        // 計算明天的鬧鐘時間（終點）
+        // 計算最近的鬧鐘時間（可能是今天或明天）
+        let todayAlarmTime = alarmTimeOnCurrentDay
         guard let tomorrowAlarmTime = taipeiCalendar.date(byAdding: .day, value: 1, to: alarmTimeOnCurrentDay) else {
             DispatchQueue.main.async {
                 self.sleepProgress = 0.0
@@ -216,18 +217,16 @@ class AlarmStateManager: ObservableObject {
             return
         }
         
-        // 如果明天的鬧鐘時間早於睡眠開始時間，使用後天的鬧鐘時間
+        // 選擇最近的鬧鐘時間作為終點
         let cycleEnd: Date
-        if tomorrowAlarmTime <= sleepStartTime {
-            guard let dayAfterTomorrowAlarmTime = taipeiCalendar.date(byAdding: .day, value: 2, to: alarmTimeOnCurrentDay) else {
-                DispatchQueue.main.async {
-                    self.sleepProgress = 0.0
-                }
-                return
-            }
-            cycleEnd = dayAfterTomorrowAlarmTime
+        if currentTime <= todayAlarmTime {
+            // 如果當前時間還沒到今天的鬧鐘時間，使用今天的鬧鐘時間
+            cycleEnd = todayAlarmTime
+            print("使用今天的鬧鐘時間作為終點: \(todayAlarmTime)")
         } else {
+            // 如果已經過了今天的鬧鐘時間，使用明天的鬧鐘時間
             cycleEnd = tomorrowAlarmTime
+            print("使用明天的鬧鐘時間作為終點: \(tomorrowAlarmTime)")
         }
 
         let totalCycleDuration = cycleEnd.timeIntervalSince(sleepStartTime)
@@ -239,7 +238,20 @@ class AlarmStateManager: ObservableObject {
         
         DispatchQueue.main.async {
             self.sleepProgress = min(max(newProgress, 0.0), 1.0)
-            print("AlarmStateManager - sleepProgress updated: \(self.sleepProgress)")
+            
+            // 詳細的調試信息
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm:ss"
+            formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+            
+            print("=== AlarmStateManager 進度條更新 ===")
+            print("當前時間: \(formatter.string(from: currentTime))")
+            print("睡眠開始: \(formatter.string(from: sleepStartTime))")
+            print("週期終點: \(formatter.string(from: cycleEnd))")
+            print("總週期長度: \(String(format: "%.1f", totalCycleDuration/3600))小時")
+            print("已經過時間: \(String(format: "%.1f", elapsedInCycle/3600))小時")
+            print("進度百分比: \(String(format: "%.1f", self.sleepProgress * 100))%")
+            print("===============================")
         }
     }
     

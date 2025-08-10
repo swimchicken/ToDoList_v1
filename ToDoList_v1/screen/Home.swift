@@ -863,12 +863,10 @@ struct Home: View {
             NotificationCenter.default.removeObserver(self, name: Notification.Name("CompletedDaysDataChanged"), object: nil)
             NotificationCenter.default.removeObserver(self, name: .userDidLogout, object: nil)
             NotificationCenter.default.removeObserver(self, name: Notification.Name("SleepModeStateChanged"), object: nil)
-            NotificationCenter.default.removeObserver(self, name: Notification.Name("ReturnToHomeWithSleepMode"), object: nil)
-            NotificationCenter.default.removeObserver(self, name: Notification.Name("SettlementFlowFinished"), object: nil)
         }
         .background(
             Group {
-                NavigationLink(destination: SettlementView(dismissToHome: $navigateToSettlementView), isActive: $navigateToSettlementView) {
+                NavigationLink(destination: SettlementView(), isActive: $navigateToSettlementView) {
                     EmptyView()
                 }
                 
@@ -1047,67 +1045,6 @@ struct Home: View {
             dataRefreshToken = UUID()
         }
         
-        // 監聽返回Home並顯示Sleep Mode的通知
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("ReturnToHomeWithSleepMode"),
-            object: nil,
-            queue: .main
-        ) { _ in
-            print("NOTICE: Home 收到返回並顯示Sleep Mode通知")
-            
-            // 使用動畫關閉所有彈出視圖和導航狀態
-            withAnimation(.easeInOut) {
-                showToDoSheet = false
-                showAddTaskSheet = false
-                showCalendarView = false
-                showingDeleteView = false
-                navigateToSettlementView = false
-                navigateToSleep01View = false
-                navigateToTestPage = false
-            }
-            
-            // 強制重新載入AlarmStateManager狀態
-            alarmStateManager.forceReloadState()
-            
-            // 強制刷新UI
-            dataRefreshToken = UUID()
-            
-            print("NOTICE: Home 已重置所有導航狀態，sleep mode狀態: \(alarmStateManager.isSleepModeActive)")
-        }
-        
-        // 監聽結算流程完成通知
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("SettlementFlowFinished"),
-            object: nil,
-            queue: .main
-        ) { notification in
-            print("NOTICE: Home 收到結算流程完成通知，準備返回主畫面。")
-            
-//            self.navigationViewID = UUID()
-            
-            self.navigateToSettlementView = false
-            //非同步機制
-            
-            // 導航已經通過 dismissToHome = false 關閉，這裡不需要再次設定
-            
-            // 從通知中獲取鬧鐘設定
-            if let userInfo = notification.userInfo,
-                let alarmTime = userInfo["alarmTime"] as? String,
-                let alarmEnabled = userInfo["alarmEnabled"] as? Bool {
-                print("收到鬧鐘設定: \(alarmTime), 啟用: \(alarmEnabled)")
-                    
-                // 啟動睡眠模式 (無論鬧鐘是否啟用)
-                alarmStateManager.startSleepMode(alarmTime: alarmTime)
-
-            } else {
-                // 如果沒有收到設定，使用默認值啟動睡眠模式
-                alarmStateManager.startSleepMode(alarmTime: "9:00 AM")
-                print("使用默認設定啟動睡眠模式")
-            }
-            
-            // 強制刷新UI
-            dataRefreshToken = UUID()
-        }
     }
     
     // 執行手動同步
