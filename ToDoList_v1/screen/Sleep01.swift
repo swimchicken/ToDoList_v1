@@ -11,6 +11,7 @@ struct Sleep01View: View {
     @State private var currentDate = Date()
     @State private var alarmTimeString: String = "9:00 AM"
     @State private var userName: String = "USER" // 儲存用戶名稱
+    @State private var todayTodoItems: [TodoItem] = [] // 今天的待辦事項
     // 移除本地進度條變數，改用AlarmStateManager的共享狀態
 
     // MARK: - 動畫核心狀態
@@ -365,7 +366,7 @@ struct Sleep01View: View {
                         Text("今天有")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.gray)
-                        Text("4 個任務")
+                        Text("\(todayTodoItems.count) 個任務")
                             .font(.system(size: 32, weight: .bold))
                             .foregroundColor(.white)
                         Spacer()
@@ -373,10 +374,15 @@ struct Sleep01View: View {
                     
                     // 任務列表
                     VStack(spacing: 20) {
-                        EventItemView(title: "完成設計提案初稿", time: "10:00", isImportant: true)
-                        EventItemView(title: "Prepare tomorrow's meeting report", time: "", isImportant: false)
-                        EventItemView(title: "整理桌面和文件夾", time: "", isImportant: false)
-                        EventItemView(title: "寫一篇學習筆記", time: "", isImportant: false)
+                        ForEach(todayTodoItems) { item in
+                            EventItemView(
+                                item: item,
+                                title: item.title,
+                                time: formatTaskTime(item.taskDate),
+                                isImportant: item.priority >= 3 || item.isPinned,
+                                onToggle: toggleTaskCompletion
+                            )
+                        }
                     }
                 }
                 
@@ -439,6 +445,60 @@ struct Sleep01View: View {
         
         // 載入用戶名稱
         loadUserName()
+        
+        // 載入今天的待辦事項
+        loadTodayTodoItems()
+    }
+    
+    /// 格式化任務時間
+    private func formatTaskTime(_ date: Date?) -> String {
+        guard let date = date else { return "" }
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+        return formatter.string(from: date)
+    }
+    
+    /// 載入今天的待辦事項
+    private func loadTodayTodoItems() {
+        let allItems = LocalDataManager.shared.getAllTodoItems()
+        let today = Date()
+        let calendar = Calendar.current
+        
+        // 篩選今天的任務，排除已完成的
+        todayTodoItems = allItems.filter { item in
+            // 檢查是否為今天的任務
+            let isToday: Bool
+            if let taskDate = item.taskDate {
+                isToday = calendar.isDate(taskDate, inSameDayAs: today)
+            } else {
+                // 如果沒有設定日期，檢查創建日期是否為今天
+                isToday = calendar.isDate(item.createdAt, inSameDayAs: today)
+            }
+            
+            // 只顯示今天的且未完成的任務
+            return isToday && item.status != .completed
+        }
+        .sorted { first, second in
+            // 優先級高的在前
+            if first.priority != second.priority {
+                return first.priority > second.priority
+            }
+            // 置頂的在前
+            if first.isPinned != second.isPinned {
+                return first.isPinned
+            }
+            // 有時間的在前
+            if (first.taskDate != nil) != (second.taskDate != nil) {
+                return first.taskDate != nil
+            }
+            // 最後按時間排序
+            if let firstTime = first.taskDate, let secondTime = second.taskDate {
+                return firstTime < secondTime
+            }
+            return first.createdAt < second.createdAt
+        }
     }
     
     /// 載入用戶名稱
@@ -480,6 +540,23 @@ struct Sleep01View: View {
         }
     }
     
+    /// 切換任務完成狀態
+    private func toggleTaskCompletion(_ item: TodoItem) {
+        var updatedItem = item
+        updatedItem.status = .completed
+        updatedItem.updatedAt = Date()
+        
+        // 更新本地數據
+        LocalDataManager.shared.updateTodoItem(updatedItem)
+        
+        // 重新加載今天的任務列表
+        loadTodayTodoItems()
+        
+        // 觸發輕微震動反饋
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+    }
+    
     private func performSwipeUpAnimation() {
         withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) {
             showTopUI = false
@@ -488,8 +565,11 @@ struct Sleep01View: View {
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            // 結束睡眠模式並回到一般模式的 home
+            alarmStateManager.endSleepMode()
             alarmStateManager.resetAlarmState()
             showBottomAlarmUI = false
+            presentationMode.wrappedValue.dismiss()
         }
     }
 
@@ -554,21 +634,49 @@ struct Sleep01View: View {
     
     // MARK: - EventItemView
     private struct EventItemView: View {
+        let item: TodoItem
         let title: String
         let time: String
         let isImportant: Bool
+        let onToggle: (TodoItem) -> Void
         
         var body: some View {
             HStack(spacing: 15) {
-                Circle()
-                    .fill(isImportant ? Color.white.opacity(0.3) : Color.clear)
-                    .overlay(Circle().stroke(Color.white.opacity(0.3), lineWidth: 1))
-                    .frame(width: 12, height: 12)
-                Text(title).font(.system(size: 16)).foregroundColor(.white)
+                // 左側圓形勾選按鈕
+                Button(action: {
+                    onToggle(item)
+                }) {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .overlay(Circle().stroke(Color.gray, lineWidth: 1.5))
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // 中間任務標題
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.leading)
+                
                 Spacer()
-                if isImportant { HStack(spacing: 2) { Text("**").font(.system(size: 12)).foregroundColor(.yellow) } }
-                Text(time).font(.system(size: 14)).foregroundColor(.gray)
+                
+                // 右側重要性標記和時間
+                HStack(spacing: 8) {
+                    if isImportant {
+                        Text("* *")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.yellow)
+                    }
+                    
+                    if !time.isEmpty {
+                        Text(time)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                    }
+                }
             }
+            .padding(.vertical, 2)
         }
     }
 }
