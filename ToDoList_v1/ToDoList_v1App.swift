@@ -8,6 +8,8 @@
 import SwiftUI
 import SwiftData
 import GoogleSignIn
+import UserNotifications
+import WidgetKit
 
 @main
 struct ToDoList_v1App: App {
@@ -53,16 +55,25 @@ struct ToDoList_v1App: App {
         print("收到 URL: \(url)")
     }
     
+    
+    
     // MARK: - Widget 數據管理
     /// 更新 Widget 數據
     private func updateWidgetData() {
+        print("=== App 啟動：開始更新 Widget 數據 ===")
+        
         // 獲取所有任務並更新 Widget
         let allTasks = LocalDataManager.shared.getAllTodoItems()
-        WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
-        // 也使用文件系統保存（需要先添加 WidgetFileManager.swift 到 Target）
-        // WidgetFileManager.shared.saveTodayTasksToFile(allTasks)
+        print("從本地獲取到 \(allTasks.count) 個任務")
         
-        print("App 啟動：已更新 Widget 數據")
+        // 使用 UserDefaults 保存
+        WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
+        
+        // 使用文件系統保存，確保Widget可以找到數據文件
+        WidgetFileManager.shared.saveTodayTasksToFile(allTasks)
+        
+        print("=== App 啟動：Widget 數據更新完成 ===")
+        print()
         
         // 測試 Widget 數據存取
         testWidgetDataAccess()
