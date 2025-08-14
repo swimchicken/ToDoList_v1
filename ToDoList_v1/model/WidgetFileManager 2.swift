@@ -35,8 +35,6 @@ class WidgetFileManager {
             return
         }
         
-        print("Debug: 開始保存任務到文件，總任務數: \(allTasks.count)")
-        
         // 過濾出今天的任務
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -47,23 +45,14 @@ class WidgetFileManager {
             return taskStartOfDay == today
         }
         
-        print("Debug: 過濾後的今日任務數: \(todayTasks.count)")
-        
-        // 編碼並保存到文件（即使沒有今日任務也要創建空文件）
+        // 編碼並保存到文件
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(todayTasks)
             
-            // 確保目錄存在
-            let directory = fileURL.deletingLastPathComponent()
-            if !FileManager.default.fileExists(atPath: directory.path) {
-                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
-                print("✅ 已創建目錄: \(directory.path)")
-            }
-            
             // 寫入文件
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL)
             
             print("✅ 已保存 \(todayTasks.count) 個今日任務到文件")
             print("   文件路徑: \(fileURL.path)")
@@ -76,12 +65,9 @@ class WidgetFileManager {
                 // 通知 Widget 更新
                 WidgetCenter.shared.reloadAllTimelines()
                 print("✅ 已通知 Widget 更新")
-            } else {
-                print("❌ 文件寫入後仍然不存在")
             }
         } catch {
             print("❌ 保存任務到文件失敗: \(error)")
-            print("   錯誤詳情: \(error.localizedDescription)")
         }
     }
     

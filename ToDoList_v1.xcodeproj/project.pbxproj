@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		282FF9AA2E4DD5E000754DB2 /* WidgetFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */; };
 		2862192C2E3BCEC7003C05D8 /* GoogleSignInManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */; };
 		2862192E2E3BD073003C05D8 /* TestPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2862192D2E3BD073003C05D8 /* TestPage.swift */; };
 		286219312E3BD310003C05D8 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 286219302E3BD310003C05D8 /* GoogleSignIn */; };
@@ -118,6 +119,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetFileManager.swift; sourceTree = "<group>"; };
 		2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignInManager.swift; sourceTree = "<group>"; };
 		2862192D2E3BD073003C05D8 /* TestPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestPage.swift; sourceTree = "<group>"; };
 		286219342E3BD557003C05D8 /* client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist"; sourceTree = "<group>"; };
@@ -314,6 +316,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */,
 				2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */,
 				28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */,
 				EB4188FE2E3797A600F69B82 /* SpeechManager.swift */,
@@ -583,6 +586,7 @@
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
 				791E53AD2DB3F4470096F3B2 /* TodoStatus.swift in Sources */,
 				792C74292DE20E6A00ACF98D /* TobestartedView.swift in Sources */,
+				282FF9AA2E4DD5E000754DB2 /* WidgetFileManager.swift in Sources */,
 				791217BD2DC7B92F00E22FF6 /* AddTime.swift in Sources */,
 				792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */,
 				793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */,
