@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import WidgetKit
 
 /// 本地數據管理器 - 使用 UserDefaults 存儲待辦事項
 class LocalDataManager {
@@ -65,8 +66,8 @@ class LocalDataManager {
             
             // 同步更新 Widget 數據
             WidgetDataManager.shared.saveTodayTasksForWidget(todoItems)
-            // 也使用文件系統保存（需要先添加 WidgetFileManager.swift 到 Target）
-            // WidgetFileManager.shared.saveTodayTasksToFile(todoItems)
+            // 使用文件系統保存，確保Widget可以找到數據文件
+            WidgetFileManager.shared.saveTodayTasksToFile(todoItems)
         } catch {
             print("ERROR: 編碼待辦事項失敗 - \(error.localizedDescription)")
         }
