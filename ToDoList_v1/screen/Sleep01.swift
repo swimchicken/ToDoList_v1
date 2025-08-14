@@ -355,52 +355,52 @@ struct Sleep01View: View {
 //    }
     
     private var eventListView: some View {
-        // 使用 VStack 來垂直排列「任務卡片」和「底部按鈕」
         VStack(spacing: 0) {
-            
-            // --- 任務卡片 ---
-            VStack(alignment: .leading, spacing: 25) { // 加大 Vstack 內部間距
-                // 頂部標題
-                HStack(alignment: .lastTextBaseline) { // 使用 .lastTextBaseline 對齊
-                    Text("今天有")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.gray)
-                    Text("4 個任務")
-                        .font(.system(size: 32, weight: .bold)) // 加大字體
-                        .foregroundColor(.white)
-                    Spacer()
+            // --- 完整的毛玻璃區塊（從頂部延伸到底部） ---
+            VStack(alignment: .leading, spacing: 0) {
+                // 任務內容區域
+                VStack(alignment: .leading, spacing: 25) {
+                    // 頂部標題
+                    HStack(alignment: .lastTextBaseline) {
+                        Text("今天有")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.gray)
+                        Text("4 個任務")
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.white)
+                        Spacer()
+                    }
+                    
+                    // 任務列表
+                    VStack(spacing: 20) {
+                        EventItemView(title: "完成設計提案初稿", time: "10:00", isImportant: true)
+                        EventItemView(title: "Prepare tomorrow's meeting report", time: "", isImportant: false)
+                        EventItemView(title: "整理桌面和文件夾", time: "", isImportant: false)
+                        EventItemView(title: "寫一篇學習筆記", time: "", isImportant: false)
+                    }
                 }
                 
-                // 任務列表
-                VStack(spacing: 20) { // 加大任務之間間距
-                    EventItemView(title: "完成設計提案初稿", time: "10:00", isImportant: true)
-                    EventItemView(title: "Prepare tomorrow's meeting report", time: "", isImportant: false)
-                    EventItemView(title: "整理桌面和文件夾", time: "", isImportant: false)
-                    EventItemView(title: "寫一篇學習筆記", time: "", isImportant: false)
+                Spacer() // 將按鈕推到毛玻璃區塊的底部
+                
+                // --- 開始今天按鈕（在毛玻璃區塊底部） ---
+                Button(action: performSwipeUpAnimation) {
+                    Text("開始今天")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(Color.white)
+                        .cornerRadius(32)
                 }
             }
-            .padding(30) // 統一使用 padding
-            .background(.ultraThinMaterial) // 毛玻璃效果
-            .cornerRadius(32) // 圓角
-            .padding(.horizontal, 20) // 讓卡片左右留出邊距
-
-            Spacer() // 將卡片和按鈕推開
-
-            // --- 底部按鈕 ---
-            Button(action: performSwipeUpAnimation) {
-                Text("開始今天")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18) // 使用 padding 控制高度
-                    .background(Color.white)
-                    .cornerRadius(32) // 圓角
-            }
-            .padding(.horizontal, 20) // 按鈕左右邊距
-            .padding(.bottom, 50)     // 按鈕底部安全距離
+            .padding(30)
+            .background(.ultraThinMaterial) // 單一毛玻璃背景包覆所有內容
+            .cornerRadius(32)
+            .padding(.horizontal, 20)
+            .frame(maxHeight: .infinity) // 讓毛玻璃區塊延伸到可用空間
+            .padding(.bottom, 50) // 底部安全距離
         }
-        .padding(.top,200)
-//        .ignoresSafeArea()
+        .padding(.top, 200)
     }
     
     // MARK: - Gestures
