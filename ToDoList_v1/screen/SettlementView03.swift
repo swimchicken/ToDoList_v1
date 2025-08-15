@@ -8,7 +8,7 @@ import UserNotifications
 // isActive = false: 深灰底綠框
 struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的進度條
     let isActive: Bool
-    private let segmentWidth: CGFloat = 160
+    private let segmentWidth: CGFloat = 165
     private let segmentHeight: CGFloat = 11
     private let segmentCornerRadius: CGFloat = 29
 
@@ -110,7 +110,7 @@ struct SettlementView03: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 0) {
             topHeaderSection // 使用分解後的子視圖
 
             MultiComponentPicker(
@@ -129,7 +129,6 @@ struct SettlementView03: View {
             bottomNavigationButtons
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 60)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.black.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
@@ -151,7 +150,7 @@ struct SettlementView03: View {
 
     // MARK: - Sub-views for SettlementView03
     private var topHeaderSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 10) {
             progressAndCheckmarkView
             grayDivider
             whatToDoText
@@ -164,7 +163,7 @@ struct SettlementView03: View {
     private var progressAndCheckmarkView: some View {
         // *** 修改此處佈局以避免重疊 ***
         HStack {
-            Spacer() // 左邊 Spacer，用於輔助居中進度條
+//            Spacer() // 左邊 Spacer，用於輔助居中進度條
 
             // 進度條組
             HStack(spacing: 8) {
@@ -180,14 +179,14 @@ struct SettlementView03: View {
                 .background(Color.gray.opacity(0.3))
                 .clipShape(Circle())
         }
-        .padding(.top, 5)
+        .padding(.top, 0)
     }
 
     private var grayDivider: some View {
         Rectangle()
             .frame(height: 1)
             .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
-            .padding(.vertical, 10)
+            .padding(.vertical, 4)
     }
 
     private var whatToDoText: some View {
@@ -332,7 +331,7 @@ struct SettlementView03: View {
             }
             .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
         }
-        .padding(.bottom, 10)
+        .padding(.bottom, 20)
     }
 }
 
