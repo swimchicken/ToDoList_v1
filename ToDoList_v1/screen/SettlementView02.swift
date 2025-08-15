@@ -545,6 +545,7 @@ struct AddTaskButton: View {
     @State private var showAddTimeView: Bool = false
     @State private var showAddNoteView: Bool = false
     @State private var shouldRefocusAfterReturn = false
+    @State private var isSubmittingTask = false
     
     // 聚焦狀態
     @FocusState private var isTextFieldFocused: Bool
@@ -596,15 +597,16 @@ struct AddTaskButton: View {
                             .onChange(of: isTextFieldFocused) { newValue in
                                 isKeyboardVisible = newValue
                                 
-                                // 當失去焦點且有內容時，自動保存任務
-                                if !newValue && !displayText.isEmpty {
+                                // 當失去焦點且有內容時，自動保存任務（排除提交狀態）
+                                if !newValue && !displayText.isEmpty && !isSubmittingTask {
                                     saveTask()
                                 }
                             }
                             .onSubmit {
-                                // 按下回車時自動保存任務
+                                // 按下回車時自動保存任務並繼續編輯下一個
                                 if !displayText.isEmpty {
-                                    saveTask()
+//                                    saveTask()
+                                    saveTaskAndContinueEditing()
                                 }
                             }
                             .onAppear {
@@ -879,6 +881,69 @@ struct AddTaskButton: View {
                 }
             }
         }
+    }
+    
+    // 保存任務並繼續編輯下一個任務
+    private func saveTaskAndContinueEditing() {
+        guard !displayText.isEmpty else { return }
+        
+        isSubmittingTask = true  // 設置提交狀態
+        
+        let finalTaskDate: Date? = (isDateEnabled || isTimeEnabled) ? selectedDate : nil
+        
+        let newTask = TodoItem(
+            id: UUID(),
+            userID: "user123",
+            title: displayText,
+            priority: priority,
+            isPinned: isPinned,
+            taskDate: finalTaskDate,
+            note: note,
+            status: .toBeStarted,
+            createdAt: Date(),
+            updatedAt: Date(),
+            correspondingImageID: "new_task"
+        )
+        
+        // 使用 DataSyncManager 保存
+        DataSyncManager.shared.addTodoItem(newTask) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let savedItem):
+                    print("成功保存任務並繼續編輯: \(savedItem.title)")
+                    // 只重置任務內容，保持編輯狀態
+                    self.resetTaskContentOnly()
+                    // 立即重新聚焦文字輸入框
+                    self.isTextFieldFocused = true
+                    self.isSubmittingTask = false  // 重置狀態
+                    // 通知父視圖重新載入數據
+                    self.onTaskAdded()
+                case .failure(let error):
+                    print("保存失敗: \(error.localizedDescription)")
+                    // 錯誤時也重置內容並保持編輯狀態
+                    self.resetTaskContentOnly()
+                    self.isTextFieldFocused = true
+                    self.isSubmittingTask = false  // 重置狀態
+                    // 即使保存失敗也通知重新載入，以防本地數據已更新
+                    self.onTaskAdded()
+                }
+            }
+        }
+    }
+    
+    // 只重置任務內容，保持編輯模式
+    private func resetTaskContentOnly() {
+        displayText = ""
+        taskTitle = ""
+        priority = 0
+        isPinned = false
+        priorityLevel = 0
+        hasNote = false
+        note = ""
+        isDateEnabled = false
+        isTimeEnabled = false
+        selectedDate = Date()
+        // 不重置 isEditing 和 isTextFieldFocused
     }
 }
 
