@@ -45,6 +45,9 @@ struct Home: View {
     @State private var selectedItem: TodoItem? = nil
     @State private var showingEditSheet: Bool = false
     
+    // 控制「沒有事件可以結算」的提醒彈窗
+    @State private var showNoEventsAlert: Bool = false
+    
     // 跟踪已删除项目ID的集合，防止它们重新出现
     // 跟踪已删除项目ID的集合，防止它们重新出现
     // 使用UserDefaults持久化存储，确保应用重启后仍然有效
@@ -346,6 +349,12 @@ struct Home: View {
                         onEndTodayTapped: {
                             // 根據同步狀態執行不同操作
                             if !isSyncing {
+                                // 首先檢查是否有事件可以結算
+                                if !checkForEventsToSettle() {
+                                    // 如果沒有事件可以結算，直接返回（已經顯示提醒彈窗）
+                                    return
+                                }
+                                
                                 // 當用戶點擊"end today"按鈕，無論是否需要結算，都應該進入結算流程
                                 // 主動點擊 end today 時應該始終視為當天結算（狀態2）
                                 let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
@@ -797,12 +806,17 @@ struct Home: View {
             // 在應用啟動時檢查是否應該直接顯示結算頁面
             let shouldShowSettlement = delaySettlementManager.shouldShowSettlement()
             if shouldShowSettlement {
-                // 系統檢測到未完成結算時，使用正常的檢查邏輯（非主動結算）
-                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: false)
-                print("檢測到未完成的結算，準備顯示結算頁面，是否為當天結算 = \(isSameDaySettlement) (系統檢測)")
-                
-                // 延遲一點時間再導航，確保Home視圖已完全加載
+                // 延遲一點時間再進行檢查，確保Home視圖已完全加載
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    // 首先檢查是否有事件可以結算
+                    if !self.checkForEventsToSettle() {
+                        // 如果沒有事件可以結算，不顯示結算頁面（已經顯示提醒彈窗）
+                        return
+                    }
+                    
+                    // 系統檢測到未完成結算時，使用正常的檢查邏輯（非主動結算）
+                    let isSameDaySettlement = self.delaySettlementManager.isSameDaySettlement(isActiveEndDay: false)
+                    print("檢測到未完成的結算，準備顯示結算頁面，是否為當天結算 = \(isSameDaySettlement) (系統檢測)")
                     // 在導航到結算頁面前，確保所有已刪除的項目都不會被包含在結算中
                     
                     // 1. 強制從本地數據庫刷新最新數據
@@ -887,6 +901,11 @@ struct Home: View {
                 }
             }
         )
+        .alert("沒有事件可以結算", isPresented: $showNoEventsAlert) {
+            Button("確定", role: .cancel) { }
+        } message: {
+            Text("目前沒有任何完成或未完成的事件可以進行結算。")
+        }
     }
     
     // 提取列表視圖為獨立函數，以便在水平滑動容器中使用
@@ -1049,6 +1068,31 @@ struct Home: View {
             dataRefreshToken = UUID()
         }
         
+    }
+    
+    // 檢查是否有事件可以結算
+    private func checkForEventsToSettle() -> Bool {
+        // 獲取所有待辦事項
+        let allItems = LocalDataManager.shared.getAllTodoItems()
+        
+        // 過濾掉已刪除的項目
+        let filteredItems = allItems.filter { item in
+            !self.recentlyDeletedItemIDs.contains(item.id)
+        }
+        
+        // 分類完成和未完成的事項
+        let completedTasks = filteredItems.filter { $0.status == .completed }
+        let uncompletedTasks = filteredItems.filter { $0.status == .undone || $0.status == .toBeStarted }
+        
+        let totalEvents = completedTasks.count + uncompletedTasks.count
+        
+        if totalEvents == 0 {
+            print("Home - 沒有事件可以結算，顯示提醒彈窗")
+            showNoEventsAlert = true
+            return false
+        }
+        
+        return true
     }
     
     // 執行手動同步
