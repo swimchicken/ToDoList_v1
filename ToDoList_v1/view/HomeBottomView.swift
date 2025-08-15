@@ -45,6 +45,7 @@ struct HomeBottomView: View {
     let onEndTodayTapped: () -> Void
     let onReturnToTodayTapped: () -> Void
     let onAddButtonTapped: () -> Void
+    let onTasksReceived: ([TodoItem]) -> Void
     
     // 是否處於睡眠模式
     let isSleepMode: Bool
@@ -59,6 +60,7 @@ struct HomeBottomView: View {
     @State private var newTodoText = ""
     @State private var isSavingRecording = false
     @State private var isSendingText = false
+    
     
     @Namespace private var namespace
     
@@ -85,6 +87,7 @@ struct HomeBottomView: View {
                 
                 Spacer().frame(height: 20)
             }
+            
         }
         .padding(.horizontal, 10)
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -257,37 +260,41 @@ struct HomeBottomView: View {
         isRecording = false
     }
     
-    // 處理傳送邏輯的函式 (現在只由 TextInputView 的傳送按鈕觸發)
+    // 修改後的 handleSend 函式
     private func handleSend(text: String) {
         guard !text.isEmpty else { return }
         
         isSendingText = true
         
         geminiService.analyzeText(text) { result in
-            isSendingText = false // API 回應後，結束傳送狀態
-            
+            // ✨✨✨ 這是修改過的地方 ✨✨✨
+            // 現在 result 的 success case 直接就是 [TodoItem]
             switch result {
-            case .success(let response):
-                print("✅ Gemini API 成功回傳!")
-                print("任務總數: \(response.taskCount)")
-                for task in response.tasks {
-                    print("---")
-                    print("  標題: \(task.title)")
-                    print("  備註: \(task.notes ?? "無")")
-                    print("  日期: \(task.date ?? "無")")
-                    print("  時間: \(task.time ?? "無")")
-                }
-                // 在這裡，您可以將 response.tasks 轉換為您的 TodoItem 並儲存
+            case .success(let items):
+                            print("✅ Gemini API 成功回傳!")
+                            print("任務總數: \(items.count)")
+                            
+                            isSendingText = false
+                            
+                            // === 修改的核心：不再設定本地 State，而是呼叫閉包通知 Home ===
+                            onTasksReceived(items)
+                            
+                            newTodoText = ""
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                isTextInputMode = false
+                            }
                 
             case .failure(let error):
                 print("❌ Gemini API 錯誤: \(error.localizedDescription)")
-                // 在這裡可以顯示一個錯誤提示給使用者
-            }
-            
-            // 無論成功或失敗，都清空文字並關閉輸入模式
-            newTodoText = ""
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                isTextInputMode = false
+                
+                // 停止傳送狀態
+                isSendingText = false
+                
+                // 清空文字並關閉輸入模式
+                newTodoText = ""
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = false
+                }
             }
         }
     }

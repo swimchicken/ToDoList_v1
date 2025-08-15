@@ -1,10 +1,8 @@
 import Foundation
 
-// MARK: - Gemini API Data Structures
-
+// MARK: - App Configuration & Secrets
 /// 一個專門用來安全讀取專案機密資訊和設定的物件。
 enum AppSecrets {
-
     /// 從 Info.plist 讀取 Gemini API Key。
     static let apiKey: String = {
         guard let key = value(for: "GeminiApiKey") else {
@@ -13,105 +11,109 @@ enum AppSecrets {
         return key
     }()
 
-    /// ★★★ 最終修正 ★★★
-    /// 由於 Xcode 在解析 .xcconfig 中的 URL 時出現無法解決的頑固問題，
-    /// 我們將 URL 直接定義在此處。URL 不是機密資訊，因此這是安全的作法。
-    /// 這可以保證 App 能夠正常運作，並繞過 Xcode 的設定問題。
+    /// API 的 URL 位址。
     static let apiURL: URL = {
         let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
         guard let url = URL(string: urlString) else {
-            // 這個錯誤理論上不應該發生，因為字串是固定的。
             fatalError("內部 URL 字串無效: \(urlString)")
         }
         return url
     }()
 
     /// 一個統一的輔助函式，用來從 Info.plist 讀取值。
-    /// 它會自動清理掉多餘的引號和空格。
     private static func value(for key: String) -> String? {
-        guard var rawValue = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
+        guard let rawValue = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
             print("❌ 讀取失敗：在 Info.plist 中找不到 Key 為 '\(key)' 的項目。")
             return nil
         }
-        
-        // 檢查值是否為未被替換的 xcconfig 變數
         if rawValue.starts(with: "$(") {
             print("❌ 設定錯誤：Key '\(key)' 的值 '\(rawValue)' 沒有被 .xcconfig 正確替換。請檢查 Build Settings 中的連結。")
             return nil
         }
-        
-        // 1. 去除字串前後可能存在的空格或換行符
-        rawValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // 2. 如果字串被雙引號包住，就移除它們
-        if rawValue.hasPrefix("\"") && rawValue.hasSuffix("\"") {
-            rawValue = String(rawValue.dropFirst().dropLast())
+        return rawValue.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+    }
+}
+
+
+// MARK: - Gemini API Response Handling
+/// ✨✨✨ 修改 #1: 改造 GeminiResponse，使其成為專用的解析與轉換器 ✨✨✨
+/// 這個結構現在只負責一件事：將 API 回傳的 JSON，轉換成 App 標準的 `[TodoItem]` 格式。
+struct GeminiResponse: Decodable {
+    
+    /// 提供一個計算屬性，直接將解碼後的資料轉換成 `[TodoItem]`。這是此結構最主要的功能。
+    var asTodoItems: [TodoItem] {
+        return geminiTasks.map { geminiTask -> TodoItem in
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            
+            var finalDate: Date? = nil
+            if let dateString = geminiTask.date {
+                let timeString = (geminiTask.time?.isEmpty ?? true) ? "00:00" : geminiTask.time!
+                finalDate = dateFormatter.date(from: "\(dateString) \(timeString)")
+            }
+
+            // 使用您在 `TodoItem.swift` 中定義的結構來建立新物件
+            return TodoItem(
+                id: UUID(),
+                userID: "user123", // TODO: 請根據您的登入系統填入實際的用戶 ID
+                title: geminiTask.title,
+                priority: 0,
+                isPinned: false,
+                taskDate: finalDate,
+                note: geminiTask.notes ?? "",
+                status: .toBeStarted,
+                createdAt: Date(),
+                updatedAt: Date(),
+                correspondingImageID: ""
+            )
         }
-        
-        // 3. 再次去除可能存在的空格
-        rawValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        return rawValue
     }
-}
-
-
-// 這個結構對應 Gemini API 回傳的整個 JSON 物件
-struct GeminiResponse: Codable {
-    let tasks: [TaskDetail]
     
-    // 我們可以添加一個計算屬性來符合您最初的需求
-    var taskCount: Int {
-        return tasks.count
+    // --- 內部實作細節 ---
+    private struct GeminiTask: Decodable {
+        let title: String
+        let notes: String?
+        let date: String?
+        let time: String?
     }
-}
-
-// 這個結構代表單一一個被辨識出來的任務
-struct TaskDetail: Codable, Identifiable {
-    // Identifiable 協議需要一個 id 屬性，我們用 UUID 自動產生
-    let id = UUID()
-    let title: String
-    let notes: String? // 備註可能是可選的
-    let date: String?  // 日期可能是可選的
-    let time: String?  // 時間可能是可選的
     
-    // 為了讓 Codable 能正確運作，我們需要告訴它 JSON 的 key 和我們的屬性名如何對應
+    private let geminiTasks: [GeminiTask]
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.geminiTasks = try container.decode([GeminiTask].self, forKey: .tasks)
+    }
+    
     private enum CodingKeys: String, CodingKey {
-        case title, notes, date, time
+        case tasks
     }
 }
 
 
 // MARK: - Gemini Service Class
-
 class GeminiService: ObservableObject {
     
-    // 請在此處貼上您的 Gemini API 金鑰
     private let apiKey = AppSecrets.apiKey
-    
-    // 修正：將模型名稱更新為 gemini-2.5-flash-lite
     private let apiURL = AppSecrets.apiURL
-    //private let apiURL = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent")!
 
-    /// 分析使用者輸入的文字，並回傳結構化的任務資料
+    /// ✨✨✨ 修改 #2: 簡化 `analyzeText` 函式，讓它直接回傳 `[TodoItem]` ✨✨✨
+    /// 分析使用者輸入的文字，並回傳標準的 `[TodoItem]` 陣列。
     /// - Parameters:
-    ///   - text: 使用者輸入的文字或語音轉文字的結果
-    ///   - completion: 完成時的回調，回傳 Result 型別，包含成功時的 GeminiResponse 或失敗時的 Error
-    func analyzeText(_ text: String, completion: @escaping (Result<GeminiResponse, Error>) -> Void) {
+    ///   - text: 使用者輸入的文字。
+    ///   - completion: 完成時的回調，回傳 `Result<[TodoItem], Error>`。
+    func analyzeText(_ text: String, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
         
-        // 準備網路請求
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         
-        // 使用 DateFormatter 來產生正確的日期字串
         let formatter = DateFormatter()
         formatter.dateStyle = .long
         formatter.timeStyle = .short
         let currentDateString = formatter.string(from: Date())
         
-        // 修正：更新 prompt 指令
         let prompt = """
         Analyze the following text which contains one or more tasks. Today's date is \(currentDateString).
         Extract the title, notes, date, and time for each task.
@@ -128,56 +130,19 @@ class GeminiService: ObservableObject {
         Response:
         {
           "tasks": [
-            {
-              "title": "開會",
-              "notes": "跟John在會議室",
-              "date": "2025-08-04",
-              "time": "15:00"
-            },
-            {
-              "title": "交報告",
-              "notes": "去工學院C317",
-              "date": "2025-08-15",
-              "time": null
-            }
+            { "title": "開會", "notes": "跟John在會議室", "date": "2025-08-15", "time": "15:00" },
+            { "title": "交報告", "notes": "去工學院C317", "date": "2025-08-22", "time": null }
           ]
         }
-        
-        Example 2:
-         Text: "我明天下午三點和禮拜三晚上各有一場會議要開，明天的是和林泳慶，然後禮拜三的是和教授"
-         Response:
-         {
-           "tasks": [
-             {
-               "title": "開會",
-               "notes": "和林泳慶",
-               "date": "2025-08-04",
-               "time": "15:00"
-             },
-             {
-               "title": "交報告",
-               "notes": "和教授",
-               "date": "2025-08-15",
-               "time": null
-             }
-           ]
-         }       
-        
         
         Now, analyze this text: "\(text)"
         """
         
-        // 建立請求的 JSON Body
         let requestBody: [String: Any] = [
-            "contents": [
-                ["parts": [["text": prompt]]]
-            ],
-            "generationConfig": [
-                "responseMimeType": "application/json"
-            ]
+            "contents": [["parts": [["text": prompt]]]],
+            "generationConfig": ["responseMimeType": "application/json"]
         ]
         
-        // 將 requestBody 轉換為 JSON data
         guard let httpBody = try? JSONSerialization.data(withJSONObject: requestBody) else {
             completion(.failure(NSError(domain: "GeminiService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to serialize request body"])))
             return
@@ -185,35 +150,19 @@ class GeminiService: ObservableObject {
         
         request.httpBody = httpBody
         
-        // 在終端機印出準備發送的 JSON 請求
-        print("--- Sending to Gemini ---")
-        print(String(data: httpBody, encoding: .utf8) ?? "Could not print request body")
-        print("-------------------------")
-        
-        // 發送網路請求
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
+                DispatchQueue.main.async { completion(.failure(error)) }
                 return
             }
             
             guard let data = data else {
-                DispatchQueue.main.async {
-                    completion(.failure(NSError(domain: "GeminiService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
-                }
+                DispatchQueue.main.async { completion(.failure(NSError(domain: "GeminiService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No data received"]))) }
                 return
             }
             
-            // 在終端機印出收到的原始 JSON 回應
-            print("--- Gemini Raw Response ---")
-            print(String(data: data, encoding: .utf8) ?? "Could not print response data")
-            print("---------------------------")
-            
             // 解析 Gemini API 的回傳內容
             do {
-                // Gemini 的回傳格式是巢狀的，我們先解析最外層
                 if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let candidates = jsonObject["candidates"] as? [[String: Any]],
                    let firstCandidate = candidates.first,
@@ -222,27 +171,25 @@ class GeminiService: ObservableObject {
                    let firstPart = parts.first,
                    let textData = firstPart["text"] as? String {
                     
-                    // 將取出的純文字 JSON 再解碼成我們定義的 GeminiResponse 結構
                     if let responseData = textData.data(using: .utf8) {
                         let decoder = JSONDecoder()
                         let geminiResponse = try decoder.decode(GeminiResponse.self, from: responseData)
+                        
+                        // ✨✨✨ 修改 #3: 直接回傳轉換好的 `[TodoItem]` ✨✨✨
                         DispatchQueue.main.async {
-                            completion(.success(geminiResponse))
+                            completion(.success(geminiResponse.asTodoItems))
                         }
                     } else {
                         throw NSError(domain: "GeminiService", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to convert response text to data"])
                     }
                 } else {
-                    // 如果 Gemini 回傳錯誤訊息，也印出來
-                    if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         print("❌ Gemini returned an error or unexpected structure: \(jsonObject)")
                     }
                     throw NSError(domain: "GeminiService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON structure from Gemini"])
                 }
             } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
+                DispatchQueue.main.async { completion(.failure(error)) }
             }
         }.resume()
     }
