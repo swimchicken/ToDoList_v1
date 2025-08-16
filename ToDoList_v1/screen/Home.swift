@@ -13,6 +13,7 @@ struct Home: View {
     @State private var isSleepMode: Bool = false // 睡眠模式狀態
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
     @State private var dayProgress: Double = 0.0 // 與Sleep01相同，用來顯示進度條
+    @State private var taskToEdit: TodoItem?
     
     // 用於監控數據變化的屬性
     @State private var dataRefreshToken: UUID = UUID() // 用於強制視圖刷新
@@ -366,7 +367,7 @@ struct Home: View {
                     }
                 }
                 // === 修改點：更新 blur 條件 ===
-                .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay ? 13.5 : 0)
+                .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
 
                 // 4. ToDoSheetView 彈窗
                 if showToDoSheet {
@@ -513,6 +514,22 @@ struct Home: View {
                     .zIndex(300)
                 }
                 
+                //第三步：新增 TaskEditView 的顯示邏輯
+                if let taskToEdit = self.taskToEdit,
+                   let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
+                    
+                    TaskEditView(task: $pendingTasks[taskIndex], onClose: {
+                        // 交接結束：命令 TaskEditView 消失，並重新顯示 TaskSelectionOverlay
+                        self.taskToEdit = nil
+                        // 稍微延遲讓動畫更流暢
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            self.showTaskSelectionOverlay = true
+                        }
+                    })
+                    .zIndex(600) // 給予比 TaskSelectionOverlay 更高的層級
+                    .transition(.opacity.animation(.easeInOut))
+                }
+                
                 // === 修改點：在 Home 層級顯示 TaskSelectionOverlay ===
                 if showTaskSelectionOverlay {
                     TaskSelectionOverlay(
@@ -539,6 +556,11 @@ struct Home: View {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                 self.loadTodoItems()
                             }
+                        },
+                        onEditTask: { task in
+                            // 交接開始：命令 TaskSelectionOverlay 消失，並設定要編輯的任務
+                            self.showTaskSelectionOverlay = false
+                            self.taskToEdit = task
                         }
                     )
                     .zIndex(500) // 給予最高的層級

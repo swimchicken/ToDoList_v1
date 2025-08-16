@@ -6,11 +6,11 @@ struct TaskSelectionOverlay: View {
     @Binding var tasks: [TodoItem]
     let onCancel: () -> Void
     let onAdd: ([TodoItem]) -> Void
+    let onEditTask: (TodoItem) -> Void
     
     @State private var selectedTasks: Set<UUID> = []
     
     @State private var appearing = false
-    @State private var taskToEdit: TodoItem?
     
     // MARK: - Computed Properties
     private var groupedTasks: [(String, [TodoItem])] {
@@ -73,11 +73,7 @@ struct TaskSelectionOverlay: View {
             .scaleEffect(appearing ? 1 : 0.95).opacity(appearing ? 1 : 0)
         }
         .onAppear { withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) { appearing = true } }
-        .sheet(item: $taskToEdit) { taskItem in
-            if let index = tasks.firstIndex(where: { $0.id == taskItem.id }) {
-                TaskEditView(task: $tasks[index])
-            }
-        }
+        
     }
     
     // MARK: - Helper Methods
@@ -106,7 +102,7 @@ private extension TaskSelectionOverlay {
                 ForEach(groupedTasks, id: \.0) { group in
                     TaskGroupView(
                         group: group,
-                        onEdit: { task in self.taskToEdit = task },
+                        onEdit: { task in onEditTask(task) },
                         onDelete: { task in withAnimation { deleteTask(task) } }
                     )
                 }
@@ -220,7 +216,7 @@ struct TaskSelectionRow: View {
         }
 
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm"
+        formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
     
@@ -230,10 +226,13 @@ struct TaskSelectionRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(task.title).font(.system(size: 16, weight: .medium)).foregroundColor(.white).lineLimit(1)
-                        if !task.note.isEmpty {
+                        if task.note.isEmpty {
+                            // 如果沒有備註，顯示 "note" 佔位符
                             Text("note")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.white.opacity(0.5))
+                        } else {
+                            // 如果有備註，只顯示備註內容
                             Text(task.note)
                                 .font(.system(size: 13))
                                 .foregroundColor(.white.opacity(0.8))
@@ -244,17 +243,41 @@ struct TaskSelectionRow: View {
                     
                     Spacer()
                     
+                    // --- 請貼上這段新程式碼 ---
                     HStack(spacing: 4) {
-                        if task.priority > 0 {
-                            HStack(spacing: 2) {
-                                ForEach(0..<task.priority, id: \.self) { _ in
-                                    Image(systemName: "star.fill").foregroundColor(Color.yellow).font(.system(size: 12))
+                        // 新增的判斷邏輯：
+                        if task.isPinned {
+                            // 如果任務被置頂，顯示旗子
+                            Image("Pin") // 假設您有這個圖片資源
+                                .resizable()
+                                .renderingMode(.template)
+                                .scaledToFit()
+                                .foregroundColor(.white) // 設定為白色
+                                .frame(width: 14, height: 14) // 與星星大小一致
+                                // 為了讓旗子和三顆星佔據的寬度一樣，維持對齊
+                                .padding(.horizontal, 16)
+
+                        } else {
+                            // 如果沒有置頂，才顯示原本的星星邏輯
+                            if task.priority > 0 {
+                                HStack(spacing: 2) {
+                                    ForEach(0..<3, id: \.self) { index in
+                                        Image("Star 1 (3)")
+                                            .resizable()
+                                            .renderingMode(.template)
+                                            .scaledToFit()
+                                            .frame(width: 14, height: 14)
+                                            .foregroundColor(index < task.priority ? .white : .clear)
+                                    }
                                 }
                             }
                         }
-                        if let timeString = formatTime(from: task.taskDate) {
-                            Text(timeString).font(.system(size: 14, weight: .regular)).foregroundColor(.white.opacity(0.85))
-                        }
+
+                        // [時間邏輯不變]
+                        Text(formatTime(from: task.taskDate) ?? "")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.white.opacity(0.85))
+                            .frame(minWidth: 50, alignment: .trailing)
                     }
                 }
             }.buttonStyle(PlainButtonStyle())
@@ -267,39 +290,3 @@ struct TaskSelectionRow: View {
     }
 }
 
-// -------------------------------------------------------------------
-// MARK: - PREVIEW AREA
-// 說明：此區塊僅用於 SwiftUI Previews 預覽，可隨時註解掉而不影響主程式。
-// -------------------------------------------------------------------
-#if DEBUG
-struct TaskSelectionOverlay_Previews: PreviewProvider {
-    
-    // 建立一些假資料以供預覽
-    static var sampleTasks: [TodoItem] = [
-        TodoItem(id: UUID(), userID: "user123", title: "練習日語聽力", priority: 2, isPinned: false, taskDate: Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date()), note: "複習 N3 文法", status: .toBeStarted, createdAt: Date(), updatedAt: Date(), correspondingImageID: "img1"),
-        TodoItem(id: UUID(), userID: "user123", title: "整理桌面和文件夾", priority: 1, isPinned: true, taskDate: Calendar.current.date(bySettingHour: 14, minute: 30, second: 0, of: Date()), note: "將專案檔案歸檔", status: .toBeStarted, createdAt: Date(), updatedAt: Date(), correspondingImageID: "img2"),
-        TodoItem(id: UUID(), userID: "user123", title: "撰寫一篇學習筆記", priority: 0, isPinned: false, taskDate: nil, note: "", status: .toBeStarted, createdAt: Date(), updatedAt: Date(), correspondingImageID: "img3")
-    ]
-    
-    static var previews: some View {
-        // 使用一個假的背景來模擬疊加效果
-        ZStack {
-            // 模擬 Home 畫面的背景
-            LinearGradient(colors: [.blue, .green], startPoint: .topLeading, endPoint: .bottomTrailing)
-                .ignoresSafeArea()
-            Text("Home Screen Content")
-                .font(.largeTitle)
-                .foregroundColor(.white.opacity(0.5))
-            
-            // 預覽 TaskSelectionOverlay
-            // 使用 .constant 將我們的假資料傳入
-            TaskSelectionOverlay(
-                tasks: .constant(sampleTasks),
-                onCancel: { print("Cancel Tapped") },
-                onAdd: { tasks in print("\(tasks.count) tasks added.") }
-            )
-        }
-        .preferredColorScheme(.dark) // previews 時使用深色模式
-    }
-}
-#endif
