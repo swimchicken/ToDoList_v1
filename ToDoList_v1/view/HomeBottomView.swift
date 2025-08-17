@@ -356,22 +356,22 @@ struct HomeBottomView: View {
         
         isSendingText = true
         /*
-        // --- 為了測試，暫時模擬 API 錯誤 ---
-            print("🧪 正在模擬 API 錯誤...")
-
-            // 模擬 1.5 秒的網路延遲
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                // 直接手動呼叫 onError 來觸發 Toast
-                onError("轉譯錯誤，請再試一次")
-
-                // --- 同時也要記得重設 UI 狀態 ---
-                isSendingText = false
-                newTodoText = ""
-                withAnimation(.spring()) {
-                    isTextInputMode = false
-                }
-            }
-        */
+         // --- 為了測試，暫時模擬 API 錯誤 ---
+         print("🧪 正在模擬 API 錯誤...")
+         
+         // 模擬 1.5 秒的網路延遲
+         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+         // 直接手動呼叫 onError 來觸發 Toast
+         onError("轉譯錯誤，請再試一次")
+         
+         // --- 同時也要記得重設 UI 狀態 ---
+         isSendingText = false
+         newTodoText = ""
+         withAnimation(.spring()) {
+         isTextInputMode = false
+         }
+         }
+         */
         
         geminiService.analyzeText(text) { result in
             // ✨✨✨ 這是修改過的地方 ✨✨✨
@@ -861,4 +861,5 @@ struct HomeBottomView: View {
             }
         }
     }
-
+    
+}
