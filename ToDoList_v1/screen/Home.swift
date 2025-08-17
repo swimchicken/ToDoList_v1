@@ -445,7 +445,7 @@ struct Home: View {
                 }
                 
             }
-            .blur(radius: showAddTaskSheet || showAddTaskSheet ? 13.5 : 0)
+            .blur(radius: showAddTaskSheet || showingEditSheet ? 13.5 : 0)
 
             // 4. ToDoSheetView 彈窗 - 僅覆蓋部分屏幕而非整個屏幕
             if showToDoSheet {
@@ -493,8 +493,8 @@ struct Home: View {
                         .frame(width: geometry.size.width)
                         .zIndex(10)
                     }
-                    // 添加模糊效果 - 當 Add 視窗打開時
-                    .blur(radius: showAddTaskSheet ? 13.5 : 0)
+                    // 添加模糊效果 - 當 Add 視窗或編輯視窗打開時
+                    .blur(radius: showAddTaskSheet || showingEditSheet ? 13.5 : 0)
                 }
                 .ignoresSafeArea()
             }
@@ -527,6 +527,7 @@ struct Home: View {
                         initialMode: isFromTodoSheet ? .memo : (currentDateOffset == 0 ? .today : .future),
                         currentDateOffset: currentDateOffset,
                         fromTodoSheet: isFromTodoSheet, // 傳遞這個標記
+                        editingItem: nil, // 新增模式，不編輯現有項目
                         onClose: {
                         // 打印調試信息
                         print("⚠️ 關閉Add視圖，最終模式 = \(addTaskMode)，isFromTodoSheet = \(isFromTodoSheet)")
@@ -605,8 +606,44 @@ struct Home: View {
                 .zIndex(200) // 確保顯示在最上層
             }
             
+            // 6.5. 新增: 編輯視圖 (使用 Add 視圖的編輯模式)
+            if showingEditSheet, let item = selectedItem {
+                ZStack {
+                    // 暗色背景
+                    Color.black.opacity(0.7)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut) {
+                                showingEditSheet = false
+                                selectedItem = nil
+                            }
+                        }
+                    
+                    // 編輯視圖，使用 Add 視圖的編輯模式
+                    Add(toDoItems: $toDoItems,
+                        initialMode: item.taskDate == nil ? .memo : .today, // 根據是否有日期決定模式
+                        currentDateOffset: 0,
+                        fromTodoSheet: false,
+                        editingItem: item, // 傳入要編輯的項目
+                        onClose: {
+                            withAnimation(.easeInOut) {
+                                showingEditSheet = false
+                                selectedItem = nil
+                            }
+                            
+                            // 延遲刷新數據
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                loadTodoItems()
+                            }
+                        })
+                    .transition(.move(edge: .bottom))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showingEditSheet)
+                .zIndex(350) // 確保顯示在最上層，比 DeleteItemView 更高
+            }
+            
             // 7. 新增: DeleteItemView 彈出視圖
-            if showingDeleteView, let item = selectedItem {
+            if showingDeleteView && !showingEditSheet, let item = selectedItem {
                 DeleteItemView(
                     itemName: item.title,
                     onCancel: {
@@ -618,10 +655,50 @@ struct Home: View {
                     },
                     onEdit: {
                         // 關閉彈出視圖並開啟編輯界面
+                        print("🔎 Home - 點擊編輯按鈕，準備顯示編輯視圖，選中項目: \(selectedItem?.title ?? "未知")")
                         withAnimation(.easeInOut) {
                             showingDeleteView = false
-                            selectedItem = nil
+                            // 不要清除 selectedItem，因為編輯視圖需要它
                             showingEditSheet = true
+                        }
+                        print("🔎 Home - 編輯視圖狀態: showingEditSheet = \(showingEditSheet), showingDeleteView = \(showingDeleteView)")
+                    },
+                    onMoveToTodoQueue: {
+                        // 將項目移動到待辦佇列（移除日期）
+                        if let itemToMove = selectedItem {
+                            print("🔎 Home - 將項目移動到待辦佇列: \(itemToMove.title)")
+                            
+                            // 關閉彈出視圖
+                            withAnimation(.easeInOut) {
+                                showingDeleteView = false
+                                selectedItem = nil
+                            }
+                            
+                            // 創建更新後的項目（將 taskDate 設為 nil）
+                            var updatedItem = itemToMove
+                            updatedItem.taskDate = nil
+                            updatedItem.updatedAt = Date()
+                            
+                            // 更新數據庫
+                            dataSyncManager.updateTodoItem(updatedItem) { result in
+                                DispatchQueue.main.async {
+                                    switch result {
+                                    case .success(let savedItem):
+                                        print("成功將項目移動到待辦佇列: \(savedItem.title)")
+                                        
+                                        // 更新本地陣列
+                                        if let index = toDoItems.firstIndex(where: { $0.id == savedItem.id }) {
+                                            toDoItems[index] = savedItem
+                                        }
+                                        
+                                        // 刷新數據以確保UI更新
+                                        loadTodoItems()
+                                        
+                                    case .failure(let error):
+                                        print("移動項目到待辦佇列失敗: \(error.localizedDescription)")
+                                    }
+                                }
+                            }
                         }
                     },
                     onDelete: {
@@ -947,6 +1024,10 @@ struct Home: View {
                                 .contentShape(Rectangle()) // 确保整行可点击
                                 .onLongPressGesture {
                                     // 长按时显示编辑/删除选项
+                                    // 先重置所有彈出視圖狀態
+                                    resetAllPopupStates()
+                                    
+                                    // 設置新的選中項目和顯示刪除視圖
                                     selectedItem = sortedToDoItems[idx]
                                     showingDeleteView = true
                                 }
@@ -1068,6 +1149,13 @@ struct Home: View {
             dataRefreshToken = UUID()
         }
         
+    }
+    
+    // 重置所有彈出視圖狀態
+    private func resetAllPopupStates() {
+        showingDeleteView = false
+        showingEditSheet = false
+        selectedItem = nil
     }
     
     // 檢查是否有事件可以結算

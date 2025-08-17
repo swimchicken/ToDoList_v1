@@ -21,6 +21,9 @@ struct DeleteItemView: View {
     /// 當用戶點擊「編輯」時執行的閉包
     let onEdit: () -> Void
     
+    /// 當用戶點擊「放入待辦佇列」時執行的閉包
+    let onMoveToTodoQueue: () -> Void
+    
     /// 當用戶點擊「刪除」時執行的閉包
     let onDelete: () -> Void
     
@@ -65,6 +68,19 @@ struct DeleteItemView: View {
                             .kerning(0.38)
                             .multilineTextAlignment(.center)
                             .foregroundColor(Color(red: 0.04, green: 0.52, blue: 1))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .frame(minHeight: 45) // 保持按鈕高度
+                    }
+                    
+                    Divider().background(Color.gray.opacity(0.3))
+                    
+                    // 放入待辦佇列按鈕
+                    Button(action: onMoveToTodoQueue) {
+                        Text("放入待辦佇列")
+                            .font(Font.custom("SF Pro Display", size: 20))
+                            .kerning(0.38)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(Color(red: 0.04, green: 0.52, blue: 1)) // 與編輯按鈕相同顏色
                             .frame(maxWidth: .infinity, alignment: .center)
                             .frame(minHeight: 45) // 保持按鈕高度
                     }

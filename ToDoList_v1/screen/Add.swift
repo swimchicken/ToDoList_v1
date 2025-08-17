@@ -54,6 +54,9 @@ struct Add: View {
     // 新增：明確標記是否來自待辦事項佇列
     var isFromTodoSheet: Bool = false
     
+    // 新增：編輯模式 - 如果不為 nil 則是編輯現有項目
+    var editingItem: TodoItem? = nil
+    
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
     
@@ -61,12 +64,17 @@ struct Add: View {
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
     
     // Add.swift
-    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, onClose: (() -> Void)? = nil) {
-        print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 日期偏移 = \(currentDateOffset), 來自待辦事項佇列 = \(fromTodoSheet)")
+    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil) {
+        if editingItem != nil {
+            print("🔎 Add.swift 編輯模式初始化，編輯項目: \(editingItem?.title ?? "未知"), 模式 = \(initialMode)")
+        } else {
+            print("🔎 Add.swift 新增模式初始化，模式 = \(initialMode), 日期偏移 = \(currentDateOffset), 來自待辦事項佇列 = \(fromTodoSheet)")
+        }
 
         self._toDoItems = toDoItems
         self.onClose = onClose
         self.isFromTodoSheet = fromTodoSheet
+        self.editingItem = editingItem
         self.offset = currentDateOffset
 
         // 1. 決定最終的模式和起始索引
@@ -74,7 +82,21 @@ struct Add: View {
         let startIndex: Int
         let startIsDateEnabled: Bool
 
-        if fromTodoSheet {
+        // 如果是編輯模式，從現有項目設置初始值
+        if let item = editingItem {
+            print("🔎 編輯模式 - 編輯項目: \(item.title)")
+            
+            // 根據項目是否有日期決定模式
+            if item.taskDate == nil {
+                calculatedMode = .memo
+                startIndex = 0
+                startIsDateEnabled = false
+            } else {
+                calculatedMode = .today  // 暫時設為 today，實際會被 taskDate 覆蓋
+                startIndex = 1
+                startIsDateEnabled = true
+            }
+        } else if fromTodoSheet {
             calculatedMode = .memo
             startIndex = 0
             startIsDateEnabled = false
@@ -105,21 +127,43 @@ struct Add: View {
         // 3. 初始化 @State 屬性 (只做一次！)
         self._currentBlockIndex = State(initialValue: startIndex) // <<<<< 關鍵！
         self._isDateEnabled = State(initialValue: startIsDateEnabled)
-        self._isTimeEnabled = State(initialValue: false) // 預設不啟用時間
-
-        // 4. 設定初始日期
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let initialDate: Date
-        if startIsDateEnabled {
-            // 如果啟用日期，根據 startIndex 計算日期
-            // (startIndex - 1) 是因為 0 是備忘錄，1 是今天(偏移0)，2 是明天(偏移1)...
-            initialDate = calendar.date(byAdding: .day, value: startIndex - 1, to: today) ?? today
+        
+        // 編輯模式：從現有項目設置初始值
+        if let item = editingItem {
+            self._title = State(initialValue: item.title)
+            self._displayText = State(initialValue: item.title)
+            self._priority = State(initialValue: item.priority)
+            self._priorityLevel = State(initialValue: item.priority)
+            self._isPinned = State(initialValue: item.isPinned)
+            
+            // 如果有任務日期，設置時間相關狀態
+            if let taskDate = item.taskDate {
+                self._isTimeEnabled = State(initialValue: true)
+                self._selectedDate = State(initialValue: taskDate)
+                self._taskDate = State(initialValue: taskDate)
+            } else {
+                self._isTimeEnabled = State(initialValue: false)
+                self._selectedDate = State(initialValue: Date())
+                self._taskDate = State(initialValue: Date())
+            }
         } else {
-            // 備忘錄模式下，預設為今天 (但在 updateDateFromBlockIndex 會被清除)
-            initialDate = today
+            // 新增模式：使用預設值
+            self._isTimeEnabled = State(initialValue: false) // 預設不啟用時間
+            
+            // 4. 設定初始日期
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let initialDate: Date
+            if startIsDateEnabled {
+                // 如果啟用日期，根據 startIndex 計算日期
+                // (startIndex - 1) 是因為 0 是備忘錄，1 是今天(偏移0)，2 是明天(偏移1)...
+                initialDate = calendar.date(byAdding: .day, value: startIndex - 1, to: today) ?? today
+            } else {
+                // 備忘錄模式下，預設為今天 (但在 updateDateFromBlockIndex 會被清除)
+                initialDate = today
+            }
+            self._selectedDate = State(initialValue: initialDate)
         }
-        self._selectedDate = State(initialValue: initialDate)
 
         print("Add.swift 初始化完成. 初始 currentBlockIndex = \(startIndex)")
     }
@@ -638,7 +682,7 @@ struct Add: View {
         }
     }
     
-    // 添加新任務並保存到本地和雲端
+    // 添加新任務或更新現有任務並保存到本地和雲端
     func saveToCloudKit() {
         guard !displayText.isEmpty else { return }
         
@@ -673,79 +717,128 @@ struct Add: View {
             }
         }
         
-        // 判斷狀態：如果是從備忘錄添加（沒有時間資料）或有添加時間，都設為 toBeStarted
-        let taskStatus: TodoStatus = .toBeStarted // 將狀態設為 toBeStarted
-        
-        // 創建新的 TodoItem
-        let newTask = TodoItem(
-            id: UUID(),
-            userID: "user123", // 這裡可以使用實際的使用者ID
-            title: displayText,
-            priority: priority,
-            isPinned: isPinned,
-            taskDate: finalTaskDate,
-            note: note,
-            status: taskStatus,
-            createdAt: Date(),
-            updatedAt: Date(),
-            correspondingImageID: "new_task"
-        )
-        
-        // 使用 DataSyncManager 保存（先本地，後雲端）
-        print("嘗試保存待辦事項...")
-        DataSyncManager.shared.addTodoItem(newTask) { result in
-            // 回到主線程處理結果
-            DispatchQueue.main.async {
-                // 結束保存中狀態
-                isSaving = false
+        // 檢查是編輯模式還是新增模式
+        if let existingItem = editingItem {
+            // 編輯模式：更新現有項目
+            var updatedTask = existingItem
+            updatedTask.title = displayText
+            updatedTask.priority = priority
+            updatedTask.isPinned = isPinned
+            updatedTask.taskDate = finalTaskDate
+            updatedTask.note = note
+            updatedTask.updatedAt = Date()
+            
+            print("編輯模式：更新待辦事項 ID: \(updatedTask.id)")
+            DataSyncManager.shared.updateTodoItem(updatedTask) { result in
+                // 回到主線程處理結果
+                DispatchQueue.main.async {
+                    // 結束保存中狀態
+                    self.isSaving = false
+                    
+                    switch result {
+                    case .success(let savedItem):
+                        print("成功更新待辦事項! ID: \(savedItem.id)")
+                        
+                        // 更新 toDoItems 陣列中的項目
+                        if let index = self.toDoItems.firstIndex(where: { $0.id == savedItem.id }) {
+                            self.toDoItems[index] = savedItem
+                        }
+                        
+                        // 短暫延遲確保 UI 更新
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
+                        }
+                        
+                    case .failure(let error):
+                        print("更新失敗: \(error.localizedDescription)")
+                        self.saveError = "更新失敗: \(error.localizedDescription)"
+                        self.showSaveAlert = true
+                        
+                        // 短暫延遲關閉視圖
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            // 新增模式：創建新項目
+            let taskStatus: TodoStatus = .toBeStarted // 將狀態設為 toBeStarted
+            
+            let newTask = TodoItem(
+                id: UUID(),
+                userID: "user123", // 這裡可以使用實際的使用者ID
+                title: displayText,
+                priority: priority,
+                isPinned: isPinned,
+                taskDate: finalTaskDate,
+                note: note,
+                status: taskStatus,
+                createdAt: Date(),
+                updatedAt: Date(),
+                correspondingImageID: "new_task"
+            )
+            
+            // 使用 DataSyncManager 保存（先本地，後雲端）
+            print("嘗試保存待辦事項...")
+            DataSyncManager.shared.addTodoItem(newTask) { result in
+                // 回到主線程處理結果
+                DispatchQueue.main.async {
+                    // 結束保存中狀態
+                    self.isSaving = false
                 
-                switch result {
-                case .success(let savedItem):
-                    print("成功保存待辦事項到本地! ID: \(savedItem.id)")
-                    print("正在後台同步到雲端...")
-                    toDoItems.append(savedItem)
-                    
-                    // 短暫延遲確保 UI 更新
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        if let onClose = onClose {
-                            onClose()
+                    switch result {
+                    case .success(let savedItem):
+                        print("成功保存待辦事項到本地! ID: \(savedItem.id)")
+                        print("正在後台同步到雲端...")
+                        self.toDoItems.append(savedItem)
+                        
+                        // 短暫延遲確保 UI 更新
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
                         }
-                    }
                     
-                case .failure(let error):
-                    // 保存失敗時才顯示錯誤警告
-                    let nsError = error as NSError
-                    print("保存失敗: \(error.localizedDescription)")
-                    
-                    if nsError.domain == CKErrorDomain {
-                        switch nsError.code {
-                        case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                            saveError = "網絡連接問題，但項目已保存到本地"
-                        case CKError.notAuthenticated.rawValue:
-                            saveError = "未登入 iCloud，項目已保存到本地"
-                        case CKError.quotaExceeded.rawValue:
-                            saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
-                        case CKError.serverRejectedRequest.rawValue:
-                            saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
-                        default:
-                            saveError = "iCloud 錯誤，項目已保存到本地"
+                    case .failure(let error):
+                        // 保存失敗時才顯示錯誤警告
+                        let nsError = error as NSError
+                        print("保存失敗: \(error.localizedDescription)")
+                        
+                        if nsError.domain == CKErrorDomain {
+                            switch nsError.code {
+                            case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
+                                self.saveError = "網絡連接問題，但項目已保存到本地"
+                            case CKError.notAuthenticated.rawValue:
+                                self.saveError = "未登入 iCloud，項目已保存到本地"
+                            case CKError.quotaExceeded.rawValue:
+                                self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
+                            case CKError.serverRejectedRequest.rawValue:
+                                self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
+                            default:
+                                self.saveError = "iCloud 錯誤，項目已保存到本地"
+                            }
+                        } else {
+                            self.saveError = "保存錯誤: \(error.localizedDescription)"
                         }
-                    } else {
-                        saveError = "保存錯誤: \(error.localizedDescription)"
-                    }
-                    
-                    // 顯示錯誤警告
-                    showSaveAlert = true
-                    
-                    // 嘗試只保存到本地
-                    print("發生錯誤，嘗試只保存到本地")
-                    LocalDataManager.shared.addTodoItem(newTask)
-                    toDoItems.append(newTask)
-                    
-                    // 短暫延遲關閉視圖
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        if let onClose = onClose {
-                            onClose()
+                        
+                        // 顯示錯誤警告
+                        self.showSaveAlert = true
+                        
+                        // 嘗試只保存到本地
+                        print("發生錯誤，嘗試只保存到本地")
+                        LocalDataManager.shared.addTodoItem(newTask)
+                        self.toDoItems.append(newTask)
+                        
+                        // 短暫延遲關閉視圖
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
                         }
                     }
                 }
