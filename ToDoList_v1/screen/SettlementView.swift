@@ -247,7 +247,8 @@ struct SettlementView: View {
 
                 BottomControlsView(
                     moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow,
-                    navigateToSettlementView02: $navigateToSettlementView02
+                    navigateToSettlementView02: $navigateToSettlementView02,
+                    uncompletedTasks: uncompletedTasks
                 )
             }
             .padding(.horizontal, 12)
@@ -442,6 +443,7 @@ struct SettlementView: View {
         
         print("SettlementView - 數據刷新通知後直接更新: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
     }
+    
 }
 
 // MARK: - 子視圖 (Components)
@@ -581,10 +583,14 @@ struct TaskRow: View {
 struct BottomControlsView: View {
     @Binding var moveUncompletedTasksToTomorrow: Bool
     @Binding var navigateToSettlementView02: Bool  // 添加導航綁定
+    let uncompletedTasks: [TodoItem] // 接收未完成任務列表
     @Environment(\.presentationMode) var presentationMode
     
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
+    
+    // 引用數據同步管理器
+    private let dataSyncManager = DataSyncManager.shared
     
     // 是否為當天結算 - 使用正確的參數
     private var isSameDaySettlement: Bool {
@@ -609,6 +615,11 @@ struct BottomControlsView: View {
             .cornerRadius(12)
 
             Button(action: {
+                // 如果開啟了「將未完成的任務直接移至明日待辦」選項，先執行移動邏輯
+                if moveUncompletedTasksToTomorrow {
+                    moveUncompletedTasksToTomorrowAction()
+                }
+                
                 // 固定行為：無論是否為當天結算，都進入 SettlementView02 繼續流程
                 navigateToSettlementView02 = true
                 print("繼續到 SettlementView02 設置計畫")
@@ -634,6 +645,57 @@ struct BottomControlsView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
             }
+        }
+    }
+    
+    // 將未完成的任務移動到明日
+    private func moveUncompletedTasksToTomorrowAction() {
+        guard !uncompletedTasks.isEmpty else {
+            print("BottomControlsView - 沒有未完成的任務需要移動")
+            return
+        }
+        
+        print("BottomControlsView - 開始將 \(uncompletedTasks.count) 個未完成任務移動到明日")
+        
+        // 計算明日的日期
+        let calendar = Calendar.current
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let tomorrowStartOfDay = calendar.startOfDay(for: tomorrow)
+        
+        // 為每個未完成的任務更新日期
+        for task in uncompletedTasks {
+            var updatedTask = task
+            
+            // 如果任務原本有設定時間，保留時間部分
+            if let originalDate = task.taskDate {
+                let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalDate)
+                updatedTask.taskDate = calendar.date(byAdding: timeComponents, to: tomorrowStartOfDay)
+            } else {
+                // 如果原本沒有時間，設定為明天的開始時間
+                updatedTask.taskDate = tomorrowStartOfDay
+            }
+            
+            updatedTask.updatedAt = Date()
+            
+            // 使用 DataSyncManager 更新任務
+            dataSyncManager.updateTodoItem(updatedTask) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let savedTask):
+                        print("成功將任務移動到明日: \(savedTask.title)")
+                    case .failure(let error):
+                        print("移動任務到明日失敗: \(updatedTask.title), 錯誤: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+        
+        // 發送通知更新UI
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            NotificationCenter.default.post(
+                name: Notification.Name("TodoItemsDataRefreshed"),
+                object: nil
+            )
         }
     }
 }
