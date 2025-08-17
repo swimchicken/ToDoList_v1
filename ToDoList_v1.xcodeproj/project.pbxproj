@@ -73,6 +73,7 @@
 		EB808BD62E48A14700C79D7D /* TaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB808BD52E48A14300C79D7D /* TaskEditView.swift */; };
 		EB808BDC2E48A3B400C79D7D /* TaskEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB808BDB2E48A3B300C79D7D /* TaskEntry.swift */; };
 		EBCCDAFB2E4F317C0047B5F8 /* HomeBottomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBCCDAFA2E4F317C0047B5F8 /* HomeBottomView.swift */; };
+		EBCCDAFD2E52080D0047B5F8 /* ErrorToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBCCDAFC2E52080B0047B5F8 /* ErrorToastView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -161,6 +162,7 @@
 		EB808BD52E48A14300C79D7D /* TaskEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditView.swift; sourceTree = "<group>"; };
 		EB808BDB2E48A3B300C79D7D /* TaskEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEntry.swift; sourceTree = "<group>"; };
 		EBCCDAFA2E4F317C0047B5F8 /* HomeBottomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeBottomView.swift; sourceTree = "<group>"; };
+		EBCCDAFC2E52080B0047B5F8 /* ErrorToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToastView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -305,6 +307,7 @@
 		7911CE152D6AF4220034BEE6 /* view */ = {
 			isa = PBXGroup;
 			children = (
+				EBCCDAFC2E52080B0047B5F8 /* ErrorToastView.swift */,
 				EB808BD52E48A14300C79D7D /* TaskEditView.swift */,
 				EB808BD12E4748DD00C79D7D /* TaskSelectionOverlay.swift */,
 				7914F9892DEF21B900BD4801 /* PhysicsSceneWrapper.swift */,
@@ -465,6 +468,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */,
+				EBCCDAFD2E52080D0047B5F8 /* ErrorToastView.swift in Sources */,
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
 				793451EE2DEAD9BD00898474 /* Sleep01.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,

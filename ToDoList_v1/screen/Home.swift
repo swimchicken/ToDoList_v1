@@ -14,6 +14,8 @@ struct Home: View {
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
     @State private var dayProgress: Double = 0.0 // 與Sleep01相同，用來顯示進度條
     @State private var taskToEdit: TodoItem?
+    @State private var showToast: Bool = false
+    @State private var toastMessage: String = ""
     
     // 用於監控數據變化的屬性
     @State private var dataRefreshToken: UUID = UUID() // 用於強制視圖刷新
@@ -346,6 +348,13 @@ struct Home: View {
                                     showAddTaskSheet = true
                                 }
                             },
+                            
+                            onError: { errorMessage in
+                                self.toastMessage = errorMessage
+                                withAnimation {
+                                    self.showToast = true
+                                }
+                            },
                             // === 修改點：傳入新的閉包 ===
                             onTasksReceived: { receivedTasks in
                                 self.pendingTasks = receivedTasks
@@ -356,6 +365,8 @@ struct Home: View {
                                     }
                                 }
                             },
+                            
+                    
                             isSleepMode: isSleepMode,
                             alarmTimeString: alarmTimeString,
                             dayProgress: dayProgress,
@@ -368,7 +379,27 @@ struct Home: View {
                 }
                 // === 修改點：更新 blur 條件 ===
                 .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
-
+                
+                //錯誤訊息
+                if showToast {
+                    VStack {
+                        Spacer() // 將 Toast 推至底部
+                        ErrorToastView(message: toastMessage)
+                            .onAppear {
+                                // 讓 Toast 在 3 秒後自動消失
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                    withAnimation {
+                                        showToast = false
+                                    }
+                                }
+                            }
+                        Spacer().frame(height: 100) // 距離底部的距離
+                    }
+                    .transition(.opacity)
+                    .zIndex(999) // 確保在最上層
+                }
+                
+                
                 // 4. ToDoSheetView 彈窗
                 if showToDoSheet {
                     GeometryReader { geometry in
@@ -566,7 +597,10 @@ struct Home: View {
                     .zIndex(500) // 給予最高的層級
                     .transition(.opacity)
                 }
+                
+                
             }
+            
             .animation(.easeOut, value: showToDoSheet)
             .animation(.easeOut, value: showAddTaskSheet)
             .animation(.easeOut, value: showCalendarView)
