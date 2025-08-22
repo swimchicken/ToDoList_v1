@@ -105,7 +105,7 @@ struct SettlementView02: View {
                     VStack(alignment: .leading, spacing: 15) {
                         // 任务列表
                         TaskListView(
-                            tasks: dailyTasks, 
+                            tasks: dailyTasks,
                             onDeleteTask: { taskToDelete in
                                 deleteTask(taskToDelete)
                             },
@@ -174,7 +174,7 @@ struct SettlementView02: View {
                     Button(action: {
                         // 返回上一頁
                         self.presentationMode.wrappedValue.dismiss()
-                    }) { 
+                    }) {
                         Text("返回")
                             .font(Font.custom("Inria Sans", size: 20))
                             .foregroundColor(.white)
@@ -189,7 +189,7 @@ struct SettlementView02: View {
                         
                         // 仍然導航到 SettlementView03 來設置鬧鐘
                         navigateToSettlementView03 = true
-                    }) { 
+                    }) {
                         Text("Next")
                             .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                             .multilineTextAlignment(.center)
@@ -489,13 +489,13 @@ struct PriorityStarsView: View {
     
     var body: some View {
         HStack(spacing: 2) {
-            if priority > 0 { 
-                ForEach(0..<min(priority, 3), id: \.self) { _ in 
+            if priority > 0 {
+                ForEach(0..<min(priority, 3), id: \.self) { _ in
                     Image("Star")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 14, height: 14) 
-                } 
+                        .frame(width: 14, height: 14)
+                }
             }
         }
     }
@@ -510,8 +510,8 @@ struct TimeDisplayView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         
-        let displayText = taskDate != nil ? 
-            formatter.string(from: taskDate!) : 
+        let displayText = taskDate != nil ?
+            formatter.string(from: taskDate!) :
             "00:00"
         
         return Text(displayText)
@@ -901,9 +901,9 @@ struct SettlementTodoQueueView: View {
             return items.filter { $0.taskDate == nil }
         case "未完成":
             // 未完成 - 有時間且狀態為未完成
-            return items.filter { 
-                $0.taskDate != nil && 
-                ($0.status == .undone || $0.status == .toBeStarted) 
+            return items.filter {
+                $0.taskDate != nil &&
+                ($0.status == .undone || $0.status == .toBeStarted)
             }
         default:
             return items
@@ -1150,5 +1150,6 @@ struct SettlementView02_Previews: PreviewProvider {
         ]
         
         SettlementView02(uncompletedTasks: testItems, moveTasksToTomorrow: true)
+            .environmentObject(AlarmStateManager())
     }
 }

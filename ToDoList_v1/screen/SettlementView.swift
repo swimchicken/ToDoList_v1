@@ -532,7 +532,7 @@ struct TaskRow: View {
                 .lineLimit(1)
                 // 根據需求在結算頁面不顯示刪除線
                 // .overlay(
-                //     isCompleted ? 
+                //     isCompleted ?
                 //         Rectangle()
                 //         .fill(greenColor)
                 //         .frame(height: 1.5)
@@ -642,5 +642,6 @@ struct BottomControlsView: View {
 struct SettlementView_Previews: PreviewProvider {
     static var previews: some View {
         SettlementView()
+            .environmentObject(AlarmStateManager())
     }
 }

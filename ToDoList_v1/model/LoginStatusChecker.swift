@@ -15,9 +15,12 @@ class LoginStatusChecker {
         // 檢查是否有持久化的登入狀態
         let hasPersistedLogin = UserDefaults.standard.bool(forKey: "hasPersistedLogin")
         
-        // 取得儲存的 Apple 授權 ID
-        guard let userId = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
-            print("LoginStatusChecker: 無Apple用戶ID，導向登入頁面")
+        // 檢查 Apple 或 Google 用戶 ID
+        let appleUserId = UserDefaults.standard.string(forKey: "appleAuthorizedUserId")
+        let googleUserId = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
+        
+        guard let userId = appleUserId ?? googleUserId else {
+            print("LoginStatusChecker: 無Apple或Google用戶ID，導向登入頁面")
             completion(.login)
             return
         }
@@ -29,15 +32,18 @@ class LoginStatusChecker {
             return
         }
         
+        // 決定登入提供者
+        let provider = appleUserId != nil ? "Apple" : "Google"
+        
         // 否則檢查雲端用戶記錄（僅用於首次登入驗證）
         print("LoginStatusChecker: 首次登入驗證，檢查雲端用戶記錄")
-        performLoginStatusQuery(userId: userId, completion: completion)
+        performLoginStatusQuery(userId: userId, provider: provider, completion: completion)
     }
     
     /// 執行實際的登入狀態查詢（僅用於首次登入驗證）
-    private func performLoginStatusQuery(userId: String, completion: @escaping (Destination) -> Void) {
+    private func performLoginStatusQuery(userId: String, provider: String, completion: @escaping (Destination) -> Void) {
         let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
-        let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
+        let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, provider)
         let query = CKQuery(recordType: "ApiUser", predicate: predicate)
         let defaultZoneID = CKRecordZone.default().zoneID
         print("LoginStatusChecker: 執行首次登入驗證查詢: \(query)")
@@ -63,10 +69,10 @@ class LoginStatusChecker {
             case .failure(let error):
                 print("登入狀態查詢錯誤：\(error.localizedDescription)")
                 
-                // CloudKit錯誤時，如果本地有Apple ID就信任並設置持久化狀態
+                // CloudKit錯誤時，如果本地有用戶ID就信任並設置持久化狀態
                 let nsError = error as NSError
                 if nsError.domain == CKErrorDomain || error.localizedDescription.contains("auth token") {
-                    print("LoginStatusChecker: CloudKit不可用但有Apple ID，設置持久化登入狀態")
+                    print("LoginStatusChecker: CloudKit不可用但有\(provider)用戶ID，設置持久化登入狀態")
                     DispatchQueue.main.async {
                         UserDefaults.standard.set(true, forKey: "hasPersistedLogin")
                         completion(.home)
@@ -85,6 +91,7 @@ class LoginStatusChecker {
     func clearPersistedLogin() {
         UserDefaults.standard.removeObject(forKey: "hasPersistedLogin")
         UserDefaults.standard.removeObject(forKey: "appleAuthorizedUserId")
+        UserDefaults.standard.removeObject(forKey: "googleAuthorizedUserId")
         print("LoginStatusChecker: 已清除持久化登入狀態")
     }
 }
