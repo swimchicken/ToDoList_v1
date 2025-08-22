@@ -81,6 +81,11 @@ struct TestPage: View {
     }
 }
 
+// 通知擴展
+extension Notification.Name {
+    static let userDidLogout = Notification.Name("userDidLogout")
+}
+
 #Preview {
     TestPage()
 }

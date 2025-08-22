@@ -13,6 +13,10 @@
 		286219312E3BD310003C05D8 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 286219302E3BD310003C05D8 /* GoogleSignIn */; };
 		286219332E3BD310003C05D8 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 286219322E3BD310003C05D8 /* GoogleSignInSwift */; };
 		28C15EE52E3667D0008942E8 /* AlarmStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */; };
+		28E117012E58B43800DE2142 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117002E58B43800DE2142 /* GeminiService.swift */; };
+		28E117052E58B57100DE2142 /* ErrorToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117042E58B57100DE2142 /* ErrorToastView.swift */; };
+		28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117062E58B59E00DE2142 /* TaskEditView.swift */; };
+		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
@@ -124,6 +128,10 @@
 		2862192D2E3BD073003C05D8 /* TestPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestPage.swift; sourceTree = "<group>"; };
 		286219342E3BD557003C05D8 /* client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist"; sourceTree = "<group>"; };
 		28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmStateManager.swift; sourceTree = "<group>"; };
+		28E117002E58B43800DE2142 /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
+		28E117042E58B57100DE2142 /* ErrorToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToastView.swift; sourceTree = "<group>"; };
+		28E117062E58B59E00DE2142 /* TaskEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditView.swift; sourceTree = "<group>"; };
+		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
@@ -316,6 +324,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				28E117002E58B43800DE2142 /* GeminiService.swift */,
 				282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */,
 				2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */,
 				28C15EE42E3667D0008942E8 /* AlarmStateManager.swift */,
@@ -370,6 +379,9 @@
 		7911CE152D6AF4220034BEE6 /* view */ = {
 			isa = PBXGroup;
 			children = (
+				28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */,
+				28E117062E58B59E00DE2142 /* TaskEditView.swift */,
+				28E117042E58B57100DE2142 /* ErrorToastView.swift */,
 				7914F98B2DEF22C600BD4801 /* HomeBottomView.swift */,
 				7914F9892DEF21B900BD4801 /* PhysicsSceneWrapper.swift */,
 				79F7C2482D94060100B2E19E /* codefield.swift */,
@@ -579,7 +591,9 @@
 				792C74272DE1F9FA00ACF98D /* SettlementView02.swift in Sources */,
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
+				28E117012E58B43800DE2142 /* GeminiService.swift in Sources */,
 				793451F22DEB439E00898474 /* CompleteDayDataManager.swift in Sources */,
+				28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */,
 				7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */,
 				792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */,
 				790FF7942DCA499200B9C70B /* CloudKitService.swift in Sources */,
@@ -593,6 +607,7 @@
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
 				7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */,
 				792C742D2DE22D4900ACF98D /* SettlementView03.swift in Sources */,
+				28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */,
 				793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */,
 				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
@@ -609,6 +624,7 @@
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				79161FA52DFF30B60020B67F /* DeleteItemView.swift in Sources */,
+				28E117052E58B57100DE2142 /* ErrorToastView.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
 				79F7C2612D97E8C000B2E19E /* Event.swift in Sources */,
 				2862192C2E3BCEC7003C05D8 /* GoogleSignInManager.swift in Sources */,

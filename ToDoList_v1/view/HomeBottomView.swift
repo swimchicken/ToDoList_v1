@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 // MARK: - UI Helpers
 
@@ -45,6 +46,8 @@ struct HomeBottomView: View {
     let onEndTodayTapped: () -> Void
     let onReturnToTodayTapped: () -> Void
     let onAddButtonTapped: () -> Void
+    let onError: (String) -> Void
+    let onTasksReceived: ([TodoItem]) -> Void
     
     // 是否處於睡眠模式
     let isSleepMode: Bool
@@ -60,16 +63,17 @@ struct HomeBottomView: View {
     @State private var isSavingRecording = false
     @State private var isSendingText = false
     
+    
     @Namespace private var namespace
     
-    // 新增：鍵盤高度狀態管理
     @State private var keyboardHeight: CGFloat = 0
-
-    // 語音辨識管理器
+    
+    // 管理器
     @StateObject private var speechManager = SpeechManager()
-
+    @StateObject private var geminiService = GeminiService() // 新增 Gemini 服務
+    
     var body: some View {
-        ZStack { // 使用 ZStack 作為根視圖，以便忽略安全區域
+        ZStack {
             VStack {
                 Spacer()
                 
@@ -85,10 +89,11 @@ struct HomeBottomView: View {
                 
                 Spacer().frame(height: 20)
             }
+            
         }
         .padding(.horizontal, 10)
-        .ignoresSafeArea(.keyboard, edges: .bottom) // 忽略鍵盤，防止灰色背景被推動
-        .keyboardReadable(height: $keyboardHeight) // 將鍵盤監聽器應用到根視圖
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .keyboardReadable(height: $keyboardHeight)
         .animation(.spring(response: 0.3), value: isCurrentDay)
         .animation(.spring(response: 0.3), value: isSleepMode)
         .onAppear {
@@ -112,7 +117,7 @@ struct HomeBottomView: View {
                         Button(action: onEndTodayTapped) {
                             if isSyncing {
                                 HStack { Text("同步中..."); ProgressView() }
-                                .frame(maxWidth: .infinity)
+                                    .frame(maxWidth: .infinity)
                             } else {
                                 Text("end today").frame(maxWidth: .infinity)
                             }
@@ -152,11 +157,10 @@ struct HomeBottomView: View {
                         .onChange(of: geometry.size.width) { self.grayBoxWidth = $0 }
                 }
             )
-            // 將移動的元件放回 .overlay 中，並確保 alignment 為 .bottomTrailing
             .overlay(alignment: .bottomTrailing) {
                 let bottomPadding: CGFloat = -10
                 let offset = (isTextInputMode && keyboardHeight > 0) ? -keyboardHeight + safeAreaInsets.bottom - bottomPadding : 0
-
+                
                 // 圖層 2: 會移動的元件 (輸入框 + 星星)
                 ZStack(alignment: .bottomTrailing) {
                     // 星星
@@ -183,7 +187,7 @@ struct HomeBottomView: View {
                         .frame(height: 60)
                     }
                     .allowsHitTesting(false)
-
+                    
                     // 輸入框 / AI 按鈕
                     ZStack {
                         if isTextInputMode {
@@ -192,7 +196,11 @@ struct HomeBottomView: View {
                                 isTextInputMode: $isTextInputMode,
                                 isSending: $isSendingText,
                                 text: $newTodoText,
-                                width: max(60, grayBoxWidth - 20)
+                                width: max(60, grayBoxWidth - 20),
+                                onSend: { textToSend in
+                                    // 這是新的回調，當按下傳送按鈕時觸發
+                                    handleSend(text: textToSend)
+                                }
                             )
                         } else {
                             ExpandableSoundButton(
@@ -216,43 +224,6 @@ struct HomeBottomView: View {
         }
         .transition(.opacity.combined(with: .scale))
     }
-    
-    // 輔助屬性，用於獲取底部安全區域的高度
-    private var safeAreaInsets: UIEdgeInsets {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?
-            .windows
-            .first?
-            .safeAreaInsets ?? .zero
-    }
-    
-    private func startRecording() {
-        isRecording = true
-        speechManager.start()
-    }
-    
-    private func endRecording() {
-        isSavingRecording = true
-        speechManager.stop { recognizedText in
-            // 這個 completion handler 會在2秒動畫結束後被呼叫
-            isSavingRecording = false
-            isRecording = false
-            
-            if !recognizedText.isEmpty {
-                newTodoText = recognizedText
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    isTextInputMode = true
-                }
-            }
-        }
-    }
-    
-    private func cancelRecording() {
-        speechManager.cancel()
-        isRecording = false
-    }
-    
     // ... otherDayView and sleepModeView remain the same ...
     private var otherDayView: some View {
         HStack {
@@ -342,450 +313,554 @@ struct HomeBottomView: View {
         .background(RoundedRectangle(cornerRadius: 32).fill(Color.white.opacity(0.15)))
         .transition(.opacity.combined(with: .scale))
     }
-}
-
-// MARK: - Subviews
-
-struct ExpandableSoundButton: View {
-    let namespace: Namespace.ID
-    @Binding var isRecording: Bool
-    @Binding var isTextInputMode: Bool
-    @Binding var isSaving: Bool
     
-    let audioLevel: Double
-    let onRecordingStart: () -> Void
-    let onRecordingEnd: () -> Void
-    let onRecordingCancel: () -> Void
-    let expandedWidth: CGFloat
-    
-    @State private var dragLocation: CGPoint = .zero
-    @State private var isOverCancelButton = false
-    @State private var isOverSendButton = true
-    @State private var pressEffectScale: CGFloat = 1.0
-    @State private var cancelPressEffectScale: CGFloat = 0.0
-    
-    @State private var showRecordingContents = false
-
-    private var currentWidth: CGFloat {
-        isRecording || isSaving ? expandedWidth : 60
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 30)
-                .fill(Color(red: 0, green: 0.72, blue: 0.41))
-                .matchedGeometryEffect(id: "aiButton", in: namespace)
-
-            if isRecording || isSaving { // 在錄音或儲存時都顯示錄音視圖
-                if showRecordingContents {
-                    recordingView
-                }
-            } else {
-                defaultView
-            }
-        }
-        .frame(width: currentWidth, height: 60)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording || isSaving)
-        .onTapGesture {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                isTextInputMode = true
-            }
-        }
-        .gesture(longPressGesture)
-        .onChange(of: isRecording) { newValue in
-            if newValue {
-                // 延遲顯示內容以配合展開動畫
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    showRecordingContents = true
-                }
-            } else if !isSaving { // 只有在不是儲存狀態時才隱藏
-                showRecordingContents = false
-            }
-        }
-        .onChange(of: isSaving) { newValue in
-            // 當儲存結束時，隱藏內容
-            if !newValue {
-                showRecordingContents = false
-            }
-        }
+    // 輔助屬性，用於獲取底部安全區域的高度
+    private var safeAreaInsets: UIEdgeInsets {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?
+            .windows
+            .first?
+            .safeAreaInsets ?? .zero
     }
     
-    private var defaultView: some View {
-        ZStack {
-            Image("Star 12")
-                .resizable().scaledToFit().frame(width: 20, height: 20)
-                .foregroundColor(.white).offset(x: -4, y: -4)
-            Image("Star 12")
-                .resizable().scaledToFit().frame(width: 11, height: 11)
-                .foregroundColor(.white).offset(x: 7, y: 7)
-        }
+    private func startRecording() {
+        isRecording = true
+        speechManager.start()
     }
     
-    private var recordingView: some View {
-        HStack(spacing: 0) {
-            // 取消按鈕
-            Button(action: { cancelRecording() }) {
-                ZStack {
-                    ZStack {
-                        Circle().stroke(Color.white, lineWidth: 1.5).frame(width: 47, height: 47)
-                        Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).foregroundColor(.white)
-                    }.opacity(isOverCancelButton ? 0 : 1)
-                    ZStack {
-                        Circle().fill(Color.white).frame(width: 47, height: 47)
-                        Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                    }.opacity(isOverCancelButton ? 1 : 0)
-                }
-            }
-            .frame(width: 60, height: 60)
-            .background(
-                Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
-                    .scaleEffect(cancelPressEffectScale)
-                    .opacity(isOverCancelButton ? 1 : 0)
-            )
-            .opacity(isSaving ? 0 : 1) // 儲存時隱藏取消按鈕
-            .transition(.move(edge: .leading).combined(with: .opacity))
+    // 修正點：將 endRecording 的邏輯改回先切換到文字模式
+    private func endRecording() {
+        isSavingRecording = true
+        speechManager.stop { recognizedText in
+            isSavingRecording = false
+            isRecording = false
             
-            // 將聲波圖和載入動畫放在 ZStack 中
-            ZStack {
-                AudioWaveformView(audioLevel: audioLevel, isSaving: $isSaving)
-                
-                if isSaving {
-                    LoadingIndicatorView()
+            if !recognizedText.isEmpty {
+                // 語音辨識完成後，設定文字並切換到點按模式
+                newTodoText = recognizedText
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = true
                 }
             }
-            .frame(maxWidth: .infinity)
-            .transition(.opacity.combined(with: .scale))
-            
-            // 完成按鈕
-            ZStack {
-                ZStack {
-                    ZStack {
-                        Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
-                        Circle().stroke(Color.white, lineWidth: 1.5)
-                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
-                    }
-                    .frame(width: 50, height: 50)
-                    .opacity(isOverSendButton ? 0 : 1)
-                    
-                    ZStack {
-                        Circle().fill(Color.white)
-                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                    }
-                    .frame(width: 50, height: 50)
-                    .opacity(isOverSendButton ? 1 : 0)
-                    
-                    Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
-                        .scaleEffect(pressEffectScale)
-                        .opacity(isOverSendButton ? 1 : 0)
-                }
-            }
-            .frame(width: 60, height: 60)
-            .opacity(isSaving ? 0 : 1) // 儲存時隱藏完成按鈕
-            .transition(.opacity)
         }
-        .transition(.opacity)
-    }
-    
-    private var longPressGesture: some Gesture {
-        LongPressGesture(minimumDuration: 0.5)
-            .onEnded { _ in
-                if !isRecording && !isTextInputMode {
-                    onRecordingStart()
-                }
-            }
-            .simultaneously(with: dragGesture)
-    }
-    
-    private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { value in
-                if isRecording {
-                    dragLocation = value.location
-                    let sendButtonFrame = CGRect(x: currentWidth - 60, y: 0, width: 60, height: 60)
-                    let cancelButtonFrame = CGRect(x: 0, y: 0, width: 60, height: 60)
-                    self.isOverSendButton = sendButtonFrame.contains(value.location)
-                    self.isOverCancelButton = cancelButtonFrame.contains(value.location)
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                        self.pressEffectScale = self.isOverSendButton ? 1.0 : 0.0
-                        self.cancelPressEffectScale = self.isOverCancelButton ? 1.0 : 0.0
-                    }
-                }
-            }
-            .onEnded { value in
-                if isRecording {
-                    if isOverCancelButton {
-                        cancelRecording()
-                    } else {
-                        completeRecording()
-                    }
-                    dragLocation = .zero
-                    isOverCancelButton = false
-                    isOverSendButton = true
-                    pressEffectScale = 1.0
-                    cancelPressEffectScale = 0.0
-                }
-            }
     }
     
     private func cancelRecording() {
-        onRecordingCancel()
+        speechManager.cancel()
+        isRecording = false
     }
     
-    private func completeRecording() {
-        onRecordingEnd()
+    // 修改後的 handleSend 函式
+    private func handleSend(text: String) {
+        guard !text.isEmpty else { return }
+        
+        isSendingText = true
+        /*
+         // --- 為了測試，暫時模擬 API 錯誤 ---
+         print("🧪 正在模擬 API 錯誤...")
+         
+         // 模擬 1.5 秒的網路延遲
+         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+         // 直接手動呼叫 onError 來觸發 Toast
+         onError("轉譯錯誤，請再試一次")
+         
+         // --- 同時也要記得重設 UI 狀態 ---
+         isSendingText = false
+         newTodoText = ""
+         withAnimation(.spring()) {
+         isTextInputMode = false
+         }
+         }
+         */
+        
+        geminiService.analyzeText(text) { result in
+            // ✨✨✨ 這是修改過的地方 ✨✨✨
+            // 現在 result 的 success case 直接就是 [TodoItem]
+            switch result {
+            case .success(let items):
+                print("✅ Gemini API 成功回傳!")
+                print("任務總數: \(items.count)")
+                
+                isSendingText = false
+                
+                // === 修改的核心：不再設定本地 State，而是呼叫閉包通知 Home ===
+                onTasksReceived(items)
+                
+                newTodoText = ""
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = false
+                }
+                
+            case .failure(let error):
+                print("❌ Gemini API 錯誤: \(error.localizedDescription)")
+                
+                // 呼叫 onError 閉包來顯示 Toast
+                onError("轉譯錯誤，請再試一次")
+                
+                // 停止傳送狀態
+                isSendingText = false
+                
+                // 清空文字並關閉輸入模式
+                newTodoText = ""
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = false
+                }
+                
+            }
+            
+        }
+        
+        
     }
     
-    struct LoadingIndicatorView: View {
-        @State private var isAnimating = false
-
+    // MARK: - Subviews
+    
+    struct ExpandableSoundButton: View {
+        let namespace: Namespace.ID
+        @Binding var isRecording: Bool
+        @Binding var isTextInputMode: Bool
+        @Binding var isSaving: Bool
+        
+        let audioLevel: Double
+        let onRecordingStart: () -> Void
+        let onRecordingEnd: () -> Void
+        let onRecordingCancel: () -> Void
+        let expandedWidth: CGFloat
+        
+        @State private var dragLocation: CGPoint = .zero
+        @State private var isOverCancelButton = false
+        @State private var isOverSendButton = true
+        @State private var pressEffectScale: CGFloat = 1.0
+        @State private var cancelPressEffectScale: CGFloat = 0.0
+        
+        @State private var showRecordingContents = false
+        
+        @State private var recordingHintText: String = ""
+        
+        private var currentWidth: CGFloat {
+            isRecording || isSaving ? expandedWidth : 60
+        }
+        
         var body: some View {
-            GeometryReader { geometry in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            ZStack(alignment: .top) {
+                Text(recordingHintText)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.7), radius: 5, x: 0, y: 2)
+                    .offset(y: -50)
+                    .opacity(isRecording && !recordingHintText.isEmpty ? 1 : 0)
+                    .animation(.easeInOut, value: recordingHintText)
+                    .zIndex(1)
                 
                 ZStack {
-                    ForEach(0..<8) { i in
-                        Path { path in
-                            path.addArc(
-                                center: center, radius: 20,
-                                startAngle: .degrees(Double(i) * 45 + 1),
-                                endAngle: .degrees(Double(i) * 45 + 20),
-                                clockwise: false
-                            )
+                    RoundedRectangle(cornerRadius: 30)
+                        .fill(Color(red: 0, green: 0.72, blue: 0.41))
+                        .matchedGeometryEffect(id: "aiButton", in: namespace)
+                    
+                    if isRecording || isSaving {
+                        if showRecordingContents {
+                            recordingView
                         }
-                        .stroke(style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .foregroundColor(.white)
+                    } else {
+                        defaultView
                     }
                 }
-                .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
-                .onAppear {
-                    withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
-                        isAnimating = true
+                .frame(width: currentWidth, height: 60)
+                .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording || isSaving)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        isTextInputMode = true
                     }
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
+                .gesture(longPressGesture)
+                .onChange(of: isRecording) { newValue in
+                    if newValue {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showRecordingContents = true
+                        }
+                    } else if !isSaving {
+                        showRecordingContents = false
+                    }
+                }
+                .onChange(of: isSaving) { newValue in
+                    if !newValue {
+                        showRecordingContents = false
+                    }
+                }
+            }
+        }
+        
+        private var defaultView: some View {
+            ZStack {
+                Image("Star 12")
+                    .resizable().scaledToFit().frame(width: 20, height: 20)
+                    .foregroundColor(.white).offset(x: -4, y: -4)
+                Image("Star 12")
+                    .resizable().scaledToFit().frame(width: 11, height: 11)
+                    .foregroundColor(.white).offset(x: 7, y: 7)
+            }
+        }
+        
+        private var recordingView: some View {
+            HStack(spacing: 0) {
+                Button(action: { cancelRecording() }) {
+                    ZStack {
+                        ZStack {
+                            Circle().stroke(Color.white, lineWidth: 1.5).frame(width: 47, height: 47)
+                            Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).foregroundColor(.white)
+                        }.opacity(isOverCancelButton ? 0 : 1)
+                        ZStack {
+                            Circle().fill(Color.white).frame(width: 47, height: 47)
+                            Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                        }.opacity(isOverCancelButton ? 1 : 0)
+                    }
+                }
+                .frame(width: 60, height: 60)
+                .background(
+                    Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
+                        .scaleEffect(cancelPressEffectScale)
+                        .opacity(isOverCancelButton ? 1 : 0)
+                )
+                .opacity(isSaving ? 0 : 1)
+                .transition(.move(edge: .leading).combined(with: .opacity))
+                
+                ZStack {
+                    AudioWaveformView(audioLevel: audioLevel, isSaving: $isSaving)
+                    if isSaving {
+                        LoadingIndicatorView()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .transition(.opacity.combined(with: .scale))
+                
+                ZStack {
+                    ZStack {
+                        ZStack {
+                            Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
+                            Circle().stroke(Color.white, lineWidth: 1.5)
+                            Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
+                        }
+                        .frame(width: 50, height: 50)
+                        .opacity(isOverSendButton ? 0 : 1)
+                        
+                        ZStack {
+                            Circle().fill(Color.white)
+                            Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                        }
+                        .frame(width: 50, height: 50)
+                        .opacity(isOverSendButton ? 1 : 0)
+                        
+                        Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
+                            .scaleEffect(pressEffectScale)
+                            .opacity(isOverSendButton ? 1 : 0)
+                    }
+                }
+                .frame(width: 60, height: 60)
+                .opacity(isSaving ? 0 : 1)
+                .transition(.opacity)
+            }
+            .transition(.opacity)
+        }
+        
+        private var longPressGesture: some Gesture {
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in
+                    if !isRecording && !isTextInputMode {
+                        onRecordingStart()
+                    }
+                }
+                .simultaneously(with: dragGesture)
+        }
+        
+        private var dragGesture: some Gesture {
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if isRecording {
+                        dragLocation = value.location
+                        let sendButtonFrame = CGRect(x: currentWidth - 60, y: 0, width: 60, height: 60)
+                        let cancelButtonFrame = CGRect(x: 0, y: 0, width: 60, height: 60)
+                        
+                        self.isOverSendButton = sendButtonFrame.contains(value.location)
+                        self.isOverCancelButton = cancelButtonFrame.contains(value.location)
+                        
+                        if self.isOverCancelButton {
+                            self.recordingHintText = "Release to cancel"
+                        } else if self.isOverSendButton {
+                            self.recordingHintText = "Release to send..."
+                        } else {
+                            self.recordingHintText = ""
+                        }
+                        
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                            self.pressEffectScale = self.isOverSendButton ? 1.0 : 0.0
+                            self.cancelPressEffectScale = self.isOverCancelButton ? 1.0 : 0.0
+                        }
+                    }
+                }
+                .onEnded { value in
+                    if isRecording {
+                        if isOverCancelButton {
+                            cancelRecording()
+                        } else {
+                            completeRecording()
+                        }
+                        dragLocation = .zero
+                        isOverCancelButton = false
+                        isOverSendButton = true
+                        pressEffectScale = 1.0
+                        cancelPressEffectScale = 0.0
+                        recordingHintText = ""
+                    }
+                }
+        }
+        
+        private func cancelRecording() {
+            onRecordingCancel()
+        }
+        
+        private func completeRecording() {
+            onRecordingEnd()
+        }
+        
+        struct LoadingIndicatorView: View {
+            @State private var isAnimating = false
+            
+            var body: some View {
+                GeometryReader { geometry in
+                    let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    
+                    ZStack {
+                        ForEach(0..<8) { i in
+                            Path { path in
+                                path.addArc(
+                                    center: center, radius: 20,
+                                    startAngle: .degrees(Double(i) * 45 + 1),
+                                    endAngle: .degrees(Double(i) * 45 + 20),
+                                    clockwise: false
+                                )
+                            }
+                            .stroke(style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .foregroundColor(.white)
+                        }
+                    }
+                    .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                    .onAppear {
+                        withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
+                            isAnimating = true
+                        }
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                }
             }
         }
     }
-}
-
-struct TextInputView: View {
-    let namespace: Namespace.ID
-    @Binding var isTextInputMode: Bool
-    @Binding var isSending: Bool
-    @Binding var text: String
-    let width: CGFloat
-    @FocusState private var isTextFieldFocused: Bool
     
-    @State private var showContents = false
-
-    var body: some View {
-        ZStack {
-            // 將背景色固定為白色
-            RoundedRectangle(cornerRadius: 30)
-                .fill(Color.white)
-                .matchedGeometryEffect(id: "aiButton", in: namespace)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .stroke(Color(red: 0, green: 0.72, blue: 0.41), lineWidth: 2)
-                        .shadow(color: Color(red: 0, green: 0.72, blue: 0.41).opacity(0.8), radius: 8, x: 0, y: 0)
-                        .shadow(color: Color(red: 0, green: 0.72, blue: 0.41).opacity(0.5), radius: 4, x: 0, y: 0)
-                )
-
-            if showContents {
-                HStack(spacing: 0) {
-                    Button(action: { closeTextInput() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.gray)
-                    }
-                    .frame(width: 60, height: 60)
-                    
-                    ZStack(alignment: .leading) {
-                        TextField("輸入待辦事項, 或直接跟 AI 說要做什麼", text: $text)
-                            .focused($isTextFieldFocused)
-                            .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                            .opacity(isSending ? 0 : 1)
+    struct TextInputView: View {
+        let namespace: Namespace.ID
+        @Binding var isTextInputMode: Bool
+        @Binding var isSending: Bool
+        @Binding var text: String
+        let width: CGFloat
+        var onSend: (String) -> Void // 新增回調
+        
+        @FocusState private var isTextFieldFocused: Bool
+        @State private var showContents = false
+        
+        var body: some View {
+            ZStack {
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color.white)
+                    .matchedGeometryEffect(id: "aiButton", in: namespace)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 30)
+                            .stroke(Color(red: 0, green: 0.72, blue: 0.41), lineWidth: 2)
+                            .shadow(color: Color(red: 0, green: 0.72, blue: 0.41).opacity(0.8), radius: 8, x: 0, y: 0)
+                            .shadow(color: Color(red: 0, green: 0.72, blue: 0.41).opacity(0.5), radius: 4, x: 0, y: 0)
+                    )
+                
+                if showContents {
+                    HStack(spacing: 0) {
+                        Button(action: { closeTextInput() }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(.gray)
+                        }
+                        .frame(width: 60, height: 60)
+                        
+                        ZStack(alignment: .leading) {
+                            TextField("輸入待辦事項, 或直接跟 AI 說要做什麼", text: $text)
+                                .focused($isTextFieldFocused)
+                                .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                .opacity(isSending ? 0 : 1)
+                            
+                            if isSending {
+                                AnimatedGradientTextView(text: text)
+                            }
+                        }
                         
                         if isSending {
-                            AnimatedGradientTextView(text: text)
-                        }
-                    }
-                    
-                    if isSending {
-                        TextLoadingIndicatorView()
-                            .frame(width: 44, height: 44)
-                            .padding(.trailing, 8)
-                    } else if !text.isEmpty {
-                        Button(action: {
-                            isSending = true
-                            isTextFieldFocused = false
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                                print("傳送文字: \(text)")
-                                text = ""
-                                isSending = false
-                                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                    isTextInputMode = false
+                            TextLoadingIndicatorView()
+                                .frame(width: 44, height: 44)
+                                .padding(.trailing, 8)
+                        } else if !text.isEmpty {
+                            // 確保按鈕呼叫 onSend 回調
+                            Button(action: {
+                                onSend(text)
+                            }) {
+                                ZStack {
+                                    Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
+                                    Image(systemName: "arrow.up")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(.white)
                                 }
                             }
-                        }) {
-                            ZStack {
-                                Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
-                                Image(systemName: "arrow.up")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                            .frame(width: 44, height: 44)
+                            .padding(.trailing, 8)
+                            .transition(.scale.animation(.spring()))
                         }
-                        .frame(width: 44, height: 44)
-                        .padding(.trailing, 8)
-                        .transition(.scale.animation(.spring()))
                     }
+                    .transition(.opacity.animation(.easeIn(duration: 0.3).delay(0.2)))
                 }
-                .transition(.opacity.animation(.easeIn(duration: 0.3).delay(0.2)))
             }
-        }
-        .frame(width: width, height: 60)
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showContents = true
-            }
-        }
-        .onChange(of: isTextInputMode) { newValue in
-            if !newValue {
-                isTextFieldFocused = false
-            }
-        }
-    }
-    
-    private func closeTextInput() {
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-            isTextInputMode = false
-        }
-        isTextFieldFocused = false
-    }
-    
-    struct TextLoadingIndicatorView: View {
-        @State private var isAnimating = false
-
-        var body: some View {
-            GeometryReader { geometry in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                
-                ZStack {
-                    ForEach(0..<4) { i in
-                        Path { path in
-                            path.addArc(
-                                center: center, radius: 14,
-                                startAngle: .degrees(Double(i) * 90 + 35),
-                                endAngle: .degrees(Double(i) * 90 + 75),
-                                clockwise: false
-                            )
-                        }
-                        .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                    }
-                }
-                .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
-                .onAppear {
-                    withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
-                        isAnimating = true
-                    }
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-            }
-        }
-    }
-}
-
-struct AnimatedGradientTextView: View {
-    let text: String
-    @State private var gradientStartPoint: UnitPoint = .init(x: -1, y: 0.5)
-    
-    private let gradientColors = [
-        Color.green.opacity(0.7), Color.cyan.opacity(0.7), Color.blue.opacity(0.7),
-        Color.purple.opacity(0.7), Color.pink.opacity(0.7), Color.green.opacity(0.7)
-    ]
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: 17))
-            .foregroundColor(.clear)
-            .overlay(
-                LinearGradient(
-                    colors: gradientColors,
-                    startPoint: gradientStartPoint,
-                    endPoint: .init(x: gradientStartPoint.x + 1, y: 0.5)
-                )
-                .mask(Text(text).font(.system(size: 17)))
-            )
+            .frame(width: width, height: 60)
             .onAppear {
-                withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                    gradientStartPoint = .init(x: 1, y: 0.5)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showContents = true
                 }
             }
-    }
-}
-
-// 全新的 AudioWaveformView
-struct AudioWaveformView: View {
-    let audioLevel: Double
-    @Binding var isSaving: Bool
-    
-    @State private var waveformData: [Double] = Array(repeating: 0, count: 30)
-    @State private var savingTimer: Timer?
-    
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<waveformData.count, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.white)
-                    // 增加高度的乘數，讓起伏更明顯
-                    .frame(width: 3, height: max(4, waveformData[index] * 55))
+            .onChange(of: isTextInputMode) { newValue in
+                if !newValue {
+                    isTextFieldFocused = false
+                }
             }
         }
-        .animation(.easeOut(duration: 0.1), value: waveformData)
-        .onChange(of: audioLevel) { newLevel in
-            // 只有在非儲存狀態下才根據真實音量更新
-            if !isSaving {
+        
+        private func closeTextInput() {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                isTextInputMode = false
+            }
+            isTextFieldFocused = false
+        }
+        
+        struct TextLoadingIndicatorView: View {
+            @State private var isAnimating = false
+            
+            var body: some View {
+                GeometryReader { geometry in
+                    let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    
+                    ZStack {
+                        ForEach(0..<4) { i in
+                            Path { path in
+                                path.addArc(
+                                    center: center, radius: 14,
+                                    startAngle: .degrees(Double(i) * 90 + 35),
+                                    endAngle: .degrees(Double(i) * 90 + 75),
+                                    clockwise: false
+                                )
+                            }
+                            .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                        }
+                    }
+                    .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                    .onAppear {
+                        withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
+                            isAnimating = true
+                        }
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                }
+            }
+        }
+    }
+    
+    struct AnimatedGradientTextView: View {
+        let text: String
+        @State private var gradientStartPoint: UnitPoint = .init(x: -1, y: 0.5)
+        
+        private let gradientColors = [
+            Color.green.opacity(0.7), Color.cyan.opacity(0.7), Color.blue.opacity(0.7),
+            Color.purple.opacity(0.7), Color.pink.opacity(0.7), Color.green.opacity(0.7)
+        ]
+        
+        var body: some View {
+            Text(text)
+                .font(.system(size: 17))
+                .foregroundColor(.clear)
+                .overlay(
+                    LinearGradient(
+                        colors: gradientColors,
+                        startPoint: gradientStartPoint,
+                        endPoint: .init(x: gradientStartPoint.x + 1, y: 0.5)
+                    )
+                    .mask(Text(text).font(.system(size: 17)))
+                )
+                .onAppear {
+                    withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                        gradientStartPoint = .init(x: 1, y: 0.5)
+                    }
+                }
+        }
+    }
+    
+    struct AudioWaveformView: View {
+        let audioLevel: Double
+        @Binding var isSaving: Bool
+        
+        private let barCount = 50
+        @State private var waveformData: [Double] = Array(repeating: 0, count: 50)
+        @State private var savingTimer: Timer?
+        
+        var body: some View {
+            HStack(spacing: 2) {
+                ForEach(0..<waveformData.count, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(Color.white)
+                        .frame(width: 3, height: max(4, waveformData[index] * 55))
+                }
+            }
+            .animation(.easeOut(duration: 0.1), value: waveformData)
+            .onChange(of: audioLevel) { newLevel in
+                if !isSaving {
+                    updateWaveform(with: newLevel)
+                }
+            }
+            .onChange(of: isSaving) { newValue in
+                if newValue {
+                    startDecayAnimation()
+                } else {
+                    savingTimer?.invalidate()
+                    savingTimer = nil
+                }
+            }
+        }
+        
+        private func updateWaveform(with level: Double) {
+            waveformData.append(level)
+            if waveformData.count > barCount {
+                waveformData.removeFirst()
+            }
+        }
+        
+        private func startDecayAnimation() {
+            var decaySteps = 20
+            savingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                guard decaySteps > 0 else {
+                    waveformData = Array(repeating: 0, count: barCount)
+                    savingTimer?.invalidate()
+                    savingTimer = nil
+                    return
+                }
+                
+                let decayFactor = Double(decaySteps) / 20.0
+                let newLevel = Double.random(in: 0...0.3) * decayFactor
                 updateWaveform(with: newLevel)
-            }
-        }
-        .onChange(of: isSaving) { newValue in
-            if newValue {
-                // 進入儲存狀態，開始衰減動畫
-                startDecayAnimation()
-            } else {
-                // 結束儲存狀態，停止計時器
-                savingTimer?.invalidate()
-                savingTimer = nil
+                
+                decaySteps -= 1
             }
         }
     }
     
-    private func updateWaveform(with level: Double) {
-        // 修正：從左到右更新
-        waveformData.append(level)
-        if waveformData.count > 30 {
-            waveformData.removeFirst()
-        }
-    }
-    
-    private func startDecayAnimation() {
-        var decaySteps = 20 // 動畫持續 20 * 0.1 = 2 秒
-        savingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            guard decaySteps > 0 else {
-                // 動畫結束，全部歸零
-                waveformData = Array(repeating: 0, count: 30)
-                savingTimer?.invalidate()
-                savingTimer = nil
-                return
-            }
-            
-            let decayFactor = Double(decaySteps) / 20.0
-            let newLevel = Double.random(in: 0...0.3) * decayFactor // 產生衰減的隨機值
-            updateWaveform(with: newLevel)
-            
-            decaySteps -= 1
-        }
-    }
 }
