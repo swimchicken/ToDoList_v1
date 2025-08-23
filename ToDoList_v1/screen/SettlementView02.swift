@@ -35,6 +35,7 @@ struct SettlementView02: View {
     @State private var isSavingRecording = false
     @State private var isSendingText = false
     
+    @State private var keyboardHeight: CGFloat = 0
     
     @State private var isManualEditing: Bool = false
     // 用於 AI 按鈕和輸入框之間的動畫
@@ -243,9 +244,97 @@ struct SettlementView02: View {
                         .zIndex(600) // zIndex 比 TaskSelectionOverlay 更高
                         .transition(.opacity.animation(.easeInOut))
                     }
+            // MARK: - 底部固定 UI (待辦事項佇列 + 導航按鈕)
+            VStack(spacing: 0) {
+                // --- 待辦事項佇列 ---
+                // 根據 showTodoQueue 狀態決定顯示展開的佇列，或是收合的按鈕
+                if showTodoQueue {
+                    // 展開的待辦事項佇列視圖
+                    SettlementTodoQueueView(
+                        items: $allTodoItems,
+                        selectedFilter: $selectedFilterInSettlement,
+                        collapseAction: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                                showTodoQueue = false
+                            }
+                        },
+                        onTaskAdded: {
+                            loadTasksFromDataManager()
+                        }
+                    )
+                    .padding(.horizontal, 12)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity).animation(.spring(response: 0.4, dampingFraction: 0.85)),
+                        removal: .move(edge: .bottom).combined(with: .opacity).animation(.easeInOut(duration: 0.2))
+                    ))
+                    .padding(.bottom, 10)
+                } else {
+                    // 收合的佇列按鈕
+                    Button(action: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                            showTodoQueue.toggle()
+                        }
+                    }) {
+                        HStack {
+                            Text("待辦事項佇列")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(Color.white.opacity(0.8))
+                            Spacer()
+                            Image(systemName: "chevron.up")
+                                .foregroundColor(Color.white.opacity(0.8))
+                        }
+                        .padding(.vertical, 16)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(white: 0.12))
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
+                    .transition(.asymmetric(
+                        insertion: .opacity.animation(.easeInOut(duration: 0.2)),
+                        removal: .opacity.animation(.easeInOut(duration: 0.05))
+                    ))
+                }
+
+                // --- 底部導航按鈕 ---
+                HStack {
+                    // "返回" 按鈕
+                    Button(action: {
+                        self.presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Text("返回")
+                            .font(Font.custom("Inria Sans", size: 20))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.leading) // 增加點擊區域
+
+                    Spacer()
+
+                    // "Next" 按鈕
+                    Button(action: {
+                        delaySettlementManager.markSettlementCompleted()
+                        print("SettlementView02 - 已標記結算完成")
+                        navigateToSettlementView03 = true
+                    }) {
+                        Text("Next")
+                            .font(Font.custom("Inria Sans", size: 20).weight(.bold))
+                            .foregroundColor(.black)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .frame(width: 279, height: 60)
+                    .background(.white)
+                    .cornerRadius(40.5)
+                }
+                .padding(.horizontal, 12)
+            }
+            .padding(.bottom, 40) // 底部安全距離
+            .background(Color.black) // 給予黑色背景，避免下方內容透出
             
         }
+        .keyboardReadable(height: $keyboardHeight) // <-- 新增這一行
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.keyboard, edges: .all)
         .background(Color.black.ignoresSafeArea())
         .background(Color.black.edgesIgnoringSafeArea(.all))
         .navigationBarBackButtonHidden(true)
@@ -1569,3 +1658,4 @@ struct ExpandableSoundButton: View {
         }
     }
 }
+
