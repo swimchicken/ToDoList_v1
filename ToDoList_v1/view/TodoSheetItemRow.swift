@@ -28,8 +28,15 @@ struct TodoSheetItemRow: View {
                         item.status = (item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)
                     }
                     
-                    // 更新本地資料庫
-                    LocalDataManager.shared.updateTodoItem(item)
+                    // 使用 DataSyncManager 更新項目 - 它會先更新本地然後同步到雲端
+                    DataSyncManager.shared.updateTodoItem(item) { result in
+                        switch result {
+                        case .success(_):
+                            print("TodoSheetItemRow - 成功更新待辦事項到本地和雲端")
+                        case .failure(let error):
+                            print("TodoSheetItemRow - 更新待辦事項失敗: \(error.localizedDescription)")
+                        }
+                    }
                     
                     // 發送狀態變更通知
                     NotificationCenter.default.post(

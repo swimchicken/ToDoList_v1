@@ -136,17 +136,33 @@ class DataSyncManager {
     func fetchTodoItems(completion: @escaping (Result<[TodoItem], Error>) -> Void) {
         // 首先從本地獲取數據
         let localItems = localDataManager.getAllTodoItems()
+        print("DEBUG: fetchTodoItems - 本地項目數量: \(localItems.count)")
         
         // 發送本地數據
         completion(.success(localItems))
         
         // 然後嘗試從 CloudKit 同步數據
+        print("DEBUG: fetchTodoItems - 開始從 CloudKit 同步數據")
         syncFromCloudKit { result in
             switch result {
             case .success(let updatedItems):
-                if !updatedItems.isEmpty {
+                print("DEBUG: fetchTodoItems - CloudKit 同步完成，獲得 \(updatedItems.count) 個項目")
+                // 檢查是否真的有資料變更
+                let hasChanges = updatedItems.count != localItems.count || 
+                               !updatedItems.allSatisfy { updatedItem in
+                                   localItems.contains { localItem in
+                                       localItem.id == updatedItem.id && 
+                                       localItem.status == updatedItem.status &&
+                                       localItem.updatedAt == updatedItem.updatedAt
+                                   }
+                               }
+                
+                if hasChanges {
                     // 如果有更新，則再次調用完成處理程序
+                    print("DEBUG: fetchTodoItems - 檢測到資料變更，重新回傳更新的資料")
                     completion(.success(updatedItems))
+                } else {
+                    print("DEBUG: fetchTodoItems - 沒有新的資料變更")
                 }
             case .failure(let error):
                 // 只記錄錯誤，不影響已經返回的本地數據
@@ -338,13 +354,18 @@ class DataSyncManager {
     
     /// 從 CloudKit 獲取數據並與本地合併
     private func syncFromCloudKit(completion: @escaping (Result<[TodoItem], Error>) -> Void) {
+        print("DEBUG: syncFromCloudKit - 開始從 CloudKit 獲取資料")
         cloudKitService.fetchAllTodoItems { [weak self] result in
             guard let self = self else { return }
             
             switch result {
             case .success(let cloudItems):
+                print("DEBUG: syncFromCloudKit - 成功從 CloudKit 獲取 \(cloudItems.count) 個項目")
+                
                 // 獲取本地項目
                 let localItems = self.localDataManager.getAllTodoItems()
+                print("DEBUG: syncFromCloudKit - 本地現有 \(localItems.count) 個項目")
+                
                 var mergedItems = localItems
                 var updatedItems = [TodoItem]()
                 

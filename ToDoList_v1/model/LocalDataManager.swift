@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import WidgetKit
 
 /// 本地數據管理器 - 使用 UserDefaults 存儲待辦事項
 class LocalDataManager {
@@ -62,6 +63,11 @@ class LocalDataManager {
             let data = try JSONEncoder().encode(todoItems)
             UserDefaults.standard.set(data, forKey: todoItemsKey)
             print("DEBUG: 成功保存 \(todoItems.count) 個待辦事項到本地")
+            
+            // 同步更新 Widget 數據
+            WidgetDataManager.shared.saveTodayTasksForWidget(todoItems)
+            // 使用文件系統保存，確保Widget可以找到數據文件
+            WidgetFileManager.shared.saveTodayTasksToFile(todoItems)
         } catch {
             print("ERROR: 編碼待辦事項失敗 - \(error.localizedDescription)")
         }

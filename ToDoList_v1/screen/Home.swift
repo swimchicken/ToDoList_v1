@@ -10,6 +10,9 @@ struct Home: View {
     @State private var currentDate: Date = Date()  // 添加當前時間狀態
     @State private var navigateToSettlementView: Bool = false // 導航到結算頁面
     @State private var navigateToSleep01View: Bool = false // 導航到Sleep01視圖
+    @State private var navigateToTestPage: Bool = false // 導航到測試頁面
+    @State private var navigateToLogin: Bool = false // 導航回登入頁面
+    @State private var navigationViewID = UUID()
     @State private var isSleepMode: Bool = false // 睡眠模式狀態
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
     @State private var dayProgress: Double = 0.0 // 與Sleep01相同，用來顯示進度條
@@ -222,7 +225,10 @@ struct Home: View {
                                 dateText2: taiwanTime.weekday,
                                 statusText: taiwanTime.timeStatus,
                                 temperatureText: "26°C",
-                                showCalendarView: $showCalendarView
+                                showCalendarView: $showCalendarView,
+                                onAvatarTapped: {
+                                    navigateToTestPage = true
+                                }
                             )
                             .frame(maxWidth: .infinity, maxHeight: 0)
                         }
@@ -657,6 +663,8 @@ struct Home: View {
             Group {
                 NavigationLink(destination: SettlementView(), isActive: $navigateToSettlementView) { EmptyView() }
                 NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) { EmptyView() }
+                NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) { EmptyView() }
+                NavigationLink(destination: Login(), isActive: $navigateToLogin) { EmptyView() }
             }
         )
     }

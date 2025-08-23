@@ -39,12 +39,12 @@ class CloudKitService {
         // 設置帳號變化通知觀察者
         setupAccountChangeObserver()
         
-        // 只有在實際需要CloudKit操作時才進行認證，避免不必要的DEBUG輸出
-        // DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-        //     self.performAuthentication()
-        // }
+        // 應用啟動時立即進行認證，確保重新安裝後能正確同步
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.performAuthentication()
+        }
         
-        print("DEBUG: CloudKitService已初始化，將在需要時進行認證")
+        print("DEBUG: CloudKitService已初始化，將在1秒後自動進行認證")
     }
     
     // MARK: - Authentication Management
@@ -400,11 +400,38 @@ class CloudKitService {
         // 獲取當前 iCloud 用戶 ID
         let currentUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID") ?? "unknown_user"
         
-        // 創建 CKRecord 物件
         let recordID = CKRecord.ID(recordName: todoItem.id.uuidString, zoneID: defaultZoneID)
-        let record = CKRecord(recordType: "TodoItem", recordID: recordID)
         
-        print("DEBUG: 使用 CKRecord.ID - recordName: \(recordID.recordName), zoneID: \(recordID.zoneID.zoneName)")
+        // 先嘗試獲取已存在的記錄，如果不存在再創建新的
+        privateDatabase.fetch(withRecordID: recordID) { [weak self] existingRecord, error in
+            guard let self = self else { return }
+            
+            let record: CKRecord
+            
+            if let existingRecord = existingRecord {
+                // 記錄已存在，使用現有記錄進行更新
+                print("DEBUG: 找到已存在記錄，執行更新操作 - ID: \(recordID.recordName)")
+                record = existingRecord
+            } else if let error = error as NSError?, error.domain == CKErrorDomain && error.code == CKError.unknownItem.rawValue {
+                // 記錄不存在，創建新記錄
+                print("DEBUG: 記錄不存在，創建新記錄 - ID: \(recordID.recordName)")
+                record = CKRecord(recordType: "TodoItem", recordID: recordID)
+            } else {
+                // 其他錯誤
+                print("ERROR: 獲取記錄時發生錯誤: \(error?.localizedDescription ?? "未知錯誤")")
+                DispatchQueue.main.async {
+                    completion(.failure(error ?? NSError(domain: "CloudKitService", code: 500, userInfo: [NSLocalizedDescriptionKey: "獲取記錄失敗"])))
+                }
+                return
+            }
+            
+            self.updateRecordFields(record: record, todoItem: todoItem, currentUserID: currentUserID)
+            self.saveRecordToCloudKit(record: record, completion: completion)
+        }
+    }
+    
+    private func updateRecordFields(record: CKRecord, todoItem: TodoItem, currentUserID: String) {
+        print("DEBUG: 更新記錄欄位 - recordName: \(record.recordID.recordName)")
         
         // 設置記錄欄位
         record.setValue(todoItem.id.uuidString, forKey: "id")
@@ -428,6 +455,9 @@ class CloudKitService {
         record.setValue(todoItem.correspondingImageID, forKey: "correspondingImageID")
         
         print("DEBUG: CKRecord 已設置完所有欄位，準備儲存到 CloudKit")
+    }
+    
+    private func saveRecordToCloudKit(record: CKRecord, completion: @escaping (Result<TodoItem, Error>) -> Void) {
         print("DEBUG: CloudKit container identifier: \(container.containerIdentifier ?? "未知")")
         
         // 儲存到 CloudKit
