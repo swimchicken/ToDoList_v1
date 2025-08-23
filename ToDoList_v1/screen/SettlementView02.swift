@@ -199,48 +199,51 @@ struct SettlementView02: View {
                 }
             }
             
+            .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
             
             if showTaskSelectionOverlay {
-                TaskSelectionOverlay(
-                    tasks: $pendingTasks,
-                    onCancel: {
-                        withAnimation { self.showTaskSelectionOverlay = false }
-                    },
-                    onAdd: { itemsToAdd in
-                        for var item in itemsToAdd {
-                            // 確保任務日期是明天或之後
-                            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                            if item.taskDate == nil || item.taskDate! < tomorrow {
-                                item.taskDate = tomorrow
+                        TaskSelectionOverlay(
+                            tasks: $pendingTasks,
+                            onCancel: {
+                                withAnimation { self.showTaskSelectionOverlay = false }
+                            },
+                            onAdd: { itemsToAdd in
+                                for var item in itemsToAdd {
+                                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                                    if item.taskDate == nil || item.taskDate! < tomorrow {
+                                        item.taskDate = tomorrow
+                                    }
+                                    DataSyncManager.shared.addTodoItem(item) { _ in }
+                                }
+                                withAnimation { self.showTaskSelectionOverlay = false }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    self.loadTasksFromDataManager()
+                                }
+                            },
+                            onEditTask: { task in
+                                // 命令 TaskSelectionOverlay 消失，並設定要編輯的任務
+                                self.showTaskSelectionOverlay = false
+                                self.taskToEdit = task
                             }
-                            DataSyncManager.shared.addTodoItem(item) { _ in }
-                        }
-                        withAnimation { self.showTaskSelectionOverlay = false }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            self.loadTasksFromDataManager()
-                        }
-                    },
-                    onEditTask: { task in
-                        self.showTaskSelectionOverlay = false
-                        self.taskToEdit = task
+                        )
+                        .zIndex(500)
+                        .transition(.opacity)
                     }
-                )
-                .zIndex(500)
-                .transition(.opacity)
-            }
 
-            if let taskToEdit = self.taskToEdit,
-               let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
-                
-                TaskEditView(task: $pendingTasks[taskIndex], onClose: {
-                    self.taskToEdit = nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        self.showTaskSelectionOverlay = true
+                    if let taskToEdit = self.taskToEdit,
+                       let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
+                        
+                        TaskEditView(task: $pendingTasks[taskIndex], onClose: {
+                            // 命令 TaskEditView 消失，並重新顯示 TaskSelectionOverlay
+                            self.taskToEdit = nil
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                self.showTaskSelectionOverlay = true
+                            }
+                        })
+                        .zIndex(600) // zIndex 比 TaskSelectionOverlay 更高
+                        .transition(.opacity.animation(.easeInOut))
                     }
-                })
-                .zIndex(600)
-                .transition(.opacity.animation(.easeInOut))
-            }
+            
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.ignoresSafeArea())
