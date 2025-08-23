@@ -1119,7 +1119,6 @@ struct SettlementView02_Previews: PreviewProvider {
         ]
         
         SettlementView02(uncompletedTasks: testItems, moveTasksToTomorrow: true)
-            .environmentObject(AlarmStateManager())
     }
 }
 
