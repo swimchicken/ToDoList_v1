@@ -58,7 +58,28 @@ struct Home: View {
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
-    @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量
+    @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量（保留用於過渡期間）
+    
+    // 新增：用於 ScrollView 的狀態變數
+    @State private var scrollDateOffsets: [Int] = [-2, -1, 0, 1, 2] // 預載入的日期偏移範圍
+    @State private var scrollPosition: Int? = 0 // 當前 ScrollView 位置，對應 currentDateOffset
+    @State private var isScrolling: Bool = false // 追蹤是否正在滑動
+    
+    // 創建一個計算屬性來橋接 currentDateOffset 到 scrollPosition
+    private var scrollablePosition: Binding<Int?> {
+        Binding<Int?>(
+            get: {
+                return self.currentDateOffset
+            },
+            set: { newOffset in
+                if let newOffset = newOffset, self.currentDateOffset != newOffset {
+                    self.currentDateOffset = newOffset
+                    // 動態擴展滾動範圍
+                    self.expandScrollRangeIfNeeded(for: newOffset)
+                }
+            }
+        )
+    }
     
     // 數據同步管理器 - 處理本地存儲和雲端同步
     private let dataSyncManager = DataSyncManager.shared
@@ -247,7 +268,7 @@ struct Home: View {
                         */
                     }
                     
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         // 待辦事項佇列按鈕
                         HStack {
                             Button {
@@ -274,60 +295,13 @@ struct Home: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 30)
+                        .padding(.horizontal, 8)
                         
-                        // 節日區塊
-                        VStack(spacing: 0) {
-                            Divider().background(Color.white)
-                            HStack(spacing: 16) {
-                                Image(systemName: "calendar")
-                                Text("Shiro birthday").font(.headline)
-                                Spacer()
-                                Text("10:00").font(.subheadline)
-                            }
-                            .frame(width: 354, height: 59)
-                            .cornerRadius(12)
-                            Divider().background(Color.white)
-                        }
-                        .foregroundColor(.white)
-                        
-                        // 使用GeometryReader實現左右滑動和上下滾動
-                        GeometryReader { geometry in
-                            ZStack {
-                                // 水平偏移動畫區域（只包含事件列表）
-                                HStack(spacing: 0) {
-                                    taskList(geometry: geometry)
-                                        .frame(width: geometry.size.width)
-                                }
-                                .offset(x: dragOffset)
-                                .gesture(
-                                    DragGesture()
-                                        .updating($dragOffset) { value, state, _ in
-                                            // 水平拖動時更新狀態
-                                            state = value.translation.width
-                                        }
-                                        .onEnded { value in
-                                                // 計算拖動結束後應該移動的方向
-                                            let threshold = geometry.size.width * 0.2
-                                            let predictedEndTranslation = value.predictedEndTranslation.width
-                                                
-                                                // 根據拖動距離和方向更新日期偏移量
-                                            withAnimation(.easeOut) {
-                                                if predictedEndTranslation < -threshold {
-                                                        // 向左滑動 -> 增加日期
-                                                    currentDateOffset += 1
-                                                } else if predictedEndTranslation > threshold {
-                                                    // 向右滑動 -> 減少日期
-                                                    currentDateOffset -= 1
-                                                }
-                                            }
-                                        }
-                                )
-                            }
-                        }
+                        horizontalScrollView()
                         .padding(.bottom, bottomPaddingForTaskList)  // 使用動態值
                         .animation(.easeInOut, value: isCurrentDay)  // 添加動畫效果
                     }
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 0)
                     .padding(.vertical, 24)
                 }
                 .padding(.horizontal, 12)
@@ -740,7 +714,6 @@ struct Home: View {
             
         }
         .id(navigationViewID)
-        
         .animation(.easeOut, value: showToDoSheet)
         .animation(.easeOut, value: showAddTaskSheet)
         .animation(.easeOut, value: showCalendarView)
@@ -889,60 +862,241 @@ struct Home: View {
         )
     }
     
-    // 提取列表視圖為獨立函數，以便在水平滑動容器中使用
-    private func taskList(geometry: GeometryProxy) -> some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                if sortedToDoItems.isEmpty {
-                    // 無事項時顯示占位符或載入中訊息，但仍可以滑動
-                    VStack {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                                .padding(.bottom, 20)
-                            
-                            Text("載入待辦事項中...")
-                                .foregroundColor(.white.opacity(0.8))
-                        } else if let error = loadingError {
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundColor(.orange)
-                                .font(.largeTitle)
-                                .padding(.bottom, 10)
-                            Text(error)
-                                .foregroundColor(.white.opacity(0.8))
-                                .multilineTextAlignment(.center)
-                        } else {
-                            Text("這一天沒有事項")
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                    }
-                    .frame(height: 200)
-                    .frame(width: geometry.size.width)
-                    .contentShape(Rectangle()) // 使空白區域也可接收手勢
-                } else {
-                    ForEach(0..<sortedToDoItems.count, id: \.self) { idx in
+    // 動態擴展滾動範圍
+    private func expandScrollRangeIfNeeded(for offset: Int) {
+        let buffer = 2 // 保持前後各2天的緩衝
+        let minOffset = offset - buffer
+        let maxOffset = offset + buffer
+        
+        // 擴展到最小值
+        while scrollDateOffsets.min() ?? 0 > minOffset {
+            let newMin = (scrollDateOffsets.min() ?? 0) - 1
+            scrollDateOffsets.insert(newMin, at: 0)
+        }
+        
+        // 擴展到最大值
+        while scrollDateOffsets.max() ?? 0 < maxOffset {
+            let newMax = (scrollDateOffsets.max() ?? 0) + 1
+            scrollDateOffsets.append(newMax)
+        }
+    }
+    
+    // 檢查當前顯示日期是否為節日（兼容性函數）
+    private func getHolidayInfo() -> (isHoliday: Bool, name: String, time: String)? {
+        return getHolidayInfo(for: currentDateOffset)
+    }
+    
+    // 為特定日期偏移量生成 taskList
+    private func taskList(for dateOffset: Int, geometry: GeometryProxy) -> some View {
+        let filteredItems = getFilteredToDoItems(for: dateOffset)
+        let holidayInfo = getHolidayInfo(for: dateOffset)
+        
+        return VStack(spacing: 0) {
+            // 頂部 Divider 永遠存在
+            Divider().background(Color.white)
+            
+            // 滾動內容
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // 節日區塊 - 如果當天是節日則顯示在列表最上方
+                    if let holidayInfo = holidayInfo {
                         VStack(spacing: 0) {
-                            ItemRow(item: getBindingToSortedItem(at: idx))
-                                .padding(.vertical, 8)
-                                .contentShape(Rectangle()) // 确保整行可点击
-                                .onLongPressGesture {
-                                    // 长按时显示编辑/删除选项
-                                    selectedItem = sortedToDoItems[idx]
-                                    showingDeleteView = true
-                                }
-                            Rectangle()
-                                .fill(Color.white.opacity(0.2))
-                                .frame(height: 2)
+                            HStack(spacing: 16) {
+                                Image(systemName: "calendar")
+                                Text(holidayInfo.name).font(.headline)
+                                Spacer()
+                                Text(holidayInfo.time).font(.subheadline)
+                            }
+                            .frame(width: 354, height: 59)
+                            .cornerRadius(12)
+                            Divider().background(Color.white)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.bottom, 10)
+                    }
+                    
+                    if filteredItems.isEmpty {
+                        // 無事項時顯示占位符或載入中訊息，但仍可以滑動
+                        VStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(1.5)
+                                    .padding(.bottom, 20)
+                                
+                                Text("載入待辦事項中...")
+                                    .foregroundColor(.white.opacity(0.8))
+                            } else if let error = loadingError {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundColor(.orange)
+                                    .font(.largeTitle)
+                                    .padding(.bottom, 10)
+                                Text(error)
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                            } else {
+                                Text("這一天沒有事項")
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                        .frame(height: 200)
+                        .frame(width: geometry.size.width)
+                        .contentShape(Rectangle()) // 使空白區域也可接收手勢
+                    } else {
+                        ForEach(0..<filteredItems.count, id: \.self) { idx in
+                            VStack(spacing: 0) {
+                                ItemRow(item: getBindingToFilteredItem(filteredItems[idx]))
+                                    .padding(.vertical, 8)
+                                    .contentShape(Rectangle()) // 确保整行可点击
+                                    .onLongPressGesture {
+                                        // 长按时显示编辑/删除选项
+                                        selectedItem = filteredItems[idx]
+                                        showingDeleteView = true
+                                    }
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.2))
+                                    .frame(height: 2)
+                            }
                         }
                     }
                 }
+                .background(Color.clear)
+                .contentShape(Rectangle()) // 使整個區域可接收手勢，即使項目很少
             }
-            .background(Color.black)
-            .contentShape(Rectangle()) // 使整個區域可接收手勢，即使項目很少
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
+        .padding(.horizontal, 8) // 20 - 12 = 8pt
+        .padding(.top, 8)
     }
+    
+    // 保留原有的 taskList 函數作為兼容性函數
+    private func taskList(geometry: GeometryProxy) -> some View {
+        return taskList(for: currentDateOffset, geometry: geometry)
+    }
+    
+    // 獲取特定日期偏移量的過濾項目
+    private func getFilteredToDoItems(for dateOffset: Int) -> [TodoItem] {
+        let dateWithOffset = Calendar.current.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
+        
+        // 獲取篩選日期的開始和結束時間點
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: dateWithOffset)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        // 篩選當天的項目（只包含有時間的項目）
+        let filteredItems = toDoItems.filter { item in
+            // 過濾掉已刪除的項目
+            guard !recentlyDeletedItemIDs.contains(item.id) else { return false }
+            
+            // 先過濾有任務日期的項目，再進行日期比較
+            guard let taskDate = item.taskDate else {
+                return false // 沒有日期的項目（備忘錄）不包含在指定日期內
+            }
+            return taskDate >= startOfDay && taskDate < endOfDay
+        }
+        
+        // 排序：先按置頂狀態排序，再按優先級排序(高到低)，最後按任務日期排序
+        return filteredItems.sorted { (item1: TodoItem, item2: TodoItem) -> Bool in
+            // 置頂項目優先
+            if item1.isPinned && !item2.isPinned {
+                return true
+            }
+            if !item1.isPinned && item2.isPinned {
+                return false
+            }
+            
+            // 如果置頂狀態相同，按優先級排序（由高到低）
+            if item1.priority != item2.priority {
+                return item1.priority > item2.priority
+            }
+            
+            // 最後按任務日期排序
+            guard let date1 = item1.taskDate, let date2 = item2.taskDate else {
+                return false
+            }
+            return date1 < date2
+        }
+    }
+    
+    // 為過濾項目創建綁定
+    private func getBindingToFilteredItem(_ item: TodoItem) -> Binding<TodoItem> {
+        if let originalIndex = toDoItems.firstIndex(where: { $0.id == item.id }) {
+            return $toDoItems[originalIndex]
+        }
+        // 如果找不到原始項目，創建一個臨時綁定
+        return .constant(item)
+    }
+    
+    // 水平滑動 ScrollView 組件
+    private func horizontalScrollView() -> some View {
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(scrollDateOffsets, id: \.self) { dateOffset in
+                            taskListWithBackground(for: dateOffset, geometry: geometry)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: scrollablePosition)
+                .onChange(of: dragOffset) { _, newValue in
+                    let isDragging = abs(newValue) > 5
+                    if isScrolling != isDragging {
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            isScrolling = isDragging
+                        }
+                    }
+                }
+                .simultaneousGesture(
+                    DragGesture()
+                        .updating($dragOffset) { value, state, _ in
+                            state = value.translation.width
+                        }
+                )
+                .onAppear {
+                    DispatchQueue.main.async {
+                        proxy.scrollTo(currentDateOffset, anchor: .center)
+                    }
+                }
+            }
+        }
+    }
+    
+    // 帶背景的 taskList 組件
+    private func taskListWithBackground(for dateOffset: Int, geometry: GeometryProxy) -> some View {
+        taskList(for: dateOffset, geometry: geometry)
+            .frame(width: geometry.size.width)
+            .background(
+                RoundedRectangle(cornerRadius: 11)
+                    .fill(isScrolling ? Color(hex: "141414") : Color.clear)
+//                    .fill(isScrolling ? Color.gray.opacity(0.3) : Color.blue.opacity(0.2))
+                    .animation(.easeInOut(duration: 0.3), value: isScrolling)
+            )
+            .id(dateOffset)
+            .onAppear {
+                expandScrollRangeIfNeeded(for: dateOffset)
+            }
+    }
+    
+    // 為特定日期偏移量檢查節日
+    private func getHolidayInfo(for dateOffset: Int) -> (isHoliday: Bool, name: String, time: String)? {
+        let dateWithOffset = Calendar.current.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
+        let calendar = Calendar.current
+        
+        // 檢查是否為生日（8/22）
+        let dateComponents = calendar.dateComponents([.month, .day], from: dateWithOffset)
+        if dateComponents.month == 8 && dateComponents.day == 22 {
+            return (isHoliday: true, name: "Shiro birthday", time: "10:00")
+        }
+        
+        // 這裡可以添加其他節日檢查
+        // 例如：聖誕節、新年等
+        
+        return nil
+    }
+    
     
     
     // 設置監聽數據變化的觀察者
@@ -1151,6 +1305,28 @@ struct Home: View {
                 }
             }
         }
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 
