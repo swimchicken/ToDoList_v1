@@ -28,6 +28,28 @@ struct S02ProgressBarSegment: View {
 
 // MARK: - SettlementView02.swift
 struct SettlementView02: View {
+    // MARK: - AI Button States & Services
+    @State private var isRecording = false
+    @State private var isTextInputMode = false
+    @State private var newTodoText = ""
+    @State private var isSavingRecording = false
+    @State private var isSendingText = false
+    
+    @State private var keyboardHeight: CGFloat = 0
+    
+    @State private var isManualEditing: Bool = false
+    // 用於 AI 按鈕和輸入框之間的動畫
+    @Namespace private var namespace
+
+    // 修改視窗相關狀態
+    @State private var showTaskSelectionOverlay: Bool = false
+    @State private var pendingTasks: [TodoItem] = []
+    @State private var taskToEdit: TodoItem?
+
+    // 管理器
+    @StateObject private var speechManager = SpeechManager()
+    @StateObject private var geminiService = GeminiService() // 假設您專案中已有此服務
+    
     @Environment(\.presentationMode) var presentationMode
     
     // 接收從SettlementView傳遞的未完成任務和設置
@@ -102,29 +124,132 @@ struct SettlementView02: View {
                 .padding(.bottom, 15)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 15) {
-                        // 任务列表
+                    VStack(spacing: 0) { // 用一個 VStack 包住列表和按鈕
+                        // 任務列表
                         TaskListView(
                             tasks: dailyTasks,
                             onDeleteTask: { taskToDelete in
                                 deleteTask(taskToDelete)
-                            },
-                            onTaskAdded: {
-                                loadTasksFromDataManager()
                             }
                         )
-                        .padding(.top, 10)
+
+                        // --- 組合按鈕區塊，現在位於 ScrollView 內部 ---
+                        ZStack {
+                            // 圖層 1: 手動輸入的灰色匡
+                            AddTaskButton(
+                                isEditing: $isManualEditing,
+                                onTaskAdded: {
+                                    loadTasksFromDataManager()
+                                }
+                            )
+                            
+                            .opacity(isRecording || isTextInputMode ? 0 : 1)
+                            .animation(.easeInOut(duration: 0.3), value: isRecording || isTextInputMode)
+                            // 圖層 2: 綠色 AI 按鈕
+                            GeometryReader { geometry in
+                                HStack {
+                                    Spacer() // 將 AI 按鈕推到最右邊
+                                    Group {
+                                        if isTextInputMode {
+                                            TextInputView(
+                                                namespace: namespace,
+                                                isTextInputMode: $isTextInputMode,
+                                                isSending: $isSendingText,
+                                                text: $newTodoText,
+                                                width: geometry.size.width - 10,
+                                                onSend: { text in handleSend(text: text) }
+                                            )
+                                        } else {
+                                            ExpandableSoundButton(
+                                                namespace: namespace,
+                                                isRecording: $isRecording,
+                                                isTextInputMode: $isTextInputMode,
+                                                isSaving: $isSavingRecording,
+                                                audioLevel: speechManager.audioLevel,
+                                                onRecordingStart: startRecording,
+                                                onRecordingEnd: endRecording,
+                                                onRecordingCancel: cancelRecording,
+                                                expandedWidth: geometry.size.width - 10
+                                            )
+                                        }
+                                    }
+                                    .opacity(isManualEditing ? 0 : 1)
+                                    .animation(.easeInOut(duration: 0.35), value: isManualEditing)
+                                }
+                            }
+                            .frame(height: 50)
+                            .offset(x: -5)
+                            .allowsHitTesting(!isManualEditing)
+                        }
                     }
-                     // 估算底部固定UI高度，為ScrollView增加padding，避免遮擋
-                    .padding(.bottom, showTodoQueue ? 380 : 200) // 简化padding计算，确保有足够空间
+                    .padding(.top, 10)
+                    // 恢復這個 padding，避免列表底部被結算按鈕遮擋
+                    .padding(.bottom, showTodoQueue ? 380 : 200)
                 }
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, 12)
             }
             .padding(.top, 60)
+            
+            .onTapGesture {
+                // 如果手動編輯模式是開啟的，就關閉它
+                if isManualEditing {
+                    isManualEditing = false
+                    // 同時收起鍵盤
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+            
+            .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
+            
+            if showTaskSelectionOverlay {
+                        TaskSelectionOverlay(
+                            tasks: $pendingTasks,
+                            onCancel: {
+                                withAnimation { self.showTaskSelectionOverlay = false }
+                            },
+                            onAdd: { itemsToAdd in
+                                for var item in itemsToAdd {
+                                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                                    if item.taskDate == nil || item.taskDate! < tomorrow {
+                                        item.taskDate = tomorrow
+                                    }
+                                    DataSyncManager.shared.addTodoItem(item) { _ in }
+                                }
+                                withAnimation { self.showTaskSelectionOverlay = false }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    self.loadTasksFromDataManager()
+                                }
+                            },
+                            onEditTask: { task in
+                                // 命令 TaskSelectionOverlay 消失，並設定要編輯的任務
+                                self.showTaskSelectionOverlay = false
+                                self.taskToEdit = task
+                            }
+                        )
+                        .zIndex(500)
+                        .transition(.opacity)
+                    }
 
+                    if let taskToEdit = self.taskToEdit,
+                       let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
+                        
+                        TaskEditView(task: $pendingTasks[taskIndex], onClose: {
+                            // 命令 TaskEditView 消失，並重新顯示 TaskSelectionOverlay
+                            self.taskToEdit = nil
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                self.showTaskSelectionOverlay = true
+                            }
+                        })
+                        .zIndex(600) // zIndex 比 TaskSelectionOverlay 更高
+                        .transition(.opacity.animation(.easeInOut))
+                    }
+            // MARK: - 底部固定 UI (待辦事項佇列 + 導航按鈕)
             VStack(spacing: 0) {
+                // --- 待辦事項佇列 ---
+                // 根據 showTodoQueue 狀態決定顯示展開的佇列，或是收合的按鈕
                 if showTodoQueue {
+                    // 展開的待辦事項佇列視圖
                     SettlementTodoQueueView(
                         items: $allTodoItems,
                         selectedFilter: $selectedFilterInSettlement,
@@ -144,6 +269,7 @@ struct SettlementView02: View {
                     ))
                     .padding(.bottom, 10)
                 } else {
+                    // 收合的佇列按鈕
                     Button(action: {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                             showTodoQueue.toggle()
@@ -170,49 +296,55 @@ struct SettlementView02: View {
                         removal: .opacity.animation(.easeInOut(duration: 0.05))
                     ))
                 }
+
+                // --- 底部導航按鈕 ---
                 HStack {
+                    // "返回" 按鈕
                     Button(action: {
-                        // 返回上一頁
                         self.presentationMode.wrappedValue.dismiss()
                     }) {
                         Text("返回")
                             .font(Font.custom("Inria Sans", size: 20))
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊
-                    }.padding()
+                    }
+                    .padding(.leading) // 增加點擊區域
+
                     Spacer()
+
+                    // "Next" 按鈕
                     Button(action: {
-                        // 因為這是當天結算流程的最後一步（不再進入 SettlementView03）
-                        // 所以直接標記結算完成
                         delaySettlementManager.markSettlementCompleted()
                         print("SettlementView02 - 已標記結算完成")
-                        
-                        // 仍然導航到 SettlementView03 來設置鬧鐘
                         navigateToSettlementView03 = true
                     }) {
                         Text("Next")
                             .font(Font.custom("Inria Sans", size: 20).weight(.bold))
-                            .multilineTextAlignment(.center)
                             .foregroundColor(.black)
-                            .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊
+                            .frame(maxWidth: .infinity)
                     }
-                    .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
+                    .frame(width: 279, height: 60)
+                    .background(.white)
+                    .cornerRadius(40.5)
                 }
                 .padding(.horizontal, 12)
             }
-            .padding(.bottom, 60)
-            .background(Color.black)
+            .padding(.bottom, 40) // 底部安全距離
+            .background(Color.black) // 給予黑色背景，避免下方內容透出
+            
         }
+        .keyboardReadable(height: $keyboardHeight) // <-- 新增這一行
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.keyboard, edges: .all)
         .background(Color.black.ignoresSafeArea())
-        .edgesIgnoringSafeArea(.bottom)
+        .background(Color.black.edgesIgnoringSafeArea(.all))
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        
         .onAppear {
             // 日志输出，便于调试
-            print("SettlementView02 - onAppear: 移动未完成任务设置 = \(moveTasksToTomorrow)")
-            print("SettlementView02 - onAppear: 未完成任务数量 = \(uncompletedTasks.count)")
+            print("SettlementView02 - onAppear: 移動未完成任務設置 = \(moveTasksToTomorrow)")
+            print("SettlementView02 - onAppear: 未完成任務數量 = \(uncompletedTasks.count)")
             
             // 重新載入任務列表以確保數據同步
             loadTasksFromDataManager()
@@ -266,6 +398,66 @@ struct SettlementView02: View {
                     print("SettlementView02: 刪除任務失敗 - \(error.localizedDescription)")
                     // 即使雲端刪除失敗，也重新載入本地數據
                     self.loadTasksFromDataManager()
+                }
+            }
+        }
+    }
+    
+    // MARK: - AI Button Logic
+
+    private func startRecording() {
+        isRecording = true
+        speechManager.start()
+    }
+
+    private func endRecording() {
+        isSavingRecording = true
+        speechManager.stop { recognizedText in
+            isSavingRecording = false
+            isRecording = false
+            
+            if !recognizedText.isEmpty {
+                newTodoText = recognizedText
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = true
+                }
+            }
+        }
+    }
+
+    private func cancelRecording() {
+        speechManager.cancel()
+        isRecording = false
+    }
+
+    private func handleSend(text: String) {
+        guard !text.isEmpty else { return }
+        
+        isSendingText = true
+        
+        geminiService.analyzeText(text) { result in
+            DispatchQueue.main.async {
+                isSendingText = false
+                newTodoText = ""
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = false
+                }
+
+                switch result {
+                case .success(let items):
+                    print("✅ Gemini API 成功回傳! 任務總數: \(items.count)")
+                    
+                    self.pendingTasks = items
+                    
+                    if !self.pendingTasks.isEmpty {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            self.showTaskSelectionOverlay = true
+                        }
+                    }
+                    
+                case .failure(let error):
+                    print("❌ Gemini API 錯誤: \(error.localizedDescription)")
+                    // 您可以在此處添加錯誤提示 UI
                 }
             }
         }
@@ -370,23 +562,20 @@ struct AlarmInfoView: View {
     }
 }
 
-// 任务列表视图
+// 任務列表視圖
 struct TaskListView: View {
     let tasks: [TodoItem]
     let onDeleteTask: (TodoItem) -> Void
-    let onTaskAdded: () -> Void
+    // 我們將在 ZStack 中處理新增邏輯，所以這裡不再需要 onTaskAdded
     
     var body: some View {
         VStack(spacing: 0) {
-            // 显示任务列表（如果有任务）
+            // 顯示任務列表（如果有任務）
             if !tasks.isEmpty {
                 ForEach(tasks.indices, id: \.self) { index in
                     TaskRowView(task: tasks[index], isLast: index == tasks.count - 1, onDelete: onDeleteTask)
                 }
             }
-            
-            // 无论有没有任务都显示添加按钮，简单地放在列表末尾
-            AddTaskButton(onTaskAdded: onTaskAdded)
         }
     }
 }
@@ -525,331 +714,190 @@ struct TimeDisplayView: View {
 
 // 添加任务按钮
 struct AddTaskButton: View {
-    // 添加回調以通知父視圖重新載入數據
+    // 關鍵修改：從 @State 改為 @Binding，以便父視圖可以控制
+    @Binding var isEditing: Bool
+    
+    // 回調函數，通知父視圖重新載入數據
     let onTaskAdded: () -> Void
     
-    init(onTaskAdded: @escaping () -> Void = {}) {
-        self.onTaskAdded = onTaskAdded
-    }
-    // 添加狀態變量來管理輸入和鍵盤
-    @State private var taskTitle: String = ""
+    // --- 以下為原始的內部狀態和功能 ---
     @State private var displayText: String = ""
     @State private var priority: Int = 0
     @State private var isPinned: Bool = false
-    @State private var isKeyboardVisible = false
-    @State private var hasNote: Bool = false
     @State private var note: String = ""
+    @State private var selectedDate: Date = Date()
     @State private var isDateEnabled: Bool = false
     @State private var isTimeEnabled: Bool = false
-    @State private var selectedDate: Date = Date()
+    
     @State private var showAddTimeView: Bool = false
     @State private var showAddNoteView: Bool = false
-    @State private var shouldRefocusAfterReturn = false
     
-    // 聚焦狀態
     @FocusState private var isTextFieldFocused: Bool
     
-    // 優先級追踪
-    @State private var priorityLevel: Int = 0
-    
-    // 是否處於編輯模式
-    @State private var isEditing: Bool = false
-    
     var body: some View {
-        VStack(spacing: 0) {
-            if !isEditing {
-                // 默認的添加按鈕狀態
-                Button(action: {
-                    isEditing = true
-                    // 自動聚焦文字輸入框
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        isTextFieldFocused = true
+        // 根視圖直接就是 HStack，代表我們的膠囊本身。它的結構永遠不變。
+        HStack {
+            if isEditing {
+                Image("Check_Rec_Group 1000004070") // 您的勾選圖示
+                
+                TextField("Add task manually", text: $displayText)
+                    .foregroundColor(.white)
+                    .focused($isTextFieldFocused)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isTextFieldFocused = true
+                        }
                     }
-                }) {
-                    HStack {
-                        Image(systemName: "plus")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
-                            .opacity(0.5)
-                        
-                        Text("Add task")
-                            .font(Font.custom("Inria Sans", size: 20).weight(.bold))
-                            .foregroundColor(.white)
-                            .opacity(0.5)
-                        
-                        Spacer()
+                    .onSubmit {
+                        if !displayText.isEmpty {
+                            saveTask()
+                        } else {
+                            resetEditingState(clearText: false)
+                            isEditing = false
+                        }
                     }
-                }
-                .padding(.top, 12)
+                    .toolbar {
+                        keyboardToolbarContent
+                    }
             } else {
-                // 編輯模式的輸入介面
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image("Check_Rec_Group 1000004070")
-                        
-                        TextField("", text: $displayText)
-                            .foregroundColor(.white)
-                            .keyboardType(.default)
-                            .colorScheme(.dark)
-                            .focused($isTextFieldFocused)
-                            .onChange(of: isTextFieldFocused) { newValue in
-                                isKeyboardVisible = newValue
-                                
-                                // 當失去焦點且有內容時，自動保存任務
-                                if !newValue && !displayText.isEmpty {
-                                    saveTask()
-                                }
-                            }
-                            .onSubmit {
-                                // 按下回車時自動保存任務
-                                if !displayText.isEmpty {
-                                    saveTask()
-                                }
-                            }
-                            .onAppear {
-                                setupKeyboardNotifications()
-                            }
-                            .onDisappear {
-                                removeKeyboardNotifications()
-                            }
-                            .toolbar {
-                                ToolbarItemGroup(placement: .keyboard) {
-                                    ZStack {
-                                        ScrollView(.horizontal, showsIndicators: false) {
-                                            HStack(spacing: 9) {
-                                                // 優先級按鈕
-                                                Button(action: {
-                                                    if isPinned {
-                                                        isPinned = false
-                                                    }
-                                                    priorityLevel = (priorityLevel + 1) % 4
-                                                    priority = priorityLevel
-                                                }) {
-                                                    HStack(alignment: .center, spacing: 2) {
-                                                        ForEach(0..<3) { index in
-                                                            Image("Star 1 (3)")
-                                                                .renderingMode(.template)
-                                                                .foregroundColor(index < priorityLevel ? .green : .white.opacity(0.65))
-                                                                .opacity(index < priorityLevel ? 1.0 : 0.65)
-                                                        }
-                                                    }
-                                                    .frame(width: 109, height: 33.7)
-                                                    .background(Color.white.opacity(0.15))
-                                                    .cornerRadius(12)
-                                                }
-                                                
-                                                // Pin按鈕
-                                                Button(action: {
-                                                    isPinned.toggle()
-                                                    if isPinned {
-                                                        priorityLevel = 0
-                                                        priority = 0
-                                                    }
-                                                }) {
-                                                    HStack {
-                                                        Image("Pin")
-                                                            .renderingMode(.template)
-                                                            .foregroundColor(isPinned ? .green : .white)
-                                                            .opacity(isPinned ? 1.0 : 0.25)
-                                                    }
-                                                    .frame(width: 51.7, height: 33.7)
-                                                    .background(Color.white.opacity(0.15))
-                                                    .cornerRadius(12)
-                                                }
-                                                
-                                                // 時間按鈕
-                                                Button(action: {
-                                                    shouldRefocusAfterReturn = true
-                                                    isTextFieldFocused = false
-                                                    showAddTimeView = true
-                                                }) {
-                                                    GeometryReader { geometry in
-                                                        Text(timeButtonText)
-                                                            .lineLimit(1)
-                                                            .minimumScaleFactor(0.7)
-                                                            .foregroundColor(shouldUseGreenColor ? .green : .white.opacity(0.65))
-                                                            .font(.system(size: 18))
-                                                            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
-                                                    }
-                                                    .frame(width: 110, height: 33.7)
-                                                    .background(Color.white.opacity(0.15))
-                                                    .cornerRadius(12)
-                                                }
-                                                
-                                                // 筆記按鈕
-                                                Button(action: {
-                                                    isTextFieldFocused = false
-                                                    showAddNoteView = true
-                                                }) {
-                                                    Text("note")
-                                                        .foregroundColor(shouldUseGreenColorForNote ? .green : .white.opacity(0.65))
-                                                        .font(.system(size: 18))
-                                                        .frame(width: 110, height: 33.7)
-                                                        .background(Color.white.opacity(0.15))
-                                                        .cornerRadius(12)
-                                                }
-                                            }
-                                            .padding(.vertical, 7)
-                                            .padding(.horizontal, 8)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                }
-                            }
-                    }
-                    
-                    Image("Vector 80")
-                    
-                }
-                .padding(.top, 12)
+                // 未編輯狀態下的內容
+                Image(systemName: "plus")
+                    .foregroundColor(.white.opacity(0.8))
+                Text("Add task")
+                    .font(Font.custom("Inria Sans", size: 18).weight(.bold))
+                    .foregroundColor(.white.opacity(0.8))
+                Spacer()
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: isKeyboardVisible)
-        .fullScreenCover(isPresented: $showAddTimeView) {
-            AddTimeView(
-                isDateEnabled: $isDateEnabled,
-                isTimeEnabled: $isTimeEnabled,
-                selectedDate: $selectedDate,
-                onSave: {
-                    showAddTimeView = false
-                    isDateEnabled = true
-                    isTimeEnabled = true
-                    
-                    if shouldRefocusAfterReturn {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            isTextFieldFocused = true
-                            shouldRefocusAfterReturn = false
-                        }
-                    }
-                },
-                onBack: {
-                    showAddTimeView = false
-                    
-                    if shouldRefocusAfterReturn {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            isTextFieldFocused = true
-                            shouldRefocusAfterReturn = false
-                        }
-                    }
+        .padding(.horizontal, 20)
+        .frame(height: 70)
+        .background(Color(white: 0.12))
+        .clipShape(Capsule())
+        .contentShape(Rectangle()) // 讓整個膠囊區域都能響應點擊
+        .onTapGesture {
+            // 點擊膠囊時的唯一邏輯
+            if !isEditing {
+                // 如果不是編輯模式，就進入編輯模式
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isEditing = true
                 }
-            )
+            }
+            // 如果已經是編輯模式，這個手勢會被觸發但不做任何事，
+            // 同時它會成功攔截點擊，防止事件傳遞到背景上導致輸入框關閉。
+        }
+        .padding(.top, 12)
+        .fullScreenCover(isPresented: $showAddTimeView) {
+            // 假設您有 AddTimeView 和 AddNote View
+            // AddTimeView(isDateEnabled: $isDateEnabled, isTimeEnabled: $isTimeEnabled, selectedDate: $selectedDate, ... )
         }
         .fullScreenCover(isPresented: $showAddNoteView) {
-            AddNote(noteText: note) { savedNote in
-                note = savedNote
-                hasNote = !note.isEmpty
-                showAddNoteView = false
+            // AddNote(noteText: note, ... )
+        }
+    }
+    
+    // 鍵盤上方的工具列
+    private var keyboardToolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .keyboard) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 9) {
+                    // 優先級按鈕
+                    Button(action: {
+                        if isPinned { isPinned = false }
+                        priority = (priority + 1) % 4
+                    }) {
+                        HStack(alignment: .center, spacing: 2) {
+                            ForEach(0..<3) { index in
+                                Image("Star 1 (3)") // 您的星星圖示
+                                    .renderingMode(.template)
+                                    .foregroundColor(index < priority ? .green : .white.opacity(0.65))
+                            }
+                        }
+                        .frame(width: 109, height: 33.7)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(12)
+                    }
+                    
+                    // Pin 按鈕
+                    Button(action: {
+                        isPinned.toggle()
+                        if isPinned { priority = 0 }
+                    }) {
+                        Image("Pin") // 您的 Pin 圖示
+                            .renderingMode(.template)
+                            .foregroundColor(isPinned ? .green : .white)
+                            .frame(width: 51.7, height: 33.7)
+                            .background(Color.white.opacity(0.15))
+                            .cornerRadius(12)
+                    }
+                    
+                    // 時間按鈕
+                    Button(action: {
+                        isTextFieldFocused = false
+                        showAddTimeView = true
+                    }) {
+                        Text(timeButtonText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .foregroundColor(isDateEnabled || isTimeEnabled ? .green : .white.opacity(0.65))
+                            .frame(width: 110, height: 33.7)
+                            .background(Color.white.opacity(0.15))
+                            .cornerRadius(12)
+                    }
+                    
+                    // 筆記按鈕
+                    Button(action: {
+                        isTextFieldFocused = false
+                        showAddNoteView = true
+                    }) {
+                        Text("note")
+                            .foregroundColor(!note.isEmpty ? .green : .white.opacity(0.65))
+                            .frame(width: 110, height: 33.7)
+                            .background(Color.white.opacity(0.15))
+                            .cornerRadius(12)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+    
+    // 時間按鈕的顯示文字
+    private var timeButtonText: String {
+        guard isDateEnabled || isTimeEnabled else { return "time" }
+        
+        let formatter = DateFormatter()
+        var dateText = ""
+        
+        if isDateEnabled {
+            if Calendar.current.isDateInToday(selectedDate) {
+                dateText = "Today"
+            } else if Calendar.current.isDateInTomorrow(selectedDate) {
+                dateText = "Tomorrow"
+            } else {
+                formatter.dateFormat = "MMM d"
+                dateText = formatter.string(from: selectedDate)
             }
         }
-    }
-    
-    // 時間按鈕文字
-    private var timeButtonText: String {
-        if !isDateEnabled && !isTimeEnabled {
-            return "time"
+        
+        var timeText = ""
+        if isTimeEnabled {
+            formatter.dateFormat = "HH:mm"
+            timeText = formatter.string(from: selectedDate)
         }
         
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-        let selectedDay = calendar.startOfDay(for: selectedDate)
-        
-        let timeFormatter = DateFormatter()
-        timeFormatter.timeStyle = .short
-        let timeString = timeFormatter.string(from: selectedDate)
-        
-        var dateText = ""
-        if calendar.isDate(selectedDay, inSameDayAs: today) {
-            dateText = "Today"
-        } else if calendar.isDate(selectedDay, inSameDayAs: tomorrow) {
-            dateText = "Tomorrow"
-        } else {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "MMM d"
-            dateText = dateFormatter.string(from: selectedDate)
-        }
-        
-        if isDateEnabled && isTimeEnabled {
-            return "\(dateText) \(timeString)"
-        } else if isDateEnabled {
-            return dateText
-        } else if isTimeEnabled {
-            return timeString
-        }
-        
-        return "time"
+        return [dateText, timeText].filter { !$0.isEmpty }.joined(separator: " ")
     }
     
-    // 是否應該使用綠色
-    private var shouldUseGreenColor: Bool {
-        return isDateEnabled || isTimeEnabled
-    }
-    
-    // 筆記按鈕是否應該使用綠色
-    private var shouldUseGreenColorForNote: Bool {
-        return hasNote
-    }
-    
-    // 設置鍵盤通知
-    private func setupKeyboardNotifications() {
-        NotificationCenter.default.addObserver(
-            forName: UIResponder.keyboardWillShowNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            isKeyboardVisible = true
-        }
-        
-        NotificationCenter.default.addObserver(
-            forName: UIResponder.keyboardWillHideNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            isKeyboardVisible = false
-        }
-    }
-    
-    // 移除鍵盤通知
-    private func removeKeyboardNotifications() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
-        )
-        
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
-    }
-    
-    // 重置編輯狀態
-    private func resetEditingState() {
-        isEditing = false
-        displayText = ""
-        taskTitle = ""
-        priority = 0
-        isPinned = false
-        priorityLevel = 0
-        hasNote = false
-        note = ""
-        isDateEnabled = false
-        isTimeEnabled = false
-        selectedDate = Date()
-        isTextFieldFocused = false
-    }
-    
-    // 保存任務
+    // 儲存任務
     private func saveTask() {
         guard !displayText.isEmpty else { return }
         
-        // 這裡可以添加保存邏輯，類似 Add.swift 中的 saveToCloudKit()
         let finalTaskDate: Date? = (isDateEnabled || isTimeEnabled) ? selectedDate : nil
         
+        // 請根據您的 TodoItem 初始化方法確認以下參數是否完整
         let newTask = TodoItem(
             id: UUID(),
-            userID: "user123",
+            userID: "user_id", // 請替換為真實用戶ID
             title: displayText,
             priority: priority,
             isPinned: isPinned,
@@ -861,23 +909,33 @@ struct AddTaskButton: View {
             correspondingImageID: "new_task"
         )
         
-        // 使用 DataSyncManager 保存
         DataSyncManager.shared.addTodoItem(newTask) { result in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let savedItem):
-                    print("成功保存任務: \(savedItem.title)")
-                    resetEditingState()
-                    // 通知父視圖重新載入數據
-                    onTaskAdded()
+                case .success:
+                    print("手動新增任務成功: \(newTask.title)")
+                    onTaskAdded() // 通知父視圖刷新
                 case .failure(let error):
-                    print("保存失敗: \(error.localizedDescription)")
-                    resetEditingState()
-                    // 即使保存失敗也通知重新載入，以防本地數據已更新
-                    onTaskAdded()
+                    print("手動新增任務失敗: \(error.localizedDescription)")
                 }
+                resetEditingState()
             }
         }
+    }
+
+    // 重置編輯狀態
+    private func resetEditingState(clearText: Bool = true) {
+        if clearText {
+            displayText = ""
+        }
+        priority = 0
+        isPinned = false
+        note = ""
+        isDateEnabled = false
+        isTimeEnabled = false
+        selectedDate = Date()
+        isEditing = false
+        isTextFieldFocused = false
     }
 }
 
@@ -1150,6 +1208,454 @@ struct SettlementView02_Previews: PreviewProvider {
         ]
         
         SettlementView02(uncompletedTasks: testItems, moveTasksToTomorrow: true)
-            .environmentObject(AlarmStateManager())
     }
 }
+
+
+struct TextInputView: View {
+    let namespace: Namespace.ID
+    @Binding var isTextInputMode: Bool
+    @Binding var isSending: Bool
+    @Binding var text: String
+    let width: CGFloat
+    var onSend: (String) -> Void // 新增回調
+    
+    @FocusState private var isTextFieldFocused: Bool
+    @State private var showContents = false
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 30)
+                .fill(Color.white)
+                .matchedGeometryEffect(id: "aiButton", in: namespace)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(Color(red: 0, green: 0.72, blue: 0.41), lineWidth: 2)
+                        .shadow(color: Color(red: 0, green: 0.72, blue: 0.41).opacity(0.8), radius: 8, x: 0, y: 0)
+                        .shadow(color: Color(red: 0, green: 0.72, blue: 0.41).opacity(0.5), radius: 4, x: 0, y: 0)
+                )
+            
+            if showContents {
+                HStack(spacing: 0) {
+                    Button(action: { closeTextInput() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.gray)
+                    }
+                    .frame(width: 60, height: 60)
+                    
+                    ZStack(alignment: .leading) {
+                        TextField("輸入待辦事項, 或直接跟 AI 說要做什麼", text: $text)
+                            .focused($isTextFieldFocused)
+                            .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                            .opacity(isSending ? 0 : 1)
+                        
+                        if isSending {
+                            AnimatedGradientTextView(text: text)
+                        }
+                    }
+                    
+                    if isSending {
+                        TextLoadingIndicatorView()
+                            .frame(width: 44, height: 44)
+                            .padding(.trailing, 8)
+                    } else if !text.isEmpty {
+                        // 確保按鈕呼叫 onSend 回調
+                        Button(action: {
+                            onSend(text)
+                        }) {
+                            ZStack {
+                                Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(width: 44, height: 44)
+                        .padding(.trailing, 8)
+                        .transition(.scale.animation(.spring()))
+                    }
+                }
+                .transition(.opacity.animation(.easeIn(duration: 0.3).delay(0.2)))
+            }
+        }
+        .frame(width: width, height: 60)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showContents = true
+            }
+        }
+        .onChange(of: isTextInputMode) { newValue in
+            if !newValue {
+                isTextFieldFocused = false
+            }
+        }
+    }
+    
+    private func closeTextInput() {
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            isTextInputMode = false
+        }
+        isTextFieldFocused = false
+    }
+    
+    struct TextLoadingIndicatorView: View {
+        @State private var isAnimating = false
+        
+        var body: some View {
+            GeometryReader { geometry in
+                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                
+                ZStack {
+                    ForEach(0..<4) { i in
+                        Path { path in
+                            path.addArc(
+                                center: center, radius: 14,
+                                startAngle: .degrees(Double(i) * 90 + 35),
+                                endAngle: .degrees(Double(i) * 90 + 75),
+                                clockwise: false
+                            )
+                        }
+                        .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                    }
+                }
+                .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                .onAppear {
+                    withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
+                        isAnimating = true
+                    }
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+        }
+    }
+}
+
+struct AnimatedGradientTextView: View {
+    let text: String
+    @State private var gradientStartPoint: UnitPoint = .init(x: -1, y: 0.5)
+    
+    private let gradientColors = [
+        Color.green.opacity(0.7), Color.cyan.opacity(0.7), Color.blue.opacity(0.7),
+        Color.purple.opacity(0.7), Color.pink.opacity(0.7), Color.green.opacity(0.7)
+    ]
+    
+    var body: some View {
+        Text(text)
+            .font(.system(size: 17))
+            .foregroundColor(.clear)
+            .overlay(
+                LinearGradient(
+                    colors: gradientColors,
+                    startPoint: gradientStartPoint,
+                    endPoint: .init(x: gradientStartPoint.x + 1, y: 0.5)
+                )
+                .mask(Text(text).font(.system(size: 17)))
+            )
+            .onAppear {
+                withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                    gradientStartPoint = .init(x: 1, y: 0.5)
+                }
+            }
+    }
+}
+
+struct AudioWaveformView: View {
+    let audioLevel: Double
+    @Binding var isSaving: Bool
+    
+    private let barCount = 50
+    @State private var waveformData: [Double] = Array(repeating: 0, count: 50)
+    @State private var savingTimer: Timer?
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<waveformData.count, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Color.white)
+                    .frame(width: 3, height: max(4, waveformData[index] * 55))
+            }
+        }
+        .animation(.easeOut(duration: 0.1), value: waveformData)
+        .onChange(of: audioLevel) { newLevel in
+            if !isSaving {
+                updateWaveform(with: newLevel)
+            }
+        }
+        .onChange(of: isSaving) { newValue in
+            if newValue {
+                startDecayAnimation()
+            } else {
+                savingTimer?.invalidate()
+                savingTimer = nil
+            }
+        }
+    }
+    
+    private func updateWaveform(with level: Double) {
+        waveformData.append(level)
+        if waveformData.count > barCount {
+            waveformData.removeFirst()
+        }
+    }
+    
+    private func startDecayAnimation() {
+        var decaySteps = 20
+        savingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            guard decaySteps > 0 else {
+                waveformData = Array(repeating: 0, count: barCount)
+                savingTimer?.invalidate()
+                savingTimer = nil
+                return
+            }
+            
+            let decayFactor = Double(decaySteps) / 20.0
+            let newLevel = Double.random(in: 0...0.3) * decayFactor
+            updateWaveform(with: newLevel)
+            
+            decaySteps -= 1
+        }
+    }
+}
+
+struct ExpandableSoundButton: View {
+    let namespace: Namespace.ID
+    @Binding var isRecording: Bool
+    @Binding var isTextInputMode: Bool
+    @Binding var isSaving: Bool
+    
+    let audioLevel: Double
+    let onRecordingStart: () -> Void
+    let onRecordingEnd: () -> Void
+    let onRecordingCancel: () -> Void
+    let expandedWidth: CGFloat
+    
+    @State private var dragLocation: CGPoint = .zero
+    @State private var isOverCancelButton = false
+    @State private var isOverSendButton = true
+    @State private var pressEffectScale: CGFloat = 1.0
+    @State private var cancelPressEffectScale: CGFloat = 0.0
+    
+    @State private var showRecordingContents = false
+    
+    @State private var recordingHintText: String = ""
+    
+    private var currentWidth: CGFloat {
+        isRecording || isSaving ? expandedWidth : 60
+    }
+    
+    var body: some View {
+        ZStack(alignment: .top) {
+            Text(recordingHintText)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+                .shadow(color: .black.opacity(0.7), radius: 5, x: 0, y: 2)
+                .offset(y: -50)
+                .opacity(isRecording && !recordingHintText.isEmpty ? 1 : 0)
+                .animation(.easeInOut, value: recordingHintText)
+                .zIndex(1)
+            
+            ZStack {
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color(red: 0, green: 0.72, blue: 0.41))
+                    .matchedGeometryEffect(id: "aiButton", in: namespace)
+                
+                if isRecording || isSaving {
+                    if showRecordingContents {
+                        recordingView
+                    }
+                } else {
+                    defaultView
+                }
+            }
+            .frame(width: currentWidth, height: 60)
+            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isRecording || isSaving)
+            .onTapGesture {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                    isTextInputMode = true
+                }
+            }
+            .gesture(longPressGesture)
+            .onChange(of: isRecording) { newValue in
+                if newValue {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        showRecordingContents = true
+                    }
+                } else if !isSaving {
+                    showRecordingContents = false
+                }
+            }
+            .onChange(of: isSaving) { newValue in
+                if !newValue {
+                    showRecordingContents = false
+                }
+            }
+        }
+    }
+    
+    private var defaultView: some View {
+        ZStack {
+            Image("Star 12")
+                .resizable().scaledToFit().frame(width: 20, height: 20)
+                .foregroundColor(.white).offset(x: -4, y: -4)
+            Image("Star 12")
+                .resizable().scaledToFit().frame(width: 11, height: 11)
+                .foregroundColor(.white).offset(x: 7, y: 7)
+        }
+    }
+    
+    private var recordingView: some View {
+        HStack(spacing: 0) {
+            Button(action: { cancelRecording() }) {
+                ZStack {
+                    ZStack {
+                        Circle().stroke(Color.white, lineWidth: 1.5).frame(width: 47, height: 47)
+                        Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).foregroundColor(.white)
+                    }.opacity(isOverCancelButton ? 0 : 1)
+                    ZStack {
+                        Circle().fill(Color.white).frame(width: 47, height: 47)
+                        Image(systemName: "xmark").font(.system(size: 16, weight: .medium)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                    }.opacity(isOverCancelButton ? 1 : 0)
+                }
+            }
+            .frame(width: 60, height: 60)
+            .background(
+                Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
+                    .scaleEffect(cancelPressEffectScale)
+                    .opacity(isOverCancelButton ? 1 : 0)
+            )
+            .opacity(isSaving ? 0 : 1)
+            .transition(.move(edge: .leading).combined(with: .opacity))
+            
+            ZStack {
+                AudioWaveformView(audioLevel: audioLevel, isSaving: $isSaving)
+                if isSaving {
+                    LoadingIndicatorView()
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .transition(.opacity.combined(with: .scale))
+            
+            ZStack {
+                ZStack {
+                    ZStack {
+                        Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
+                        Circle().stroke(Color.white, lineWidth: 1.5)
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(.white)
+                    }
+                    .frame(width: 50, height: 50)
+                    .opacity(isOverSendButton ? 0 : 1)
+                    
+                    ZStack {
+                        Circle().fill(Color.white)
+                        Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                    }
+                    .frame(width: 50, height: 50)
+                    .opacity(isOverSendButton ? 1 : 0)
+                    
+                    Circle().fill(Color.white.opacity(0.3)).frame(width: 80, height: 80)
+                        .scaleEffect(pressEffectScale)
+                        .opacity(isOverSendButton ? 1 : 0)
+                }
+            }
+            .frame(width: 60, height: 60)
+            .opacity(isSaving ? 0 : 1)
+            .transition(.opacity)
+        }
+        .transition(.opacity)
+    }
+    
+    private var longPressGesture: some Gesture {
+        LongPressGesture(minimumDuration: 0.5)
+            .onEnded { _ in
+                if !isRecording && !isTextInputMode {
+                    onRecordingStart()
+                }
+            }
+            .simultaneously(with: dragGesture)
+    }
+    
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                if isRecording {
+                    dragLocation = value.location
+                    let sendButtonFrame = CGRect(x: currentWidth - 60, y: 0, width: 60, height: 60)
+                    let cancelButtonFrame = CGRect(x: 0, y: 0, width: 60, height: 60)
+                    
+                    self.isOverSendButton = sendButtonFrame.contains(value.location)
+                    self.isOverCancelButton = cancelButtonFrame.contains(value.location)
+                    
+                    if self.isOverCancelButton {
+                        self.recordingHintText = "Release to cancel"
+                    } else if self.isOverSendButton {
+                        self.recordingHintText = "Release to send..."
+                    } else {
+                        self.recordingHintText = ""
+                    }
+                    
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        self.pressEffectScale = self.isOverSendButton ? 1.0 : 0.0
+                        self.cancelPressEffectScale = self.isOverCancelButton ? 1.0 : 0.0
+                    }
+                }
+            }
+            .onEnded { value in
+                if isRecording {
+                    if isOverCancelButton {
+                        cancelRecording()
+                    } else {
+                        completeRecording()
+                    }
+                    dragLocation = .zero
+                    isOverCancelButton = false
+                    isOverSendButton = true
+                    pressEffectScale = 1.0
+                    cancelPressEffectScale = 0.0
+                    recordingHintText = ""
+                }
+            }
+    }
+    
+    private func cancelRecording() {
+        onRecordingCancel()
+    }
+    
+    private func completeRecording() {
+        onRecordingEnd()
+    }
+    
+    struct LoadingIndicatorView: View {
+        @State private var isAnimating = false
+        
+        var body: some View {
+            GeometryReader { geometry in
+                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                
+                ZStack {
+                    ForEach(0..<8) { i in
+                        Path { path in
+                            path.addArc(
+                                center: center, radius: 20,
+                                startAngle: .degrees(Double(i) * 45 + 1),
+                                endAngle: .degrees(Double(i) * 45 + 20),
+                                clockwise: false
+                            )
+                        }
+                        .stroke(style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .foregroundColor(.white)
+                    }
+                }
+                .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                .onAppear {
+                    withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
+                        isAnimating = true
+                    }
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+        }
+    }
+}
+
