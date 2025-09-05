@@ -189,7 +189,6 @@ struct SettlementView02: View {
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, 12)
             }
-            .padding(.top, 60)
             
             .onTapGesture {
                 // 如果手動編輯模式是開啟的，就關閉它
@@ -742,7 +741,9 @@ struct AddTaskButton: View {
                 
                 TextField("Add task manually", text: $displayText)
                     .foregroundColor(.white)
+                    .colorScheme(.dark)
                     .focused($isTextFieldFocused)
+                    .submitLabel(.done)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             isTextFieldFocused = true
