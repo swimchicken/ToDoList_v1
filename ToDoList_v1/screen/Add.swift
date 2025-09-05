@@ -327,6 +327,11 @@ struct Add: View {
                                 .colorScheme(.dark)
                                 .focused($isTextFieldFocused)
                                 .submitLabel(.done)
+                                .onSubmit {
+                                    if !displayText.isEmpty {
+                                        saveToCloudKit()
+                                    }
+                                }
                                 .onChange(of: isTextFieldFocused) { newValue in
                                     // Update keyboard visibility state when focus changes
                                     // This is in addition to the notification center observers
