@@ -16,7 +16,7 @@ struct ItemRow: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Color.clear
 
             HStack(spacing: 12) {
                 // 1. 圓圈按鈕：永遠靠左
@@ -103,8 +103,7 @@ struct ItemRow: View {
             }
             .padding(.vertical, 13) // 增加垂直內距使內容更舒適
             .padding(.horizontal, 2) // 微調水平內距
-            // 添加置頂項目的特殊背景色
-            .frame(width: item.isPinned ? 354 : nil, height: 52)
+            .frame(height: 52)
             .background(item.isPinned ? Color(red: 0.09, green: 0, blue: 0) : Color.clear)
             .cornerRadius(item.isPinned ? 15 : 0)
 

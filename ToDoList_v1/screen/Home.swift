@@ -64,7 +64,28 @@ struct Home: View {
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
-    @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量
+    @GestureState private var dragOffset: CGFloat = 0 // 拖動偏移量（保留用於過渡期間）
+    
+    // 新增：用於 ScrollView 的狀態變數
+    @State private var scrollDateOffsets: [Int] = [-2, -1, 0, 1, 2] // 預載入的日期偏移範圍
+    @State private var scrollPosition: Int? = 0 // 當前 ScrollView 位置，對應 currentDateOffset
+    @State private var isScrolling: Bool = false // 追蹤是否正在滑動
+    
+    // 創建一個計算屬性來橋接 currentDateOffset 到 scrollPosition
+    private var scrollablePosition: Binding<Int?> {
+        Binding<Int?>(
+            get: {
+                return self.currentDateOffset
+            },
+            set: { newOffset in
+                if let newOffset = newOffset, self.currentDateOffset != newOffset {
+                    self.currentDateOffset = newOffset
+                    // 動態擴展滾動範圍
+                    self.expandScrollRangeIfNeeded(for: newOffset)
+                }
+            }
+        )
+    }
     
     // 數據同步管理器 - 處理本地存儲和雲端同步
     private let dataSyncManager = DataSyncManager.shared
@@ -216,393 +237,360 @@ struct Home: View {
                 
                 // 2. 主介面內容 (會被模糊)
                 ZStack{
+                // 2. 主介面內容
+                VStack(spacing: 0) {
+                    // Header - 使用台灣時間
                     VStack(spacing: 0) {
-                        // Header
-                        VStack(spacing: 0) {
-                            UserInfoView(
-                                avatarImageName: "who",
-                                dateText: taiwanTime.monthDay,
-                                dateText2: taiwanTime.weekday,
-                                statusText: taiwanTime.timeStatus,
-                                temperatureText: "26°C",
-                                showCalendarView: $showCalendarView,
-                                onAvatarTapped: {
-                                    navigateToTestPage = true
-                                }
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: 0)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            // 待辦事項佇列按鈕
-                            HStack {
-                                Button {
-                                    withAnimation { showToDoSheet.toggle() }
-                                } label: {
-                                    Text("待辦事項佇列")
-                                        .font(.custom("Inter", size: 14).weight(.semibold))
-                                        .foregroundColor(.white)
-                                        .padding(10)
-                                        .background(Color.white.opacity(0.15))
-                                        .cornerRadius(8)
-                                }
-                                .contentShape(Rectangle())
-                                
-                                Spacer()
-                                
-                                Image(systemName: "ellipsis")
+                        UserInfoView(
+                            avatarImageName: "who",
+                            dateText: taiwanTime.monthDay,
+                            dateText2: taiwanTime.weekday,
+                            statusText: taiwanTime.timeStatus,
+                            temperatureText: "26°C",
+                            showCalendarView: $showCalendarView,
+                            onAvatarTapped: {
+                                navigateToTestPage = true
+                            }
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: 0)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        // 待辦事項佇列按鈕
+                        HStack {
+                            Button {
+                                withAnimation { showToDoSheet.toggle() }
+                            } label: {
+                                Text("待辦事項佇列")
+                                    .font(.custom("Inter", size: 14).weight(.semibold))
                                     .foregroundColor(.white)
+                                    .padding(10)
+                                    .background(Color.white.opacity(0.15))
+                                    .cornerRadius(8)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 60)
-                            
-                            // 節日區塊
-                            VStack(spacing: 0) {
-                                Divider().background(Color.white)
-                                HStack(spacing: 16) {
-                                    Image(systemName: "calendar")
-                                    Text("Shiro birthday").font(.headline)
-                                    Spacer()
-                                    Text("10:00").font(.subheadline)
-                                }
-                                .frame(width: 354, height: 59)
-                                .cornerRadius(12)
-                                Divider().background(Color.white)
-                            }
-                            .foregroundColor(.white)
-                            
-                            // 任務列表
-                            GeometryReader { geometry in
-                                ZStack {
-                                    HStack(spacing: 0) {
-                                        taskList(geometry: geometry)
-                                            .frame(width: geometry.size.width)
-                                    }
-                                    .offset(x: dragOffset)
-                                    .gesture(
-                                        DragGesture()
-                                            .updating($dragOffset) { value, state, _ in
-                                                state = value.translation.width
-                                            }
-                                            .onEnded { value in
-                                                let threshold = geometry.size.width * 0.2
-                                                let predictedEndTranslation = value.predictedEndTranslation.width
-                                                withAnimation(.easeOut) {
-                                                    if predictedEndTranslation < -threshold {
-                                                        currentDateOffset += 1
-                                                    } else if predictedEndTranslation > threshold {
-                                                        currentDateOffset -= 1
-                                                    }
-                                                }
-                                            }
-                                    )
-                                }
-                            }
-                            .padding(.bottom, bottomPaddingForTaskList)
-                            .animation(.easeInOut, value: isCurrentDay)
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 24)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 60)
-                    .zIndex(1)
-                    
-                    // 3. 底部灰色容器
-                    if !showToDoSheet && !showingDeleteView {
-                        HomeBottomView(
-                            todoItems: sortedToDoItems,
-                            refreshToken: dataRefreshToken,
-                            isCurrentDay: isCurrentDay,
-                            isSyncing: isSyncing,
-                            onEndTodayTapped: {
-                                if !isSyncing {
-                                    let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
-                                    print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
-                                    UserDefaults.standard.set(true, forKey: "isActiveEndDay")
-                                    LocalDataManager.shared.saveAllChanges()
-                                    NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        let allItems = LocalDataManager.shared.getAllTodoItems()
-                                        let filteredItems = allItems.filter { !self.recentlyDeletedItemIDs.contains($0.id) }
-                                        if allItems.count != filteredItems.count {
-                                            print("結算前過濾了 \(allItems.count - filteredItems.count) 個已刪除項目")
-                                            let deletedButStillExistIDs = allItems.filter { self.recentlyDeletedItemIDs.contains($0.id) }.map { $0.id }
-                                            for id in deletedButStillExistIDs {
-                                                LocalDataManager.shared.deleteTodoItem(withID: id)
-                                                print("結算前強制刪除項目 ID: \(id)")
-                                            }
-                                            self.toDoItems = filteredItems
-                                        }
-                                        navigateToSettlementView = true
-                                    }
-                                }
-                            },
-                            onReturnToTodayTapped: {
-                                withAnimation(.easeInOut) {
-                                    currentDateOffset = 0
-                                    if !isSyncing { loadTodoItems() }
-                                }
-                            },
-                            onAddButtonTapped: {
-                                if isCurrentDay {
-                                    addTaskMode = .today
-                                } else {
-                                    addTaskMode = .future
-                                }
-                                withAnimation(.easeInOut) {
-                                    showAddTaskSheet = true
-                                }
-                            },
-                            
-                            onError: { errorMessage in
-                                self.toastMessage = errorMessage
-                                withAnimation {
-                                    self.showToast = true
-                                }
-                            },
-                            // === 修改點：傳入新的閉包 ===
-                            onTasksReceived: { receivedTasks in
-                                self.pendingTasks = receivedTasks
-                                if !self.pendingTasks.isEmpty {
-                                    // 稍微延遲以獲得更好的動畫效果
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        self.showTaskSelectionOverlay = true
-                                    }
-                                }
-                            },
-                            
-                    
-                            isSleepMode: isSleepMode,
-                            alarmTimeString: alarmTimeString,
-                            dayProgress: dayProgress,
-                            onSleepButtonTapped: {
-                                navigateToSleep01View = true
-                            }
-                        )
-                        .zIndex(2)
-                    }
-                }
-                // === 修改點：更新 blur 條件 ===
-                .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
-                
-                //錯誤訊息
-                if showToast {
-                    VStack {
-                        Spacer() // 將 Toast 推至底部
-                        ErrorToastView(message: toastMessage)
-                            .onAppear {
-                                // 讓 Toast 在 3 秒後自動消失
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                    withAnimation {
-                                        showToast = false
-                                    }
-                                }
-                            }
-                        Spacer().frame(height: 100) // 距離底部的距離
-                    }
-                    .transition(.opacity)
-                    .zIndex(999) // 確保在最上層
-                }
-                
-                
-                // 4. ToDoSheetView 彈窗
-                if showToDoSheet {
-                    GeometryReader { geometry in
-                        ZStack(alignment: .top) {
-                            Color.black.opacity(0.5)
-                                .frame(height: geometry.size.height - 180)
-                                .onTapGesture { withAnimation(.easeInOut) { showToDoSheet = false } }
-                                .zIndex(9)
-                            
-                            VStack {
-                                Spacer().frame(height: geometry.size.height * 0.15)
-                                ToDoSheetView(
-                                    toDoItems: $toDoItems,
-                                    onDismiss: {
-                                        withAnimation(.easeInOut) {
-                                            showToDoSheet = false
-                                            loadTodoItems()
-                                        }
-                                    },
-                                    onAddButtonPressed: {
-                                        addTaskMode = .memo
-                                        isFromTodoSheet = true
-                                        withAnimation(.easeInOut) {
-                                            showAddTaskSheet = true
-                                        }
-                                    }
-                                )
-                                .frame(maxHeight: geometry.size.height - 180)
-                                Spacer()
-                            }
-                            .frame(width: geometry.size.width)
-                            .zIndex(10)
-                        }
-                        .blur(radius: showAddTaskSheet ? 13.5 : 0)
-                    }
-                    .ignoresSafeArea()
-                }
-                
-                // 5. Add.swift 彈出視圖
-                if showAddTaskSheet {
-                    ZStack {
-                        Color.clear.ignoresSafeArea()
-                        .onTapGesture { withAnimation(.easeInOut) { showAddTaskSheet = false } }
-                        
-                        Add(toDoItems: $toDoItems,
-                            initialMode: isFromTodoSheet ? .memo : (currentDateOffset == 0 ? .today : .future),
-                            currentDateOffset: currentDateOffset,
-                            fromTodoSheet: isFromTodoSheet,
-                            onClose: {
-                            showAddTaskSheet = false
-                            addTaskMode = .today
-                            isFromTodoSheet = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                                loadTodoItems()
-                            }
-                        })
-                        .transition(.move(edge: .bottom))
-                    }
-                    .animation(.easeInOut(duration: 0.3), value: showAddTaskSheet)
-                    .zIndex(100)
-                }
-                
-                // 6. CalendarView 全屏覆蓋
-                if showCalendarView {
-                    ZStack {
-                        Color.black.opacity(0.7).ignoresSafeArea()
-                        .onTapGesture { withAnimation(.easeInOut) { showCalendarView = false } }
-                        
-                        CalendarView(
-                            toDoItems: $toDoItems,
-                            onDateSelected: { dayOffset in
-                                withAnimation(.easeInOut) {
-                                    currentDateOffset = dayOffset
-                                    showCalendarView = false
-                                    loadTodoItems()
-                                }
-                            },
-                            onNavigateToHome: {
-                                withAnimation(.easeInOut) { showCalendarView = false }
-                                loadTodoItems()
-                            }
-                        )
-                        .transition(.move(edge: .bottom))
-                    }
-                    .animation(.easeInOut(duration: 0.3), value: showCalendarView)
-                    .zIndex(200)
-                }
-                
-                // 7. DeleteItemView 彈出視圖
-                if showingDeleteView, let item = selectedItem {
-                    ZStack {
-                        Color.black.opacity(0.4).ignoresSafeArea()
-                            .onTapGesture {
-                                withAnimation(.easeInOut) {
-                                    showingDeleteView = false
-                                    selectedItem = nil
-                                }
-                            }
-                            .transition(.opacity)
+                            .contentShape(Rectangle())
 
-                        DeleteItemView(
-                            itemName: item.title,
-                            onCancel: {
-                                withAnimation(.easeInOut) {
-                                    showingDeleteView = false
-                                    selectedItem = nil
-                                }
-                            },
-                            onEdit: {
-                                withAnimation(.easeInOut) {
-                                    showingDeleteView = false
-                                    selectedItem = nil
-                                    showingEditSheet = true
-                                }
-                            },
-                            onDelete: {
-                                if let itemToDelete = selectedItem {
-                                    withAnimation(.easeInOut) {
-                                        showingDeleteView = false
-                                        selectedItem = nil
-                                    }
-                                    if let index = toDoItems.firstIndex(where: { $0.id == itemToDelete.id }) {
-                                        toDoItems.remove(at: index)
-                                    }
-                                    let deletedItemID = itemToDelete.id
-                                    recentlyDeletedItemIDs.insert(deletedItemID)
-                                    LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
-                                    DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { _ in }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                        self.dataRefreshToken = UUID()
-                                    }
-                                } else {
-                                    withAnimation(.easeInOut) {
-                                        showingDeleteView = false
-                                        selectedItem = nil
-                                    }
-                                }
-                            }
-                        )
-                        .transition(.move(edge: .bottom))
-                    }
-                    .animation(.easeInOut(duration: 0.3), value: showingDeleteView)
-                    .zIndex(300)
-                }
-                
-                //第三步：新增 TaskEditView 的顯示邏輯
-                if let taskToEdit = self.taskToEdit,
-                   let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
-                    
-                    TaskEditView(task: $pendingTasks[taskIndex], onClose: {
-                        // 交接結束：命令 TaskEditView 消失，並重新顯示 TaskSelectionOverlay
-                        self.taskToEdit = nil
-                        // 稍微延遲讓動畫更流暢
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            self.showTaskSelectionOverlay = true
+                            Spacer()
+                            
+                            Image(systemName: "ellipsis")
+                                .foregroundColor(.white)
                         }
-                    })
-                    .zIndex(600) // 給予比 TaskSelectionOverlay 更高的層級
-                    .transition(.opacity.animation(.easeInOut))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 30)
+                        .padding(.horizontal, 8)
+                        
+                        horizontalScrollView()
+                        .padding(.bottom, bottomPaddingForTaskList)
+                        .animation(.easeInOut, value: isCurrentDay)
+                    }
+                    .padding(.horizontal, 0)
+                    .padding(.vertical, 24)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 30)
+                .zIndex(1) // 設置主界面内容的層級
                 
-                // === 修改點：在 Home 層級顯示 TaskSelectionOverlay ===
-                if showTaskSelectionOverlay {
-                    TaskSelectionOverlay(
-                        tasks: $pendingTasks,
-                        onCancel: {
-                            withAnimation {
-                                self.showTaskSelectionOverlay = false
-                            }
-                        },
-                        onAdd: { itemsToAdd in
-                            for item in itemsToAdd {
-                                self.dataSyncManager.addTodoItem(item) { result in
-                                    switch result {
-                                    case .success:
-                                        print("成功保存任務: \(item.title)")
-                                    case .failure(let error):
-                                        print("保存任務失敗: \(error.localizedDescription)")
+                // 3. 底部灰色容器
+                if !showToDoSheet && !showingDeleteView {
+                    HomeBottomView(
+                        todoItems: sortedToDoItems,
+                        refreshToken: dataRefreshToken,
+                        isCurrentDay: isCurrentDay,
+                        isSyncing: isSyncing,
+                        onEndTodayTapped: {
+                            if !isSyncing {
+                                let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
+                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
+                                UserDefaults.standard.set(true, forKey: "isActiveEndDay")
+                                LocalDataManager.shared.saveAllChanges()
+                                NotificationCenter.default.post(
+                                    name: Notification.Name("TodoItemsDataRefreshed"),
+                                    object: nil
+                                )
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    let allItems = LocalDataManager.shared.getAllTodoItems()
+                                    let filteredItems = allItems.filter { item in
+                                        !self.recentlyDeletedItemIDs.contains(item.id)
                                     }
+                                    if allItems.count != filteredItems.count {
+                                        print("結算前過濾了 \(allItems.count - filteredItems.count) 個已刪除項目")
+                                        let deletedButStillExistIDs = allItems
+                                            .filter { self.recentlyDeletedItemIDs.contains($0.id) }
+                                            .map { $0.id }
+                                        for id in deletedButStillExistIDs {
+                                            LocalDataManager.shared.deleteTodoItem(withID: id)
+                                            print("結算前強制刪除項目 ID: \(id)")
+                                        }
+                                        self.toDoItems = filteredItems
+                                    }
+                                    navigateToSettlementView = true
                                 }
                             }
-                            withAnimation {
-                                self.showTaskSelectionOverlay = false
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                self.loadTodoItems()
+                        },
+                        onReturnToTodayTapped: {
+                            withAnimation(.easeInOut) {
+                                currentDateOffset = 0
+                                if !isSyncing {loadTodoItems()}
                             }
                         },
-                        onEditTask: { task in
-                            // 交接開始：命令 TaskSelectionOverlay 消失，並設定要編輯的任務
-                            self.showTaskSelectionOverlay = false
-                            self.taskToEdit = task
+                        onAddButtonTapped: {
+                            if isCurrentDay {
+                                addTaskMode = .today
+                            } else {
+                                addTaskMode = .future
+                            }
+                            withAnimation(.easeInOut) {
+                                showAddTaskSheet = true
+                            }
+                        },
+                        onError: { errorMessage in
+                            self.toastMessage = errorMessage
+                            withAnimation {
+                                self.showToast = true
+                            }
+                        },
+                        // === 修改點：傳入新的閉包 ===
+                        onTasksReceived: { receivedTasks in
+                            self.pendingTasks = receivedTasks
+                            if !self.pendingTasks.isEmpty {
+                                // 稍微延遲以獲得更好的動畫效果
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    self.showTaskSelectionOverlay = true
+                                }
+                            }
+                        },
+                        isSleepMode: isSleepMode,
+                        alarmTimeString: alarmTimeString,
+                        dayProgress: dayProgress,
+                        onSleepButtonTapped: {
+                            navigateToSleep01View = true
                         }
                     )
-                    .zIndex(500) // 給予最高的層級
-                    .transition(.opacity)
+                    .zIndex(2)
                 }
+                
+            }
+            .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
+
+            //錯誤訊息
+            if showToast {
+                VStack {
+                    Spacer() // 將 Toast 推至底部
+                    ErrorToastView(message: toastMessage)
+                        .onAppear {
+                            // 讓 Toast 在 3 秒後自動消失
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                withAnimation {
+                                    showToast = false
+                                }
+                            }
+                        }
+                    Spacer().frame(height: 100) // 距離底部的距離
+                }
+                .transition(.opacity)
+                .zIndex(999) // 確保在最上層
+            }
+            
+            // 4. ToDoSheetView 彈窗 - 僅覆蓋部分屏幕而非整個屏幕
+            if showToDoSheet {
+                GeometryReader { geometry in
+                    ZStack(alignment: .top) {
+                        Color.black.opacity(0.5)
+                            .frame(height: geometry.size.height - 180)
+                            .onTapGesture {
+                                withAnimation(.easeInOut) { showToDoSheet = false }
+                            }
+                            .zIndex(9)
+                        
+                        VStack {
+                            Spacer().frame(height: geometry.size.height * 0.15)
+                            ToDoSheetView(
+                                toDoItems: $toDoItems,
+                                onDismiss: {
+                                    withAnimation(.easeInOut) {
+                                        showToDoSheet = false
+                                        loadTodoItems()
+                                    }
+                                },
+                                onAddButtonPressed: {
+                                    print("🚨 Home - onAddButtonPressed 被觸發，設置模式為 memo")
+                                    addTaskMode = .memo
+                                    isFromTodoSheet = true
+                                    withAnimation(.easeInOut) {
+                                        showAddTaskSheet = true
+                                    }
+                                }
+                            )
+                            .frame(maxHeight: geometry.size.height - 180)
+                            Spacer()
+                        }
+                        .frame(width: geometry.size.width)
+                        .zIndex(10)
+                    }
+                    .blur(radius: showAddTaskSheet ? 13.5 : 0)
+                }
+                .ignoresSafeArea()
+            }
+            
+            // 5. 添加 Add.swift 彈出視圖
+            if showAddTaskSheet {
+                ZStack {
+                    Color.clear.ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeInOut) { showAddTaskSheet = false } }
+                    
+                    Add(toDoItems: $toDoItems,
+                        initialMode: isFromTodoSheet ? .memo : (currentDateOffset == 0 ? .today : .future),
+                        currentDateOffset: currentDateOffset,
+                        fromTodoSheet: isFromTodoSheet,
+                        onClose: {
+                        showAddTaskSheet = false
+                        addTaskMode = .today
+                        isFromTodoSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            loadTodoItems()
+                        }
+                    })
+                    .transition(.move(edge: .bottom))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showAddTaskSheet)
+                .zIndex(100)
+            }
+            
+            // 6. 新增: CalendarView 全屏覆蓋
+            if showCalendarView {
+                ZStack {
+                    Color.black.opacity(0.7).ignoresSafeArea()
+                    .onTapGesture { withAnimation(.easeInOut) { showCalendarView = false } }
+                    
+                    CalendarView(
+                        toDoItems: $toDoItems,
+                        onDateSelected: { dayOffset in
+                            withAnimation(.easeInOut) {
+                                currentDateOffset = dayOffset
+                                showCalendarView = false
+                                loadTodoItems()
+                            }
+                        },
+                        onNavigateToHome: {
+                            withAnimation(.easeInOut) { showCalendarView = false }
+                            loadTodoItems()
+                        }
+                    )
+                    .transition(.move(edge: .bottom))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showCalendarView)
+                .zIndex(200)
+            }
+            
+            // 7. 新增: DeleteItemView 彈出視圖
+            if showingDeleteView, let item = selectedItem {
+                ZStack {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut) {
+                                showingDeleteView = false
+                                selectedItem = nil
+                            }
+                        }
+                        .transition(.opacity)
+
+                    DeleteItemView(
+                        itemName: item.title,
+                        onCancel: {
+                            withAnimation(.easeInOut) {
+                                showingDeleteView = false
+                                selectedItem = nil
+                            }
+                        },
+                        onEdit: {
+                            withAnimation(.easeInOut) {
+                                showingDeleteView = false
+                                selectedItem = nil
+                                showingEditSheet = true
+                            }
+                        },
+                        onDelete: {
+                            if let itemToDelete = selectedItem {
+                                withAnimation(.easeInOut) {
+                                    showingDeleteView = false
+                                    selectedItem = nil
+                                }
+                                if let index = toDoItems.firstIndex(where: { $0.id == itemToDelete.id }) {
+                                    toDoItems.remove(at: index)
+                                }
+                                let deletedItemID = itemToDelete.id
+                                recentlyDeletedItemIDs.insert(deletedItemID)
+                                LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
+                                DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { _ in }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    self.dataRefreshToken = UUID()
+                                }
+                            } else {
+                                withAnimation(.easeInOut) {
+                                    showingDeleteView = false
+                                    selectedItem = nil
+                                }
+                            }
+                        }
+                    )
+                    .transition(.move(edge: .bottom))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showingDeleteView)
+                .zIndex(300)
+            }
+                
+            //第三步：新增 TaskEditView 的顯示邏輯
+            if let taskToEdit = self.taskToEdit,
+               let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
+                
+                TaskEditView(task: $pendingTasks[taskIndex], onClose: {
+                    // 交接結束：命令 TaskEditView 消失，並重新顯示 TaskSelectionOverlay
+                    self.taskToEdit = nil
+                    // 稍微延遲讓動畫更流暢
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        self.showTaskSelectionOverlay = true
+                    }
+                })
+                .zIndex(600) // 給予比 TaskSelectionOverlay 更高的層級
+                .transition(.opacity.animation(.easeInOut))
+            }
+            
+            // === 修改點：在 Home 層級顯示 TaskSelectionOverlay ===
+            if showTaskSelectionOverlay {
+                TaskSelectionOverlay(
+                    tasks: $pendingTasks,
+                    onCancel: {
+                        withAnimation {
+                            self.showTaskSelectionOverlay = false
+                        }
+                    },
+                    onAdd: { itemsToAdd in
+                        for item in itemsToAdd {
+                            self.dataSyncManager.addTodoItem(item) { result in
+                                switch result {
+                                case .success:
+                                    print("成功保存任務: \(item.title)")
+                                case .failure(let error):
+                                    print("保存任務失敗: \(error.localizedDescription)")
+                                }
+                            }
+                        }
+                        withAnimation {
+                            self.showTaskSelectionOverlay = false
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            self.loadTodoItems()
+                        }
+                    },
+                    onEditTask: { task in
+                        // 交接開始：命令 TaskSelectionOverlay 消失，並設定要編輯的任務
+                        self.showTaskSelectionOverlay = false
+                        self.taskToEdit = task
+                    }
+                )
+                .zIndex(500) // 給予最高的層級
+                .transition(.opacity)
+            }
                 
                 
             }
@@ -669,51 +657,243 @@ struct Home: View {
         )
     }
     
-    // MARK: - Views
-    private func taskList(geometry: GeometryProxy) -> some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                if sortedToDoItems.isEmpty {
-                    VStack {
-                        if isLoading {
-                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .padding(.bottom, 20)
-                            Text("載入待辦事項中...").foregroundColor(.white.opacity(0.8))
-                        } else if let error = loadingError {
-                            Image(systemName: "exclamationmark.triangle").foregroundColor(.orange).font(.largeTitle)
-                                .padding(.bottom, 10)
-                            Text(error).foregroundColor(.white.opacity(0.8)).multilineTextAlignment(.center)
-                        } else {
-                            Text("這一天沒有事項").foregroundColor(.white.opacity(0.6))
-                        }
-                    }
-                    .frame(height: 200)
-                    .frame(width: geometry.size.width)
-                    .contentShape(Rectangle())
-                } else {
-                    ForEach(0..<sortedToDoItems.count, id: \.self) { idx in
+    // 動態擴展滾動範圍
+    private func expandScrollRangeIfNeeded(for offset: Int) {
+        let buffer = 2 // 保持前後各2天的緩衝
+        let minOffset = offset - buffer
+        let maxOffset = offset + buffer
+        
+        // 擴展到最小值
+        while scrollDateOffsets.min() ?? 0 > minOffset {
+            let newMin = (scrollDateOffsets.min() ?? 0) - 1
+            scrollDateOffsets.insert(newMin, at: 0)
+        }
+        
+        // 擴展到最大值
+        while scrollDateOffsets.max() ?? 0 < maxOffset {
+            let newMax = (scrollDateOffsets.max() ?? 0) + 1
+            scrollDateOffsets.append(newMax)
+        }
+    }
+    
+    // 檢查當前顯示日期是否為節日（兼容性函數）
+    private func getHolidayInfo() -> (isHoliday: Bool, name: String, time: String)? {
+        return getHolidayInfo(for: currentDateOffset)
+    }
+    
+    // 為特定日期偏移量生成 taskList
+    private func taskList(for dateOffset: Int, geometry: GeometryProxy) -> some View {
+        let filteredItems = getFilteredToDoItems(for: dateOffset)
+        let holidayInfo = getHolidayInfo(for: dateOffset)
+        
+        return VStack(spacing: 0) {
+            // 頂部 Divider 永遠存在
+            Divider().background(Color.white)
+            
+            // 滾動內容
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // 節日區塊 - 如果當天是節日則顯示在列表最上方
+                    if let holidayInfo = holidayInfo {
                         VStack(spacing: 0) {
-                            ItemRow(item: getBindingToSortedItem(at: idx))
-                                .padding(.vertical, 8)
-                                .contentShape(Rectangle())
-                                .onLongPressGesture {
-                                    selectedItem = sortedToDoItems[idx]
-                                    showingDeleteView = true
-                                }
-                            Rectangle()
-                                .fill(Color.white.opacity(0.2))
-                                .frame(height: 2)
+                            HStack(spacing: 16) {
+                                Image(systemName: "calendar")
+                                Text(holidayInfo.name).font(.headline)
+                                Spacer()
+                                Text(holidayInfo.time).font(.subheadline)
+                            }
+                            .frame(width: 354, height: 59)
+                            .cornerRadius(12)
+                            Divider().background(Color.white)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.bottom, 10)
+                    }
+                    
+                    if filteredItems.isEmpty {
+                        // 無事項時顯示占位符或載入中訊息，但仍可以滑動
+                        VStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(1.5)
+                                    .padding(.bottom, 20)
+                                
+                                Text("載入待辦事項中...")
+                                    .foregroundColor(.white.opacity(0.8))
+                            } else if let error = loadingError {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundColor(.orange)
+                                    .font(.largeTitle)
+                                    .padding(.bottom, 10)
+                                Text(error)
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                            } else {
+                                Text("這一天沒有事項")
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                        }
+                        .frame(height: 200)
+                        .frame(width: geometry.size.width)
+                        .contentShape(Rectangle()) // 使空白區域也可接收手勢
+                    } else {
+                        ForEach(0..<filteredItems.count, id: \.self) { idx in
+                            VStack(spacing: 0) {
+                                ItemRow(item: getBindingToFilteredItem(filteredItems[idx]))
+                                    .padding(.vertical, 8)
+                                    .contentShape(Rectangle()) // 确保整行可点击
+                                    .onLongPressGesture {
+                                        // 长按时显示编辑/删除选项
+                                        selectedItem = filteredItems[idx]
+                                        showingDeleteView = true
+                                    }
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.2))
+                                    .frame(height: 2)
+                            }
                         }
                     }
                 }
+                .background(Color.clear)
+                .contentShape(Rectangle()) // 使整個區域可接收手勢，即使項目很少
             }
-            .background(Color.black)
-            .contentShape(Rectangle())
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
+        .padding(.horizontal, 8) // 20 - 12 = 8pt
+        .padding(.top, 8)
     }
     
-    // MARK: - Functions
+    // 保留原有的 taskList 函數作為兼容性函數
+    private func taskList(geometry: GeometryProxy) -> some View {
+        return taskList(for: currentDateOffset, geometry: geometry)
+    }
+    
+    // 獲取特定日期偏移量的過濾項目
+    private func getFilteredToDoItems(for dateOffset: Int) -> [TodoItem] {
+        let dateWithOffset = Calendar.current.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
+        
+        // 獲取篩選日期的開始和結束時間點
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: dateWithOffset)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        // 篩選當天的項目（只包含有時間的項目）
+        let filteredItems = toDoItems.filter { item in
+            // 過濾掉已刪除的項目
+            guard !recentlyDeletedItemIDs.contains(item.id) else { return false }
+            
+            // 先過濾有任務日期的項目，再進行日期比較
+            guard let taskDate = item.taskDate else {
+                return false // 沒有日期的項目（備忘錄）不包含在指定日期內
+            }
+            return taskDate >= startOfDay && taskDate < endOfDay
+        }
+        
+        // 排序：先按置頂狀態排序，再按優先級排序(高到低)，最後按任務日期排序
+        return filteredItems.sorted { (item1: TodoItem, item2: TodoItem) -> Bool in
+            // 置頂項目優先
+            if item1.isPinned && !item2.isPinned {
+                return true
+            }
+            if !item1.isPinned && item2.isPinned {
+                return false
+            }
+            
+            // 如果置頂狀態相同，按優先級排序（由高到低）
+            if item1.priority != item2.priority {
+                return item1.priority > item2.priority
+            }
+            
+            // 最後按任務日期排序
+            guard let date1 = item1.taskDate, let date2 = item2.taskDate else {
+                return false
+            }
+            return date1 < date2
+        }
+    }
+    
+    // 為過濾項目創建綁定
+    private func getBindingToFilteredItem(_ item: TodoItem) -> Binding<TodoItem> {
+        if let originalIndex = toDoItems.firstIndex(where: { $0.id == item.id }) {
+            return $toDoItems[originalIndex]
+        }
+        // 如果找不到原始項目，創建一個臨時綁定
+        return .constant(item)
+    }
+    
+    // 水平滑動 ScrollView 組件
+    private func horizontalScrollView() -> some View {
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(scrollDateOffsets, id: \.self) { dateOffset in
+                            taskListWithBackground(for: dateOffset, geometry: geometry)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: scrollablePosition)
+                .onChange(of: dragOffset) { _, newValue in
+                    let isDragging = abs(newValue) > 5
+                    if isScrolling != isDragging {
+                        withAnimation(.easeInOut(duration: 0.1)) {
+                            isScrolling = isDragging
+                        }
+                    }
+                }
+                .simultaneousGesture(
+                    DragGesture()
+                        .updating($dragOffset) { value, state, _ in
+                            state = value.translation.width
+                        }
+                )
+                .onAppear {
+                    DispatchQueue.main.async {
+                        proxy.scrollTo(currentDateOffset, anchor: .center)
+                    }
+                }
+            }
+        }
+    }
+    
+    // 帶背景的 taskList 組件
+    private func taskListWithBackground(for dateOffset: Int, geometry: GeometryProxy) -> some View {
+        taskList(for: dateOffset, geometry: geometry)
+            .frame(width: geometry.size.width)
+            .background(
+                RoundedRectangle(cornerRadius: 11)
+                    .fill(isScrolling ? Color(hex: "141414") : Color.clear)
+//                    .fill(isScrolling ? Color.gray.opacity(0.3) : Color.blue.opacity(0.2))
+                    .animation(.easeInOut(duration: 0.3), value: isScrolling)
+            )
+            .id(dateOffset)
+            .onAppear {
+                expandScrollRangeIfNeeded(for: dateOffset)
+            }
+    }
+    
+    // 為特定日期偏移量檢查節日
+    private func getHolidayInfo(for dateOffset: Int) -> (isHoliday: Bool, name: String, time: String)? {
+        let dateWithOffset = Calendar.current.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
+        let calendar = Calendar.current
+        
+        // 檢查是否為生日（8/22）
+        let dateComponents = calendar.dateComponents([.month, .day], from: dateWithOffset)
+        if dateComponents.month == 8 && dateComponents.day == 22 {
+            return (isHoliday: true, name: "Shiro birthday", time: "10:00")
+        }
+        
+        // 這裡可以添加其他節日檢查
+        // 例如：聖誕節、新年等
+        
+        return nil
+    }
+    
+    
+   // MARK: - Functions
     private func updateDayProgress(currentTime: Date) {
         let calendar = self.taipeiCalendar
         let localAlarmStringParser = self.alarmStringParser
@@ -825,6 +1005,28 @@ struct Home: View {
                 }
             }
         }
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 

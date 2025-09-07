@@ -97,7 +97,7 @@ struct SettlementView02: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 15) {
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         // 进度条部分
                         ProgressBarView()
@@ -105,7 +105,7 @@ struct SettlementView02: View {
                         // 勾选图标部分
                         CheckmarkView()
                     }
-                    .padding(.top, 5)
+                    .padding(.top, 0)
                     // ... (SettlementView02 的其餘頂部內容，如您之前提供)
                     // 分隔线
                     DividerView()
@@ -121,7 +121,7 @@ struct SettlementView02: View {
                     Image("Vector 81").resizable().aspectRatio(contentMode: .fit).frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, 12)
-                .padding(.bottom, 15)
+                .padding(.bottom, 2)
 
                 ScrollView {
                     VStack(spacing: 0) { // 用一個 VStack 包住列表和按鈕
@@ -189,7 +189,6 @@ struct SettlementView02: View {
                 .scrollIndicators(.hidden)
                 .padding(.horizontal, 12)
             }
-            .padding(.top, 60)
             
             .onTapGesture {
                 // 如果手動編輯模式是開啟的，就關閉它
@@ -496,7 +495,7 @@ struct DividerView: View {
         Rectangle()
             .frame(height: 1)
             .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
-            .padding(.vertical, 10)
+            .padding(.vertical, 4)
     }
 }
 
@@ -742,7 +741,9 @@ struct AddTaskButton: View {
                 
                 TextField("Add task manually", text: $displayText)
                     .foregroundColor(.white)
+                    .colorScheme(.dark)
                     .focused($isTextFieldFocused)
+                    .submitLabel(.done)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             isTextFieldFocused = true
