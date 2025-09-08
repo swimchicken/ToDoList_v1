@@ -17,6 +17,7 @@
 		28E117052E58B57100DE2142 /* ErrorToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117042E58B57100DE2142 /* ErrorToastView.swift */; };
 		28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117062E58B59E00DE2142 /* TaskEditView.swift */; };
 		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
+		5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
@@ -132,6 +133,7 @@
 		28E117042E58B57100DE2142 /* ErrorToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToastView.swift; sourceTree = "<group>"; };
 		28E117062E58B59E00DE2142 /* TaskEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditView.swift; sourceTree = "<group>"; };
 		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
+		5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
@@ -324,6 +326,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */,
 				28E117002E58B43800DE2142 /* GeminiService.swift */,
 				282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */,
 				2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */,
@@ -608,6 +611,7 @@
 				7922971D2DAD295100E1A97B /* ToDoSheetView.swift in Sources */,
 				792C742D2DE22D4900ACF98D /* SettlementView03.swift in Sources */,
 				28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */,
+				5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */,
 				793B5C122DDA3A55008F92FC /* SettlementView.swift in Sources */,
 				7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */,
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,

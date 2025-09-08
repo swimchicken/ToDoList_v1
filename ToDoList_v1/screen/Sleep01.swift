@@ -580,6 +580,7 @@ struct Sleep01View: View {
             isSwipeUpAnimationCompleted = false
             showTopUI = true
             showBottomAlarmUI = false
+            isEventListPresented = false
             dragOffset = 0
             eventListHeight = 0
             backgroundDimming = 0
@@ -595,7 +596,26 @@ struct Sleep01View: View {
                 Divider()
                 Button(action: { timeOffset += 3600 }) { Label("時間+1小時", systemImage: "clock.arrow.circlepath") }
                 Button(action: { timeOffset += 60 }) { Label("時間+1分鐘", systemImage: "clock") }
-                Button(action: { alarmStateManager.triggerAlarm() }) { Label("模擬鬧鐘觸發", systemImage: "bell.circle.fill") }
+                Button(action: { 
+                    resetAnimationState()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        alarmStateManager.triggerAlarm()
+                    }
+                }) { Label("模擬鬧鐘觸發", systemImage: "bell.circle.fill") }
+                Button(action: { 
+                    // 設定一個 5 秒後的真實鬧鐘測試
+                    let content = UNMutableNotificationContent()
+                    content.title = "🚨 真實鬧鐘測試"
+                    content.body = "請先切到背景，5 秒後觸發"
+                    content.sound = UNNotificationSound.default
+                    
+                    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+                    let request = UNNotificationRequest(identifier: "BackgroundTestAlarm", content: content, trigger: trigger)
+                    
+                    UNUserNotificationCenter.current().add(request) { error in
+                        print(error != nil ? "❌ 背景測試失敗: \(error!)" : "✅ 5秒後背景鬧鐘已設定")
+                    }
+                }) { Label("5秒後背景鬧鐘", systemImage: "clock.badge.exclamationmark") }
                 Button(action: { resetAnimationState() }) { Label("重置動畫狀態", systemImage: "arrow.clockwise") }
                 Divider()
             }
