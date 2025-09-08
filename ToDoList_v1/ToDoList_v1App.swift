@@ -15,6 +15,14 @@ import WidgetKit
 struct ToDoList_v1App: App {
     @StateObject private var alarmStateManager = AlarmStateManager()
     
+    init() {
+        // 應用啟動時更新 Widget 數據
+        updateWidgetData()
+        
+        // 設定通知代理
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+    }
+    
     // 暫時註解掉 Cloud 版的 ModelContainer 初始化
     /*
     var sharedModelContainer: ModelContainer = {
@@ -31,10 +39,6 @@ struct ToDoList_v1App: App {
     }()
     */
     
-    init() {
-        // 應用啟動時更新 Widget 數據
-        updateWidgetData()
-    }
 
     var body: some Scene {
         WindowGroup {

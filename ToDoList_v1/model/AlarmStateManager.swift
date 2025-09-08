@@ -41,6 +41,70 @@ class AlarmStateManager: ObservableObject {
             self.isAlarmTriggered = true
             self.shouldNavigateToSleep01 = true
         }
+        
+        // 先檢查並請求通知權限，然後發送通知
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            print("=== 通知權限狀態 ===")
+            print("授權狀態: \(settings.authorizationStatus.rawValue)")
+            print("聲音權限: \(settings.soundSetting.rawValue)")
+            print("橫幅權限: \(settings.alertSetting.rawValue)")
+            print("==================")
+            
+            if settings.authorizationStatus == .notDetermined {
+                // 如果權限未確定，先請求權限
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if granted {
+                        print("✅ 通知權限已獲得")
+                        self.sendTestNotification()
+                    } else {
+                        print("❌ 通知權限被拒絕: \(error?.localizedDescription ?? "未知原因")")
+                    }
+                }
+            } else if settings.authorizationStatus == .authorized {
+                print("✅ 已有通知權限，直接發送通知")
+                self.sendTestNotification()
+            } else {
+                print("❌ 通知權限被拒絕或受限，狀態: \(settings.authorizationStatus)")
+            }
+        }
+    }
+    
+    private func sendTestNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🔔 測試鬧鐘"
+        content.body = "這是開發者模式的測試通知"
+        
+        // 嘗試使用更明顯的聲音
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm.caf"))
+        // 如果自訂聲音不存在，fallback 到預設聲音
+        if content.sound == nil {
+            content.sound = UNNotificationSound.default
+        }
+        
+        // 增加震動
+        content.categoryIdentifier = "ALARM_CATEGORY"
+        
+        print("📱 準備發送通知，聲音設定: \(content.sound?.description ?? "無")")
+        
+        // 立即觸發的通知
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(identifier: "DeveloperModeAlarm", content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ 模擬鬧鐘通知失敗: \(error)")
+            } else {
+                print("✅ 模擬鬧鐘通知已發送")
+                
+                // 額外檢查：列出所有待處理的通知
+                UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+                    print("📋 當前待處理通知數量: \(requests.count)")
+                    for request in requests {
+                        print("   - \(request.identifier): \(request.content.title)")
+                    }
+                }
+            }
+        }
     }
     
     func resetAlarmState() {

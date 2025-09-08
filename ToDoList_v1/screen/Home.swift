@@ -3,6 +3,7 @@ import SpriteKit
 import CloudKit
 
 struct Home: View {
+    @EnvironmentObject var alarmStateManager: AlarmStateManager
     @State private var showCalendarView: Bool = false
     @State private var updateStatus: String = ""
     @State private var showToDoSheet: Bool = false
@@ -785,6 +786,13 @@ struct Home: View {
         }
         NotificationCenter.default.addObserver(forName: Notification.Name("CompletedDaysDataChanged"), object: nil, queue: .main) { _ in
             dataRefreshToken = UUID()
+        }
+        
+        // 監聽鬧鐘觸發通知
+        NotificationCenter.default.addObserver(forName: Notification.Name("AlarmTriggered"), object: nil, queue: .main) { _ in
+            print("收到鬧鐘觸發通知，準備導航到 Sleep01")
+            alarmStateManager.triggerAlarm()
+            navigateToSleep01View = true
         }
     }
     
