@@ -1,0 +1,4 @@
+// Debug.xcconfig
+
+// 定義一個變數名稱，例如：MY_SECRET_API_KEY
+// 使用你的測試/開發用金鑰
