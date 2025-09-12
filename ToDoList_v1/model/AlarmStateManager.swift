@@ -208,6 +208,8 @@ class AlarmStateManager: ObservableObject {
             self.isSleepModeActive = false
             self.sleepProgress = 0.0
             self.alarmTimeString = "9:00 AM" // 重置為默認值
+            self.isAlarmTriggered = false
+            self.shouldNavigateToSleep01 = false
             
             // 完全清除UserDefaults
             UserDefaults.standard.removeObject(forKey: "isSleepMode")
@@ -218,6 +220,9 @@ class AlarmStateManager: ObservableObject {
             
             // 發送狀態變更通知
             NotificationCenter.default.post(name: Notification.Name("SleepModeStateChanged"), object: nil)
+            
+            // 強制同步狀態 - 確保 UI 更新
+            self.objectWillChange.send()
         }
     }
     

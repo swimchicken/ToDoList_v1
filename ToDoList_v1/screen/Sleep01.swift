@@ -566,11 +566,33 @@ struct Sleep01View: View {
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             // 結束睡眠模式並回到一般模式的 home
-            alarmStateManager.endSleepMode()
-            alarmStateManager.resetAlarmState()
+            cancelSleepMode()
+        }
+    }
+    
+    /// 取消睡眠模式 - 完整重置所有狀態
+    private func cancelSleepMode() {
+        // 重置 AlarmStateManager 的狀態
+        alarmStateManager.endSleepMode()
+        alarmStateManager.resetAlarmState()
+        
+        // 重置本地 UI 狀態
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showTopUI = true
             showBottomAlarmUI = false
+            isSwipeUpAnimationCompleted = false
+            isEventListPresented = false
+            dragOffset = 0
+            eventListHeight = 0
+            backgroundDimming = 0.0
+        }
+        
+        // 延遲一下確保動畫完成後再關閉畫面
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             presentationMode.wrappedValue.dismiss()
         }
+        
+        print("Sleep mode 已完全取消，所有狀態已重置")
     }
 
     // MARK: - Developer Mode & Other Functions
@@ -620,9 +642,8 @@ struct Sleep01View: View {
                 Divider()
             }
             Button(role: .destructive, action: { 
-                // 取消睡眠模式
-                alarmStateManager.endSleepMode()
-                presentationMode.wrappedValue.dismiss()
+                // 取消睡眠模式 - 完整重置所有狀態
+                cancelSleepMode()
             }) {
                 Label("取消 Sleep Mode", systemImage: "moon.slash")
             }
@@ -637,9 +658,8 @@ struct Sleep01View: View {
     private func settingsMenuView() -> some View {
         Menu {
              Button(role: .destructive, action: { 
-                // 取消睡眠模式
-                alarmStateManager.endSleepMode()
-                presentationMode.wrappedValue.dismiss()
+                // 取消睡眠模式 - 完整重置所有狀態
+                cancelSleepMode()
             }) {
                 Label("取消 Sleep Mode", systemImage: "moon.slash")
             }
