@@ -47,6 +47,9 @@ struct Home: View {
     @State private var showingDeleteView: Bool = false
     @State private var selectedItem: TodoItem? = nil
     @State private var showingEditSheet: Bool = false
+    
+    // 沒有事件提示彈窗狀態
+    @State private var showNoEventsAlert: Bool = false
 
     // === 修改點：新增 State ===
     // 將 TaskSelectionOverlay 的狀態從 HomeBottomView 提升至此處
@@ -324,7 +327,14 @@ struct Home: View {
                                         }
                                         self.toDoItems = filteredItems
                                     }
-                                    navigateToSettlementView = true
+                                    
+                                    // 檢查是否有事件，沒有則顯示提示彈窗
+                                    if filteredItems.isEmpty {
+                                        print("用戶主動結算但沒有任何事件，顯示提示彈窗")
+                                        showNoEventsAlert = true
+                                    } else {
+                                        navigateToSettlementView = true
+                                    }
                                 }
                             }
                         },
@@ -371,7 +381,7 @@ struct Home: View {
                 }
                 
             }
-            .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
+            .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil || showNoEventsAlert ? 13.5 : 0)
 
             //錯誤訊息
             if showToast {
@@ -521,6 +531,12 @@ struct Home: View {
                                 }
                                 let deletedItemID = itemToDelete.id
                                 recentlyDeletedItemIDs.insert(deletedItemID)
+                                
+                                // 保存更新後的已刪除項目ID到UserDefaults
+                                if let encodedData = try? JSONEncoder().encode(Array(recentlyDeletedItemIDs)) {
+                                    UserDefaults.standard.set(encodedData, forKey: "recentlyDeletedItemIDs")
+                                }
+                                
                                 LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
                                 DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { _ in }
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -592,6 +608,59 @@ struct Home: View {
                 .zIndex(500) // 給予最高的層級
                 .transition(.opacity)
             }
+            
+            // 8. 沒有事件提示彈窗
+            if showNoEventsAlert {
+                ZStack {
+                    Color.black.opacity(0.5).ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut) {
+                                showNoEventsAlert = false
+                            }
+                        }
+                        .transition(.opacity)
+
+                    VStack(spacing: 20) {
+                        // 圖標
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        
+                        // 標題
+                        Text("沒有事件清單")
+                            .font(.custom("Instrument Sans", size: 24).weight(.bold))
+                            .foregroundColor(.white)
+                        
+                        // 說明文字
+                        Text("目前沒有任何待辦事項需要結算")
+                            .font(.custom("Instrument Sans", size: 16))
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.center)
+                        
+                        // 確認按鈕
+                        Button(action: {
+                            withAnimation(.easeInOut) {
+                                showNoEventsAlert = false
+                            }
+                        }) {
+                            Text("知道了")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.black)
+                                .frame(width: 120, height: 45)
+                                .background(Color.white)
+                                .cornerRadius(22.5)
+                        }
+                    }
+                    .padding(30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.gray.opacity(0.95))
+                    )
+                    .transition(.scale.combined(with: .opacity))
+                }
+                .animation(.easeInOut(duration: 0.3), value: showNoEventsAlert)
+                .zIndex(600)
+            }
                 
                 
             }
@@ -601,6 +670,7 @@ struct Home: View {
             .animation(.easeOut, value: showCalendarView)
             .animation(.easeOut, value: showingDeleteView)
             .animation(.easeOut, value: showTaskSelectionOverlay) // 為新的 Overlay 也加上動畫
+            .animation(.easeOut, value: showNoEventsAlert) // 為沒有事件提示彈窗加上動畫
             .navigationBarHidden(true)
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
@@ -622,7 +692,13 @@ struct Home: View {
                         for id in deletedButStillExistIDs { LocalDataManager.shared.deleteTodoItem(withID: id) }
                         self.toDoItems = filteredItems
                     }
-                    navigateToSettlementView = true
+                    
+                    // 檢查是否有事件，沒有則跳過自動結算
+                    if !filteredItems.isEmpty {
+                        navigateToSettlementView = true
+                    } else {
+                        print("自動結算檢測但沒有任何事件，跳過結算流程")
+                    }
                 }
             }
             if UserDefaults.standard.bool(forKey: "isSleepMode") {
