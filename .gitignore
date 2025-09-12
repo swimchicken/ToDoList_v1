@@ -93,3 +93,6 @@ iOSInjectionProject/
 APIConfig.plist
 *.apikeys
 .env
+
+# Configuration files
+Release.xcconfig
