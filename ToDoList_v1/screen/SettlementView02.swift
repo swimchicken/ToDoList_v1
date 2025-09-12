@@ -38,6 +38,18 @@ struct SettlementView02: View {
     @State private var keyboardHeight: CGFloat = 0
     
     @State private var isManualEditing: Bool = false
+    //addTime & addNote
+    @State private var note: String = ""
+    @State private var showAddTimeView: Bool = false
+    @State private var showAddNoteView: Bool = false
+    @State private var displayText: String = ""
+    @State private var priority: Int = 0
+    @State private var isPinned: Bool = false
+
+    @State private var selectedDate: Date = Date()
+    @State private var isDateEnabled: Bool = false
+    @State private var isTimeEnabled: Bool = false
+    
     // 用於 AI 按鈕和輸入框之間的動畫
     @Namespace private var namespace
 
@@ -138,8 +150,21 @@ struct SettlementView02: View {
                             // 圖層 1: 手動輸入的灰色匡
                             AddTaskButton(
                                 isEditing: $isManualEditing,
+                                displayText: $displayText,
+                                priority: $priority,
+                                isPinned: $isPinned,
+                                note: $note,
+                                isDateEnabled: $isDateEnabled,
+                                isTimeEnabled: $isTimeEnabled,
+                                selectedDate: $selectedDate,
                                 onTaskAdded: {
                                     loadTasksFromDataManager()
+                                },
+                                onShowAddTime: {
+                                    showAddTimeView = true
+                                },
+                                onShowAddNote: {
+                                    showAddNoteView = true
                                 }
                             )
                             
@@ -331,6 +356,31 @@ struct SettlementView02: View {
             .background(Color.black) // 給予黑色背景，避免下方內容透出
             
         }
+        .fullScreenCover(isPresented: $showAddTimeView) {
+            // 這是根據 AddTimeView.swift 寫出的「關鍵程式」
+            AddTimeView(
+                isDateEnabled: $isDateEnabled,
+                isTimeEnabled: $isTimeEnabled,
+                selectedDate: $selectedDate,
+                onSave: {
+                    // 當 AddTimeView 儲存時，會執行這裡
+                    self.showAddTimeView = false
+                },
+                onBack: {
+                    // 當 AddTimeView 返回時，會執行這裡
+                    self.showAddTimeView = false
+                }
+            )
+        }
+        .fullScreenCover(isPresented: $showAddNoteView) {
+            // 這是根據您提供的 AddNote.swift 寫出的「關鍵程式」
+            AddNote(noteText: self.note) { savedNote in
+                // 當 AddNote 儲存時，會執行這裡的程式碼
+                self.note = savedNote
+                self.showAddNoteView = false
+            }
+        }
+        
         .keyboardReadable(height: $keyboardHeight) // <-- 新增這一行
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(.keyboard, edges: .all)
@@ -713,23 +763,22 @@ struct TimeDisplayView: View {
 
 // 添加任务按钮
 struct AddTaskButton: View {
-    // 關鍵修改：從 @State 改為 @Binding，以便父視圖可以控制
+    // 接收來自父視圖的控制
     @Binding var isEditing: Bool
-    
-    // 回調函數，通知父視圖重新載入數據
+
+    // 接收來自父視圖的綁定
+    @Binding var displayText: String
+    @Binding var priority: Int
+    @Binding var isPinned: Bool
+    @Binding var note: String
+    @Binding var isDateEnabled: Bool
+    @Binding var isTimeEnabled: Bool
+    @Binding var selectedDate: Date
+
+    // 通知父視圖的閉包
     let onTaskAdded: () -> Void
-    
-    // --- 以下為原始的內部狀態和功能 ---
-    @State private var displayText: String = ""
-    @State private var priority: Int = 0
-    @State private var isPinned: Bool = false
-    @State private var note: String = ""
-    @State private var selectedDate: Date = Date()
-    @State private var isDateEnabled: Bool = false
-    @State private var isTimeEnabled: Bool = false
-    
-    @State private var showAddTimeView: Bool = false
-    @State private var showAddNoteView: Bool = false
+    let onShowAddTime: () -> Void
+    let onShowAddNote: () -> Void
     
     @FocusState private var isTextFieldFocused: Bool
     
@@ -787,13 +836,7 @@ struct AddTaskButton: View {
             // 同時它會成功攔截點擊，防止事件傳遞到背景上導致輸入框關閉。
         }
         .padding(.top, 12)
-        .fullScreenCover(isPresented: $showAddTimeView) {
-            // 假設您有 AddTimeView 和 AddNote View
-            // AddTimeView(isDateEnabled: $isDateEnabled, isTimeEnabled: $isTimeEnabled, selectedDate: $selectedDate, ... )
-        }
-        .fullScreenCover(isPresented: $showAddNoteView) {
-            // AddNote(noteText: note, ... )
-        }
+        
     }
     
     // 鍵盤上方的工具列
@@ -834,7 +877,7 @@ struct AddTaskButton: View {
                     // 時間按鈕
                     Button(action: {
                         isTextFieldFocused = false
-                        showAddTimeView = true
+                        onShowAddTime()
                     }) {
                         Text(timeButtonText)
                             .lineLimit(1)
@@ -848,7 +891,7 @@ struct AddTaskButton: View {
                     // 筆記按鈕
                     Button(action: {
                         isTextFieldFocused = false
-                        showAddNoteView = true
+                        onShowAddNote()
                     }) {
                         Text("note")
                             .foregroundColor(!note.isEmpty ? .green : .white.opacity(0.65))
