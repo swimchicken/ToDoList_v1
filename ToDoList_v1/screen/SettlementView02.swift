@@ -372,7 +372,10 @@ struct SettlementView02: View {
                 }
             )
         }
-        .fullScreenCover(isPresented: $showAddNoteView) {
+        .fullScreenCover(isPresented: $showAddNoteView, onDismiss: {
+            // 確保 isPresented 狀態與視圖的實際顯示狀態同步
+            self.showAddNoteView = false
+        }) {
             // 這是根據您提供的 AddNote.swift 寫出的「關鍵程式」
             AddNote(noteText: self.note) { savedNote in
                 // 當 AddNote 儲存時，會執行這裡的程式碼
