@@ -47,6 +47,7 @@ struct Home: View {
     @State private var showingDeleteView: Bool = false
     @State private var selectedItem: TodoItem? = nil
     @State private var showingEditSheet: Bool = false
+    @State private var editingItem: TodoItem? = nil
     
     // 沒有事件提示彈窗狀態
     @State private var showNoEventsAlert: Bool = false
@@ -453,10 +454,12 @@ struct Home: View {
                         initialMode: isFromTodoSheet ? .memo : (currentDateOffset == 0 ? .today : .future),
                         currentDateOffset: currentDateOffset,
                         fromTodoSheet: isFromTodoSheet,
+                        editingItem: editingItem,
                         onClose: {
                         showAddTaskSheet = false
                         addTaskMode = .today
                         isFromTodoSheet = false
+                        editingItem = nil
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                             loadTodoItems()
                         }
@@ -516,8 +519,9 @@ struct Home: View {
                         onEdit: {
                             withAnimation(.easeInOut) {
                                 showingDeleteView = false
+                                editingItem = selectedItem
                                 selectedItem = nil
-                                showingEditSheet = true
+                                showAddTaskSheet = true
                             }
                         },
                         onDelete: {

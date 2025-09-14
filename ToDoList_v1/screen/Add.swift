@@ -61,7 +61,7 @@ struct Add: View {
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
     
     // Add.swift
-    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, onClose: (() -> Void)? = nil) {
+    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil) {
         print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 日期偏移 = \(currentDateOffset), 來自待辦事項佇列 = \(fromTodoSheet)")
 
         self._toDoItems = toDoItems
@@ -120,6 +120,25 @@ struct Add: View {
             initialDate = today
         }
         self._selectedDate = State(initialValue: initialDate)
+
+        // 如果是編輯模式，預填現有項目的資料
+        if let editingItem = editingItem {
+            self._title = State(initialValue: editingItem.title)
+            self._displayText = State(initialValue: editingItem.title)
+            self._priority = State(initialValue: editingItem.priority)
+            self._priorityLevel = State(initialValue: editingItem.priority)
+            self._isPinned = State(initialValue: editingItem.isPinned)
+            
+            // 處理時間和日期
+            if let taskDate = editingItem.taskDate {
+                self._taskDate = State(initialValue: taskDate)
+                self._selectedDate = State(initialValue: taskDate)
+                self._isDateEnabled = State(initialValue: true)
+                self._isTimeEnabled = State(initialValue: true)
+            }
+            
+            print("🔄 編輯模式：預填項目資料 - 標題: \(editingItem.title), 優先級: \(editingItem.priority)")
+        }
 
         print("Add.swift 初始化完成. 初始 currentBlockIndex = \(startIndex)")
     }
