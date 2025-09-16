@@ -24,6 +24,9 @@ struct DeleteItemView: View {
     /// 當用戶點擊「刪除」時執行的閉包
     let onDelete: () -> Void
     
+    /// 當用戶點擊「放入代辦佇列」時執行的閉包
+    let onMoveToQueue: () -> Void
+    
     // 獲取屏幕寬度，減去邊距以貼近屏幕邊緣
     private var containerWidth: CGFloat {
         UIScreen.main.bounds.width - 32
@@ -61,6 +64,19 @@ struct DeleteItemView: View {
                     // 編輯按鈕
                     Button(action: onEdit) {
                         Text("編輯")
+                            .font(Font.custom("SF Pro Display", size: 20))
+                            .kerning(0.38)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(Color(red: 0.04, green: 0.52, blue: 1))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .frame(minHeight: 45) // 保持按鈕高度
+                    }
+                    
+                    Divider().background(Color.gray.opacity(0.3))
+                    
+                    // 放入代辦佇列按鈕
+                    Button(action: onMoveToQueue) {
+                        Text("放入代辦佇列")
                             .font(Font.custom("SF Pro Display", size: 20))
                             .kerning(0.38)
                             .multilineTextAlignment(.center)

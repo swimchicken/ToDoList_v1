@@ -552,6 +552,68 @@ struct Home: View {
                                     selectedItem = nil
                                 }
                             }
+                        },
+                        onMoveToQueue: {
+                            if let itemToMove = selectedItem {
+                                withAnimation(.easeInOut) {
+                                    showingDeleteView = false
+                                    selectedItem = nil
+                                }
+                                
+                                // 創建新的待辦項目（移除時間，變成備忘錄）
+                                let queueItem = TodoItem(
+                                    id: UUID(),
+                                    userID: itemToMove.userID,
+                                    title: itemToMove.title,
+                                    priority: itemToMove.priority,
+                                    isPinned: itemToMove.isPinned,
+                                    taskDate: nil, // 移除日期時間
+                                    note: itemToMove.note,
+                                    status: .toBeStarted,
+                                    createdAt: Date(),
+                                    updatedAt: Date(),
+                                    correspondingImageID: itemToMove.correspondingImageID
+                                )
+                                
+                                // 保存新項目
+                                dataSyncManager.addTodoItem(queueItem) { result in
+                                    DispatchQueue.main.async {
+                                        switch result {
+                                        case .success:
+                                            print("成功放入代辦佇列: \(queueItem.title)")
+                                            // 立即更新本地數據並重新載入
+                                            self.toDoItems.append(queueItem)
+                                            self.loadTodoItems()
+                                        case .failure(let error):
+                                            print("放入代辦佇列失敗: \(error.localizedDescription)")
+                                        }
+                                    }
+                                }
+                                
+                                // 刪除原項目
+                                if let index = toDoItems.firstIndex(where: { $0.id == itemToMove.id }) {
+                                    toDoItems.remove(at: index)
+                                }
+                                let deletedItemID = itemToMove.id
+                                recentlyDeletedItemIDs.insert(deletedItemID)
+                                
+                                // 保存更新後的已刪除項目ID到UserDefaults
+                                if let encodedData = try? JSONEncoder().encode(Array(recentlyDeletedItemIDs)) {
+                                    UserDefaults.standard.set(encodedData, forKey: "recentlyDeletedItemIDs")
+                                }
+                                
+                                LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
+                                DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { _ in }
+                                
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                    self.dataRefreshToken = UUID()
+                                }
+                            } else {
+                                withAnimation(.easeInOut) {
+                                    showingDeleteView = false
+                                    selectedItem = nil
+                                }
+                            }
                         }
                     )
                     .transition(.move(edge: .bottom))
