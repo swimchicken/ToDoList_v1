@@ -21,6 +21,9 @@ struct Sleep01View: View {
     @State private var showBottomAlarmUI: Bool = false
     // 標記滑動動畫是否完成
     @State private var isSwipeUpAnimationCompleted: Bool = false
+    
+    // MARK: - 鬧鐘通知相關
+    @State private var isAlarmNotificationScheduled: Bool = false
 
     // MARK: - 底部拖動相關狀態
     @State private var dragOffset: CGFloat = 0
@@ -183,8 +186,20 @@ struct Sleep01View: View {
             withAnimation(.easeInOut) {
                 showBottomAlarmUI = isTriggered
             }
+            
+            // 當鬧鐘觸發時發送通知（防止重複發送）
+            if isTriggered && !isAlarmNotificationScheduled {
+                scheduleAlarmNotification()
+            } else if !isTriggered {
+                // 當鬧鐘狀態重置時取消通知
+                cancelAlarmNotification()
+            }
         }
         .preferredColorScheme(.dark)
+        .onDisappear {
+            // 當視圖消失時取消通知
+            cancelAlarmNotification()
+        }
     }
     
     struct GlowView: View {
@@ -570,8 +585,135 @@ struct Sleep01View: View {
         }
     }
     
+    // MARK: - 鬧鐘通知功能
+    
+    /// 發送鬧鐘通知
+    private func scheduleAlarmNotification() {
+        print("🔔 準備發送鬧鐘通知...")
+        
+        // 檢查 Bundle 中的音檔
+        if let bundlePath = Bundle.main.resourcePath {
+            let fileManager = FileManager.default
+            do {
+                let files = try fileManager.contentsOfDirectory(atPath: bundlePath)
+                let audioFiles = files.filter { $0.hasSuffix(".mp3") || $0.hasSuffix(".wav") || $0.hasSuffix(".m4a") || $0.hasSuffix(".caf") }
+                print("📁 Bundle 中的音檔: \(audioFiles)")
+            } catch {
+                print("❌ 無法讀取 Bundle 內容: \(error)")
+            }
+        }
+        
+        // 先檢查通知權限
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            print("=== 通知權限狀態 ===")
+            print("授權狀態: \(settings.authorizationStatus.rawValue)")
+            print("聲音權限: \(settings.soundSetting.rawValue)")
+            print("==================")
+            
+            if settings.authorizationStatus != .authorized {
+                // 如果沒有權限，先請求權限
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                    if granted {
+                        print("✅ 通知權限已獲得")
+                        self.sendAlarmNotification()
+                    } else {
+                        print("❌ 通知權限被拒絕: \(error?.localizedDescription ?? "未知原因")")
+                        // 即使沒有權限，也發送通知（會靜音）
+                        self.sendAlarmNotification()
+                    }
+                }
+            } else {
+                print("✅ 已有通知權限，直接發送通知")
+                self.sendAlarmNotification()
+            }
+        }
+    }
+    
+    /// 實際發送通知
+    private func sendAlarmNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🌅 起床時間到了！"
+        content.body = "Good morning, \(userName)! 新的一天開始了"
+        content.categoryIdentifier = "ALARM_CATEGORY"
+        
+        // 嘗試使用自訂鈴聲 - 優先檢查 .caf 格式
+        if let cafPath = Bundle.main.path(forResource: "alarm_sound", ofType: "caf") {
+            print("✅ 找到 alarm_sound.caf 路徑: \(cafPath)")
+            
+            // 檢查檔案是否真的存在且可讀取
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: cafPath) {
+                print("✅ 檔案確實存在")
+                
+                // 檢查檔案大小
+                do {
+                    let attributes = try fileManager.attributesOfItem(atPath: cafPath)
+                    let fileSize = attributes[.size] as? NSNumber
+                    print("📏 檔案大小: \(fileSize?.intValue ?? 0) bytes")
+                } catch {
+                    print("⚠️ 無法讀取檔案屬性: \(error)")
+                }
+                
+                // 嘗試使用自訂聲音
+                let soundName = UNNotificationSoundName("alarm_sound.caf")
+                content.sound = UNNotificationSound(named: soundName)
+                print("🔊 設定自訂聲音: \(soundName.rawValue)")
+            } else {
+                print("❌ 檔案路徑存在但檔案不存在，關閉通知聲音")
+                content.sound = nil
+            }
+        } else if Bundle.main.path(forResource: "test_alarm", ofType: "caf") != nil {
+            print("🧪 使用測試鈴聲 test_alarm.caf")
+            content.sound = UNNotificationSound(named: UNNotificationSoundName("test_alarm.caf"))
+        } else if Bundle.main.path(forResource: "alarm_sound", ofType: "mp3") != nil {
+            print("⚠️ 找到 alarm_sound.mp3，但通知只支援 .caf 格式，關閉通知聲音")
+            print("💡 請將 MP3 轉換為 .caf 格式以使用自訂鈴聲")
+            content.sound = nil
+        } else {
+            print("⚠️ 未找到自訂鈴聲檔案，關閉通知聲音")
+            content.sound = nil
+        }
+        
+        print("🔔 準備發送通知，聲音設定: \(content.sound?.description ?? "預設")")
+        
+        // 立即觸發的通知
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(identifier: "AlarmNotification", content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ 鬧鐘通知發送失敗: \(error)")
+                    self.isAlarmNotificationScheduled = false
+                } else {
+                    print("✅ 鬧鐘通知已發送")
+                    self.isAlarmNotificationScheduled = true
+                    
+                    // 檢查待處理的通知
+                    UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+                        print("📋 當前待處理通知數量: \(requests.count)")
+                        for request in requests {
+                            print("   - \(request.identifier): \(request.content.title)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// 取消鬧鐘通知
+    private func cancelAlarmNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["AlarmNotification"])
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["AlarmNotification"])
+        isAlarmNotificationScheduled = false
+        print("⏹️ 鬧鐘通知已取消")
+    }
+    
     /// 取消睡眠模式 - 完整重置所有狀態
     private func cancelSleepMode() {
+        // 取消鬧鐘通知
+        cancelAlarmNotification()
+        
         // 重置 AlarmStateManager 的狀態
         alarmStateManager.endSleepMode()
         alarmStateManager.resetAlarmState()

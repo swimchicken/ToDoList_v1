@@ -74,11 +74,11 @@ class AlarmStateManager: ObservableObject {
         content.title = "🔔 測試鬧鐘"
         content.body = "這是開發者模式的測試通知"
         
-        // 嘗試使用更明顯的聲音
-        content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm.caf"))
-        // 如果自訂聲音不存在，fallback 到預設聲音
-        if content.sound == nil {
-            content.sound = UNNotificationSound.default
+        // 嘗試使用自訂鬧鐘聲音，如果沒有則關閉聲音
+        if Bundle.main.path(forResource: "alarm_sound", ofType: "caf") != nil {
+            content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm_sound.caf"))
+        } else {
+            content.sound = nil // 關閉預設通知聲音
         }
         
         // 增加震動
@@ -138,14 +138,19 @@ class AlarmStateManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "起床時間到了！"
         content.body = "新的一天開始了"
-        content.sound = UNNotificationSound.default
+        // 嘗試使用自訂鬧鐘聲音，如果沒有則關閉聲音
+        if Bundle.main.path(forResource: "alarm_sound", ofType: "caf") != nil {
+            content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm_sound.caf"))
+        } else {
+            content.sound = nil // 關閉預設通知聲音
+        }
         
         // 創建日期組件
         let calendar = Calendar.current
         let components = calendar.dateComponents([.hour, .minute], from: time)
         
-        // 設定觸發器
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        // 設定觸發器 - 改為不重複
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
         UNUserNotificationCenter.current().add(request) { error in
