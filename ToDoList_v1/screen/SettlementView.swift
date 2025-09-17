@@ -247,7 +247,8 @@ struct SettlementView: View {
 
                 BottomControlsView(
                     moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow,
-                    navigateToSettlementView02: $navigateToSettlementView02
+                    navigateToSettlementView02: $navigateToSettlementView02,
+                    uncompletedTasks: uncompletedTasks
                 )
             }
             .padding(.horizontal, 12)
@@ -581,10 +582,14 @@ struct TaskRow: View {
 struct BottomControlsView: View {
     @Binding var moveUncompletedTasksToTomorrow: Bool
     @Binding var navigateToSettlementView02: Bool  // 添加導航綁定
+    let uncompletedTasks: [TodoItem]  // 添加未完成任務參數
     @Environment(\.presentationMode) var presentationMode
     
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
+    
+    // 數據同步管理器
+    private let dataSyncManager = DataSyncManager.shared
     
     // 是否為當天結算 - 使用正確的參數
     private var isSameDaySettlement: Bool {
@@ -609,6 +614,11 @@ struct BottomControlsView: View {
             .cornerRadius(12)
 
             Button(action: {
+                // 如果選擇移至明日，先執行移動邏輯
+                if moveUncompletedTasksToTomorrow {
+                    moveUncompletedTasksToTomorrowData()
+                }
+                
                 // 固定行為：無論是否為當天結算，都進入 SettlementView02 繼續流程
                 navigateToSettlementView02 = true
                 print("繼續到 SettlementView02 設置計畫")
@@ -635,6 +645,44 @@ struct BottomControlsView: View {
                     .padding(.vertical, 10)
             }
         }
+    }
+    
+    // 將未完成任務移至明日的數據處理
+    func moveUncompletedTasksToTomorrowData() {
+        print("開始將 \(uncompletedTasks.count) 個未完成任務移至明日")
+        
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let calendar = Calendar.current
+        let tomorrowStart = calendar.startOfDay(for: tomorrow)
+        
+        for task in uncompletedTasks {
+            // 創建更新後的任務
+            let updatedTask = TodoItem(
+                id: task.id,
+                userID: task.userID,
+                title: task.title,
+                priority: task.priority,
+                isPinned: task.isPinned,
+                taskDate: tomorrowStart, // 設定為明天的開始時間
+                note: task.note,
+                status: task.status,
+                createdAt: task.createdAt,
+                updatedAt: Date(), // 更新修改時間
+                correspondingImageID: task.correspondingImageID
+            )
+            
+            // 使用 DataSyncManager 更新任務
+            dataSyncManager.updateTodoItem(updatedTask) { result in
+                switch result {
+                case .success:
+                    print("成功將任務 '\(task.title)' 移至明日")
+                case .failure(let error):
+                    print("移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        print("完成未完成任務移至明日的處理")
     }
 }
 
