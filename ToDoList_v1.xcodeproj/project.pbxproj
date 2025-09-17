@@ -18,6 +18,8 @@
 		28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117062E58B59E00DE2142 /* TaskEditView.swift */; };
 		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
 		5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */; };
+		5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */; };
+		5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
 		7908C28D2D9BDFAE00A97C11 /* EmailChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */; };
 		7908C28F2D9BE32A00A97C11 /* CloudKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */; };
@@ -135,6 +137,8 @@
 		28E117062E58B59E00DE2142 /* TaskEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditView.swift; sourceTree = "<group>"; };
 		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
 		5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
+		5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = alarm_sound.mp3; sourceTree = "<group>"; };
+		5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = alarm_sound.caf; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
 		7908C28C2D9BDFAE00A97C11 /* EmailChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailChecker.swift; sourceTree = "<group>"; };
 		7908C28E2D9BE32A00A97C11 /* CloudKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitManager.swift; sourceTree = "<group>"; };
@@ -286,6 +290,8 @@
 		7911CDE22D633BAD0034BEE6 /* ToDoList_v1 */ = {
 			isa = PBXGroup;
 			children = (
+				5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */,
+				5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */,
 				8DF757F72E3FEB4B00F1CDA9 /* ToDoList_v1Release.entitlements */,
 				79F7C2462D926DD500B2E19E /* MyProject.entitlements */,
 				79E0AD872D82D8DB00DDDC8C /* ToDoList-v1-Info.plist */,
@@ -557,7 +563,9 @@
 			files = (
 				7911CDED2D633BB60034BEE6 /* Preview Assets.xcassets in Resources */,
 				79F7C2472D926DD500B2E19E /* MyProject.entitlements in Resources */,
+				5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */,
 				7911CDEA2D633BB60034BEE6 /* Assets.xcassets in Resources */,
+				5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
