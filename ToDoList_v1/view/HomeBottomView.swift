@@ -224,42 +224,96 @@ struct HomeBottomView: View {
         }
         .transition(.opacity.combined(with: .scale))
     }
-    // ... otherDayView and sleepModeView remain the same ...
+    
+    // MARK: - MODIFIED: 重構 otherDayView 以匹配 currentDayView 的三按鈕佈局
     private var otherDayView: some View {
-        HStack {
-            Button(action: onReturnToTodayTapped) {
-                if isSyncing {
-                    HStack {
-                        Text("同步中...")
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .black))
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    Text("return to today")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .font(.custom("Inria Sans", size: 20).weight(.bold))
-            .foregroundColor(.black)
-            .frame(width: 272, height: 60)
-            .background(Color.white)
-            .cornerRadius(40.5)
-            
-            Spacer()
-            
-            Button(action: onAddButtonTapped) {
+        ZStack {
+            // 背景和靜態按鈕
+            VStack(spacing: 10) {
+                Spacer().frame(height: 140) // 佔位符，模擬 PhysicsSceneWrapper 的高度
+                
+                // 靜態按鈕區域
                 ZStack {
-                    RoundedRectangle(cornerRadius: 77)
-                        .fill(Color(red: 0, green: 0.72, blue: 0.41))
-                        .frame(width: 71, height: 60)
-                    Image(systemName: "plus")
-                        .font(.system(size: 24))
-                        .foregroundColor(.white)
+                    HStack {
+                        // 按鈕 1: Return to Today
+                        Button(action: onReturnToTodayTapped) {
+                            if isSyncing {
+                                HStack { Text("同步中..."); ProgressView() }
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                Text("return to today").frame(maxWidth: .infinity)
+                            }
+                        }
+                        .font(.custom("Inria Sans", size: 20).weight(.bold))
+                        .foregroundColor(.black)
+                        .frame(width: 230, height: 60) // 寬度與 end today 保持一致
+                        .background(Color.white)
+                        .cornerRadius(40.5)
+                        
+                        Spacer()
+                        
+                        // 按鈕 2: Add
+                        Button(action: onAddButtonTapped) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 77).fill(Color.gray)
+                                Image(systemName: "plus").foregroundColor(.white)
+                            }
+                            .frame(width: 60, height: 60)
+                        }
+                        
+                        Spacer()
+                        
+                        // 按鈕 3 的佔位符
+                        Rectangle().fill(Color.clear).frame(width: 60, height: 60)
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .opacity(isRecording || isTextInputMode ? 0 : 1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(12)
+            .background(
+                GeometryReader { geometry in
+                    RoundedRectangle(cornerRadius: 32)
+                        .fill(Color.gray.opacity(0.2))
+                        .onAppear { self.grayBoxWidth = geometry.size.width }
+                        .onChange(of: geometry.size.width) { self.grayBoxWidth = $0 }
+                }
+            )
+            .overlay(alignment: .bottomTrailing) {
+                let bottomPadding: CGFloat = -10
+                let offset = (isTextInputMode && keyboardHeight > 0) ? -keyboardHeight + safeAreaInsets.bottom - bottomPadding : 0
+                
+                // AI 按鈕/輸入框的疊加層 (與 currentDayView 相同)
+                ZStack(alignment: .bottomTrailing) {
+                    VStack(spacing: 10) {
+                        Spacer()
+                        GeometryReader { geometry in
+                            let soundButtonCenterX = geometry.size.width - 42
+                            let soundButtonCenterY = 30.0
+                            ZStack {
+                                Image("Star 12").renderingMode(.template).resizable().scaledToFit().frame(width: 18, height: 18).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41)).position(x: soundButtonCenterX + 42, y: soundButtonCenterY - 30)
+                                Image("Star 12").renderingMode(.template).resizable().scaledToFit().frame(width: 10, height: 10).foregroundColor(Color(red: 0, green: 0.72, blue: 0.41)).position(x: soundButtonCenterX + 50, y: soundButtonCenterY - 15)
+                            }
+                        }
+                        .frame(height: 60)
+                    }
+                    .allowsHitTesting(false)
+                    
+                    ZStack {
+                        if isTextInputMode {
+                            TextInputView(namespace: namespace, isTextInputMode: $isTextInputMode, isSending: $isSendingText, text: $newTodoText, width: max(60, grayBoxWidth - 20), onSend: { handleSend(text: $0) })
+                        } else {
+                            ExpandableSoundButton(namespace: namespace, isRecording: $isRecording, isTextInputMode: $isTextInputMode, isSaving: $isSavingRecording, audioLevel: speechManager.audioLevel, onRecordingStart: startRecording, onRecordingEnd: endRecording, onRecordingCancel: cancelRecording, expandedWidth: max(60, grayBoxWidth - 20))
+                        }
+                    }
+                }
+                .padding(12)
+                .offset(y: offset)
+                .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: offset)
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 32).fill(Color.gray.opacity(0.2)))
         .transition(.opacity.combined(with: .scale))
     }
     
