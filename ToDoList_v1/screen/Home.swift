@@ -125,6 +125,11 @@ struct Home: View {
         return (monthDay: monthDay, weekday: weekday, timeStatus: timeStatus)
     }
     
+    // MARK: - ADDED: 新增一個計算屬性來獲取當前選擇的日期
+    private var selectedDate: Date {
+        Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+    }
+    
     // 用於更新睡眠模式下的進度條 - 更改為每秒更新一次，使動畫更流暢
     private let sleepModeTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -361,9 +366,20 @@ struct Home: View {
                                 self.showToast = true
                             }
                         },
-                        // === 修改點：傳入新的閉包 ===
+                        // MARK: - MODIFIED: 修改 onTasksReceived 閉包以設定正確的日期
                         onTasksReceived: { receivedTasks in
-                            self.pendingTasks = receivedTasks
+                            // 遍歷收到的任務，並將它們的日期設定為當前選擇的日期
+                            let tasksWithCorrectDate = receivedTasks.map { task -> TodoItem in
+                                var modifiedTask = task
+                                // 只有當 AI 沒有提供日期時，才設定為當前日期
+                                if modifiedTask.taskDate == nil {
+                                    modifiedTask.taskDate = self.selectedDate
+                                }
+                                return modifiedTask
+                            }
+                            
+                            self.pendingTasks = tasksWithCorrectDate
+                            
                             if !self.pendingTasks.isEmpty {
                                 // 稍微延遲以獲得更好的動畫效果
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -450,9 +466,10 @@ struct Home: View {
                     Color.clear.ignoresSafeArea()
                     .onTapGesture { withAnimation(.easeInOut) { showAddTaskSheet = false } }
                     
+                    // MARK: - MODIFIED: 向 Add 視圖傳遞 initialDate
                     Add(toDoItems: $toDoItems,
                         initialMode: isFromTodoSheet ? .memo : (currentDateOffset == 0 ? .today : .future),
-                        currentDateOffset: currentDateOffset,
+                        initialDate: selectedDate, // 傳遞計算好的日期
                         fromTodoSheet: isFromTodoSheet,
                         editingItem: editingItem,
                         onClose: {
@@ -621,7 +638,7 @@ struct Home: View {
                 .animation(.easeInOut(duration: 0.3), value: showingDeleteView)
                 .zIndex(300)
             }
-                
+            
             //第三步：新增 TaskEditView 的顯示邏輯
             if let taskToEdit = self.taskToEdit,
                let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
@@ -727,78 +744,78 @@ struct Home: View {
                 .animation(.easeInOut(duration: 0.3), value: showNoEventsAlert)
                 .zIndex(600)
             }
-                
-                
-            }
             
-            .animation(.easeOut, value: showToDoSheet)
-            .animation(.easeOut, value: showAddTaskSheet)
-            .animation(.easeOut, value: showCalendarView)
-            .animation(.easeOut, value: showingDeleteView)
-            .animation(.easeOut, value: showTaskSelectionOverlay) // 為新的 Overlay 也加上動畫
-            .animation(.easeOut, value: showNoEventsAlert) // 為沒有事件提示彈窗加上動畫
-            .navigationBarHidden(true)
-            .navigationBarBackButtonHidden(true)
-            .toolbar(.hidden, for: .navigationBar)
+            
         }
-        .onAppear {
-            timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-                currentDate = Date()
-            }
-            loadTodoItems()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                loadTodoItems()
-            }
-            if delaySettlementManager.shouldShowSettlement() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    let allItems = LocalDataManager.shared.getAllTodoItems()
-                    let filteredItems = allItems.filter { !self.recentlyDeletedItemIDs.contains($0.id) }
-                    if allItems.count != filteredItems.count {
-                        let deletedButStillExistIDs = allItems.filter { self.recentlyDeletedItemIDs.contains($0.id) }.map { $0.id }
-                        for id in deletedButStillExistIDs { LocalDataManager.shared.deleteTodoItem(withID: id) }
-                        self.toDoItems = filteredItems
-                    }
-                    
-                    // 檢查是否有事件，沒有則跳過自動結算
-                    if !filteredItems.isEmpty {
-                        navigateToSettlementView = true
-                    } else {
-                        print("自動結算檢測但沒有任何事件，跳過結算流程")
-                    }
-                }
-            }
-            if UserDefaults.standard.bool(forKey: "isSleepMode") {
-                isSleepMode = true
-                if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
-                    alarmTimeString = savedAlarmTime
-                }
-                updateDayProgress(currentTime: Date())
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    updateDayProgress(currentTime: Date())
-                }
-            } else {
-                isSleepMode = false
-            }
-            setupDataChangeObservers()
-        }
-        .onReceive(sleepModeTimer) { receivedTime in
-            if isSleepMode {
-                updateDayProgress(currentTime: receivedTime)
-            }
-        }
-        .onDisappear {
-            timer?.invalidate()
-            NotificationCenter.default.removeObserver(self)
-        }
-        .background(
-            Group {
-                NavigationLink(destination: SettlementView(), isActive: $navigateToSettlementView) { EmptyView() }
-                NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) { EmptyView() }
-                NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) { EmptyView() }
-                NavigationLink(destination: Login(), isActive: $navigateToLogin) { EmptyView() }
-            }
-        )
+        
+        .animation(.easeOut, value: showToDoSheet)
+        .animation(.easeOut, value: showAddTaskSheet)
+        .animation(.easeOut, value: showCalendarView)
+        .animation(.easeOut, value: showingDeleteView)
+        .animation(.easeOut, value: showTaskSelectionOverlay) // 為新的 Overlay 也加上動畫
+        .animation(.easeOut, value: showNoEventsAlert) // 為沒有事件提示彈窗加上動畫
+        .navigationBarHidden(true)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
+    .onAppear {
+        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+            currentDate = Date()
+        }
+        loadTodoItems()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            loadTodoItems()
+        }
+        if delaySettlementManager.shouldShowSettlement() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                let allItems = LocalDataManager.shared.getAllTodoItems()
+                let filteredItems = allItems.filter { !self.recentlyDeletedItemIDs.contains($0.id) }
+                if allItems.count != filteredItems.count {
+                    let deletedButStillExistIDs = allItems.filter { self.recentlyDeletedItemIDs.contains($0.id) }.map { $0.id }
+                    for id in deletedButStillExistIDs { LocalDataManager.shared.deleteTodoItem(withID: id) }
+                    self.toDoItems = filteredItems
+                }
+                
+                // 檢查是否有事件，沒有則跳過自動結算
+                if !filteredItems.isEmpty {
+                    navigateToSettlementView = true
+                } else {
+                    print("自動結算檢測但沒有任何事件，跳過結算流程")
+                }
+            }
+        }
+        if UserDefaults.standard.bool(forKey: "isSleepMode") {
+            isSleepMode = true
+            if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
+                alarmTimeString = savedAlarmTime
+            }
+            updateDayProgress(currentTime: Date())
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                updateDayProgress(currentTime: Date())
+            }
+        } else {
+            isSleepMode = false
+        }
+        setupDataChangeObservers()
+    }
+    .onReceive(sleepModeTimer) { receivedTime in
+        if isSleepMode {
+            updateDayProgress(currentTime: receivedTime)
+        }
+    }
+    .onDisappear {
+        timer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+    .background(
+        Group {
+            NavigationLink(destination: SettlementView(), isActive: $navigateToSettlementView) { EmptyView() }
+            NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) { EmptyView() }
+            NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) { EmptyView() }
+            NavigationLink(destination: Login(), isActive: $navigateToLogin) { EmptyView() }
+        }
+    )
+}
     
     // 動態擴展滾動範圍
     private func expandScrollRangeIfNeeded(for offset: Int) {
@@ -1009,7 +1026,7 @@ struct Home: View {
             .background(
                 RoundedRectangle(cornerRadius: 11)
                     .fill(isScrolling ? Color(hex: "141414") : Color.clear)
-//                    .fill(isScrolling ? Color.gray.opacity(0.3) : Color.blue.opacity(0.2))
+//                  .fill(isScrolling ? Color.gray.opacity(0.3) : Color.blue.opacity(0.2))
                     .animation(.easeInOut(duration: 0.3), value: isScrolling)
             )
             .id(dateOffset)
@@ -1036,7 +1053,7 @@ struct Home: View {
     }
     
     
-   // MARK: - Functions
+ // MARK: - Functions
     private func updateDayProgress(currentTime: Date) {
         let calendar = self.taipeiCalendar
         let localAlarmStringParser = self.alarmStringParser

@@ -23,7 +23,7 @@ struct Add: View {
     @State private var showAddSuccess: Bool = false
     @State private var currentBlockIndex: Int = 0
     @State private var priorityLevel: Int = 0  // 預設為0，新增：追踪優先級 (0-3)
-    @State private var totalDays: Int = 60     // 總天數，與 ScrollCalendarView 同步
+    @State private var totalDays: Int = 60      // 總天數，與 ScrollCalendarView 同步
     
     // Add state for time selection
     @State private var isDateEnabled: Bool = false
@@ -60,14 +60,21 @@ struct Add: View {
     // 區塊標題列表，模擬多個區塊
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
     
-    // Add.swift
-    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, currentDateOffset: Int, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil) {
-        print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 日期偏移 = \(currentDateOffset), 來自待辦事項佇列 = \(fromTodoSheet)")
+    // MARK: - MODIFIED: 修改 init 方法以接收 initialDate
+    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, initialDate: Date, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil) {
+        print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 初始日期 = \(initialDate), 來自待辦事項佇列 = \(fromTodoSheet)")
 
         self._toDoItems = toDoItems
         self.onClose = onClose
         self.isFromTodoSheet = fromTodoSheet
-        self.offset = currentDateOffset
+        
+        // --- 新增邏輯：從傳入的 initialDate 反向計算 dateOffset ---
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let startOfInitialDate = calendar.startOfDay(for: initialDate)
+        let dateOffset = calendar.dateComponents([.day], from: today, to: startOfInitialDate).day ?? 0
+        self.offset = dateOffset
+        // --- 結束新增邏輯 ---
 
         // 1. 決定最終的模式和起始索引
         let calculatedMode: AddMode
@@ -93,9 +100,9 @@ struct Add: View {
                 print("初始化為今天模式。Index = 1")
             case .future:
                 calculatedMode = .future
-                startIndex = currentDateOffset + 1
+                startIndex = dateOffset + 1 // 使用我們計算出的 dateOffset
                 startIsDateEnabled = true
-                print("初始化為未來日期模式。Index = \(currentDateOffset + 1)")
+                print("初始化為未來日期模式。Index = \(dateOffset + 1)")
             }
         }
 
@@ -107,18 +114,7 @@ struct Add: View {
         self._isDateEnabled = State(initialValue: startIsDateEnabled)
         self._isTimeEnabled = State(initialValue: false) // 預設不啟用時間
 
-        // 4. 設定初始日期
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let initialDate: Date
-        if startIsDateEnabled {
-            // 如果啟用日期，根據 startIndex 計算日期
-            // (startIndex - 1) 是因為 0 是備忘錄，1 是今天(偏移0)，2 是明天(偏移1)...
-            initialDate = calendar.date(byAdding: .day, value: startIndex - 1, to: today) ?? today
-        } else {
-            // 備忘錄模式下，預設為今天 (但在 updateDateFromBlockIndex 會被清除)
-            initialDate = today
-        }
+        // 4. 設定初始日期 (直接使用傳入的 initialDate)
         self._selectedDate = State(initialValue: initialDate)
 
         // 如果是編輯模式，預填現有項目的資料
@@ -305,28 +301,28 @@ struct Add: View {
                         .padding(.top, 9)
                         .padding(.leading, 16)
                         // 添加手勢識別器來捕獲滑匡的變化
-//                        .gesture(
-//                            DragGesture()
-//                                .onEnded { value in
-//                                    // 根據滑動方向判斷是向左還是向右滑動
-//                                    let threshold: CGFloat = 50
-//                                    if value.translation.width < -threshold {
-//                                        // 向左滑動（增加索引）
-//                                        if currentBlockIndex < totalDays {
-//                                            currentBlockIndex += 1
-//                                            print(currentBlockIndex)
-//                                            updateDateFromBlockIndex()
-//                                        }
-//                                    } else if value.translation.width > threshold {
-//                                        // 向右滑動（減少索引）
-//                                        if currentBlockIndex > 0 {
-//                                            currentBlockIndex -= 1
-//                                            print(currentBlockIndex)
-//                                            updateDateFromBlockIndex()
-//                                        }
-//                                    }
-//                                }
-//                        )
+//                      .gesture(
+//                          DragGesture()
+//                              .onEnded { value in
+//                                  // 根據滑動方向判斷是向左還是向右滑動
+//                                  let threshold: CGFloat = 50
+//                                  if value.translation.width < -threshold {
+//                                      // 向左滑動（增加索引）
+//                                      if currentBlockIndex < totalDays {
+//                                          currentBlockIndex += 1
+//                                          print(currentBlockIndex)
+//                                          updateDateFromBlockIndex()
+//                                      }
+//                                  } else if value.translation.width > threshold {
+//                                      // 向右滑動（減少索引）
+//                                      if currentBlockIndex > 0 {
+//                                          currentBlockIndex -= 1
+//                                          print(currentBlockIndex)
+//                                          updateDateFromBlockIndex()
+//                                      }
+//                                  }
+//                              }
+//                      )
                     
                     Image("Vector 81")
                         .resizable()
@@ -674,28 +670,15 @@ struct Add: View {
         var finalTaskDate: Date?
         var hasTimeData = isDateEnabled || isTimeEnabled
         
-        switch mode {
-        case .memo:
-            if hasTimeData {
-                // 備忘錄模式但有設置時間 - 使用選擇的日期
-                finalTaskDate = selectedDate
-                print("備忘錄模式但有設置時間，使用所選日期: \(selectedDate)")
-            } else {
-                // 備忘錄模式且沒有設置時間 - 日期設為 nil
-                finalTaskDate = nil
-                print("備忘錄模式且沒有設置時間，日期設為 nil")
-            }
-            
-        case .today, .future:
-            if hasTimeData {
-                // 如果日期已啟用，使用選擇的日期
-                finalTaskDate = selectedDate
-                print("使用所選日期保存任務: \(selectedDate)")
-            } else {
-                // 默認情況下使用預設日期
-                finalTaskDate = taskDate
-                print("使用預設日期保存任務")
-            }
+        // MARK: - MODIFIED: 簡化日期決定邏輯
+        if currentBlockIndex == 0 {
+             // 備忘錄模式且沒有設置時間 - 日期設為 nil
+             finalTaskDate = nil
+             print("備忘錄模式，日期設為 nil")
+        } else {
+            // 所有非備忘錄模式，都使用 selectedDate
+            finalTaskDate = selectedDate
+            print("日期模式，使用所選日期: \(selectedDate)")
         }
         
         // 判斷狀態：如果是從備忘錄添加（沒有時間資料）或有添加時間，都設為 toBeStarted
@@ -840,10 +823,10 @@ struct Add_Previews: PreviewProvider {
     @State static var mockItems: [TodoItem] = []
     
     static var previews: some View {
-        Add(toDoItems: $mockItems, initialMode: Home.AddTaskMode.today, currentDateOffset: 0, fromTodoSheet: false) {
-            // 空的關閉回調
-            print("預覽關閉")
-        }
+        Add(toDoItems: $mockItems, initialMode: .today, initialDate: Date()) {
+             // 空的關閉回調
+             print("預覽關閉")
+         }
         .background(Color.black)
         .edgesIgnoringSafeArea(.all)
     }
@@ -877,7 +860,7 @@ struct KeyboardAdaptive: ViewModifier {
             let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect ?? .zero
             
             // 只將鍵盤的高度加上一些額外空間（例如按鈕高度+間距）
-//            keyboardHeight = keyboardFrame.height - 30 // 減去一些高度，避免過大的空白
+//          keyboardHeight = keyboardFrame.height - 30 // 減去一些高度，避免過大的空白
             keyboardHeight = 40
             topPadding = 24
             isKeyboardVisible = true
