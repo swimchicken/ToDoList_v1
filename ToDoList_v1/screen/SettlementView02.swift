@@ -1,4 +1,13 @@
 import SwiftUI
+import Combine // **新增**: 為了鍵盤監聽器需要導入
+
+fileprivate struct ViewBottomYPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = .zero
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        // 我們只需要最新的值，所以直接賦值
+        value = nextValue()
+    }
+}
 
 // MARK: - S02ProgressBarSegment (專為 SettlementView02 設計的進度條樣式)
 struct S02ProgressBarSegment: View {
@@ -28,7 +37,7 @@ struct S02ProgressBarSegment: View {
 
 // MARK: - SettlementView02.swift
 struct SettlementView02: View {
-    // MARK: - AI Button States & Services
+    // MARK: - 狀態變數
     @State private var isRecording = false
     @State private var isTextInputMode = false
     @State private var newTodoText = ""
@@ -36,65 +45,54 @@ struct SettlementView02: View {
     @State private var isSendingText = false
     
     @State private var keyboardHeight: CGFloat = 0
-    
     @State private var isManualEditing: Bool = false
-    //addTime & addNote
+    
+    // AddTime & AddNote 相關
     @State private var note: String = ""
     @State private var showAddTimeView: Bool = false
     @State private var showAddNoteView: Bool = false
     @State private var displayText: String = ""
     @State private var priority: Int = 0
     @State private var isPinned: Bool = false
-
     @State private var selectedDate: Date = Date()
     @State private var isDateEnabled: Bool = false
     @State private var isTimeEnabled: Bool = false
     
-    // 用於 AI 按鈕和輸入框之間的動畫
     @Namespace private var namespace
 
-    // 修改視窗相關狀態
     @State private var showTaskSelectionOverlay: Bool = false
     @State private var pendingTasks: [TodoItem] = []
     @State private var taskToEdit: TodoItem?
 
-    // 管理器
     @StateObject private var speechManager = SpeechManager()
-    @StateObject private var geminiService = GeminiService() // 假設您專案中已有此服務
+    @StateObject private var geminiService = GeminiService()
     
     @Environment(\.presentationMode) var presentationMode
     
-    // 接收從SettlementView傳遞的未完成任務和設置
+    // 接收的數據
     let uncompletedTasks: [TodoItem]
     let moveTasksToTomorrow: Bool
     
-    // 用於顯示的明日任務列表
+    // 本地狀態
     @State private var dailyTasks: [TodoItem] = []
-    
-    // 所有待辦事項（與 Home.swift 保持一致）
     @State private var allTodoItems: [TodoItem] = []
+    @State private var selectedFilterInSettlement = "全部"
+    @State private var showTodoQueue: Bool = false
+    @State private var navigateToSettlementView03: Bool = false
     
-    // 初始化方法 - 接收未完成任務和是否移至明日的設置
+    // **新增**: 用於儲存列表內容底部在螢幕上的Y座標
+    @State private var listContentBottomY: CGFloat = .zero
+    
+    private let delaySettlementManager = DelaySettlementManager.shared
+    private var tomorrow: Date { Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() }
+
     init(uncompletedTasks: [TodoItem], moveTasksToTomorrow: Bool) {
         self.uncompletedTasks = uncompletedTasks
         self.moveTasksToTomorrow = moveTasksToTomorrow
-        
-        // 如果選擇將未完成任務移至明日，則使用這些任務初始化明日任務列表
-        // 否則使用空列表
         let initialDailyTasks = moveTasksToTomorrow ? uncompletedTasks : []
         self._dailyTasks = State(initialValue: initialDailyTasks)
-        
-        // 初始化所有待辦事項
         self._allTodoItems = State(initialValue: [])
     }
-    @State private var selectedFilterInSettlement = "全部"
-    @State private var showTodoQueue: Bool = false
-    @State private var navigateToSettlementView03: Bool = false // 導航到下一頁
-    
-    // 延遲結算管理器
-    private let delaySettlementManager = DelaySettlementManager.shared
-    
-    private var tomorrow: Date { Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() }
 
     private func formatDateForDisplay(_ date: Date) -> (monthDay: String, weekday: String) {
         let dateFormatterMonthDay = DateFormatter()
@@ -107,323 +105,328 @@ struct SettlementView02: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        // 进度条部分
-                        ProgressBarView()
-                        
-                        // 勾选图标部分
-                        CheckmarkView()
-                    }
-                    .padding(.top, 0)
-                    // ... (SettlementView02 的其餘頂部內容，如您之前提供)
-                    // 分隔线
-                    DividerView()
-                    
-                    // 唤醒文本
-                    WakeUpTitleView()
-                    
-                    // 明日日期显示
-                    TomorrowDateView(tomorrow: tomorrow, formatDateForDisplay: formatDateForDisplay)
-                    
-                    // 闹钟信息
-                    AlarmInfoView()
-                    Image("Vector 81").resizable().aspectRatio(contentMode: .fit).frame(maxWidth: .infinity)
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 2)
+        GeometryReader { geometry in
+            ZStack {
+                
+                // MARK: - 圖層 1: 背景與主要內容 (列表)
+                mainContent
+                    .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
 
-                ScrollView {
-                    VStack(spacing: 0) { // 用一個 VStack 包住列表和按鈕
-                        // 任務列表
-                        TaskListView(
-                            tasks: dailyTasks,
-                            onDeleteTask: { taskToDelete in
-                                deleteTask(taskToDelete)
-                            }
-                        )
-
-                        // --- 組合按鈕區塊，現在位於 ScrollView 內部 ---
-                        ZStack {
-                            // 圖層 1: 手動輸入的灰色匡
-                            AddTaskButton(
-                                isEditing: $isManualEditing,
-                                displayText: $displayText,
-                                priority: $priority,
-                                isPinned: $isPinned,
-                                note: $note,
-                                isDateEnabled: $isDateEnabled,
-                                isTimeEnabled: $isTimeEnabled,
-                                selectedDate: $selectedDate,
-                                onTaskAdded: {
-                                    loadTasksFromDataManager()
-                                },
-                                onShowAddTime: {
-                                    showAddTimeView = true
-                                },
-                                onShowAddNote: {
-                                    showAddNoteView = true
-                                }
-                            )
-                            
-                            .opacity(isRecording || isTextInputMode ? 0 : 1)
-                            .animation(.easeInOut(duration: 0.3), value: isRecording || isTextInputMode)
-                            // 圖層 2: 綠色 AI 按鈕
-                            GeometryReader { geometry in
-                                HStack {
-                                    Spacer() // 將 AI 按鈕推到最右邊
-                                    Group {
-                                        if isTextInputMode {
-                                            TextInputView(
-                                                namespace: namespace,
-                                                isTextInputMode: $isTextInputMode,
-                                                isSending: $isSendingText,
-                                                text: $newTodoText,
-                                                width: geometry.size.width - 10,
-                                                onSend: { text in handleSend(text: text) }
-                                            )
-                                        } else {
-                                            ExpandableSoundButton(
-                                                namespace: namespace,
-                                                isRecording: $isRecording,
-                                                isTextInputMode: $isTextInputMode,
-                                                isSaving: $isSavingRecording,
-                                                audioLevel: speechManager.audioLevel,
-                                                onRecordingStart: startRecording,
-                                                onRecordingEnd: endRecording,
-                                                onRecordingCancel: cancelRecording,
-                                                expandedWidth: geometry.size.width - 10
-                                            )
-                                        }
-                                    }
-                                    .opacity(isManualEditing ? 0 : 1)
-                                    .animation(.easeInOut(duration: 0.35), value: isManualEditing)
-                                }
-                            }
-                            .frame(height: 50)
-                            .offset(x: -5)
-                            .allowsHitTesting(!isManualEditing)
-                        }
-                    }
-                    .padding(.top, 10)
-                    // 恢復這個 padding，避免列表底部被結算按鈕遮擋
-                    .padding(.bottom, showTodoQueue ? 380 : 200)
+                // MARK: - 圖層 2: 懸浮的 Add Task & AI 按鈕
+                floatingInputButtons(screenProxy: geometry)
+                
+                // MARK: - 圖層 3: 底部固定 UI
+                if keyboardHeight == 0 {
+                    bottomNavigationView
                 }
-                .scrollIndicators(.hidden)
-                .padding(.horizontal, 12)
+
+                // MARK: - 圖層 4: 彈出式 Overlay
+                overlays
             }
-            
-            .onTapGesture {
-                // 如果手動編輯模式是開啟的，就關閉它
-                if isManualEditing {
-                    isManualEditing = false
-                    // 同時收起鍵盤
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black.ignoresSafeArea())
+            .navigationBarBackButtonHidden(true)
+            .navigationBarHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                setupKeyboardListeners()
+                loadTasksFromDataManager()
+            }
+            .fullScreenCover(isPresented: $showAddTimeView) {
+                AddTimeView(
+                    isDateEnabled: $isDateEnabled, isTimeEnabled: $isTimeEnabled,
+                    selectedDate: $selectedDate,
+                    onSave: { self.showAddTimeView = false },
+                    onBack: { self.showAddTimeView = false }
+                )
+            }
+            .fullScreenCover(isPresented: $showAddNoteView) {
+                AddNote(noteText: self.note) { savedNote in
+                    self.note = savedNote
+                    self.showAddNoteView = false
                 }
             }
-            
-            .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
-            
-            if showTaskSelectionOverlay {
-                        TaskSelectionOverlay(
-                            tasks: $pendingTasks,
-                            onCancel: {
-                                withAnimation { self.showTaskSelectionOverlay = false }
-                            },
-                            onAdd: { itemsToAdd in
-                                for var item in itemsToAdd {
-                                    let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                                    if item.taskDate == nil || item.taskDate! < tomorrow {
-                                        item.taskDate = tomorrow
-                                    }
-                                    DataSyncManager.shared.addTodoItem(item) { _ in }
-                                }
-                                withAnimation { self.showTaskSelectionOverlay = false }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                    self.loadTasksFromDataManager()
-                                }
-                            },
-                            onEditTask: { task in
-                                // 命令 TaskSelectionOverlay 消失，並設定要編輯的任務
-                                self.showTaskSelectionOverlay = false
-                                self.taskToEdit = task
-                            }
-                        )
-                        .zIndex(500)
-                        .transition(.opacity)
-                    }
-
-                    if let taskToEdit = self.taskToEdit,
-                       let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
-                        
-                        TaskEditView(task: $pendingTasks[taskIndex], onClose: {
-                            // 命令 TaskEditView 消失，並重新顯示 TaskSelectionOverlay
-                            self.taskToEdit = nil
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                self.showTaskSelectionOverlay = true
-                            }
-                        })
-                        .zIndex(600) // zIndex 比 TaskSelectionOverlay 更高
-                        .transition(.opacity.animation(.easeInOut))
-                    }
-            // MARK: - 底部固定 UI (待辦事項佇列 + 導航按鈕)
-            VStack(spacing: 0) {
-                // --- 待辦事項佇列 ---
-                // 根據 showTodoQueue 狀態決定顯示展開的佇列，或是收合的按鈕
-                if showTodoQueue {
-                    // 展開的待辦事項佇列視圖
-                    SettlementTodoQueueView(
-                        items: $allTodoItems,
-                        selectedFilter: $selectedFilterInSettlement,
-                        collapseAction: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                                showTodoQueue = false
-                            }
-                        },
-                        onTaskAdded: {
-                            loadTasksFromDataManager()
-                        }
-                    )
-                    .padding(.horizontal, 12)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity).animation(.spring(response: 0.4, dampingFraction: 0.85)),
-                        removal: .move(edge: .bottom).combined(with: .opacity).animation(.easeInOut(duration: 0.2))
-                    ))
-                    .padding(.bottom, 10)
-                } else {
-                    // 收合的佇列按鈕
-                    Button(action: {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                            showTodoQueue.toggle()
-                        }
-                    }) {
-                        HStack {
-                            Text("待辦事項佇列")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundColor(Color.white.opacity(0.8))
-                            Spacer()
-                            Image(systemName: "chevron.up")
-                                .foregroundColor(Color.white.opacity(0.8))
-                        }
-                        .padding(.vertical, 16)
-                        .padding(.horizontal, 16)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(white: 0.12))
-                        .cornerRadius(12)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
-                    .transition(.asymmetric(
-                        insertion: .opacity.animation(.easeInOut(duration: 0.2)),
-                        removal: .opacity.animation(.easeInOut(duration: 0.05))
-                    ))
-                }
-
-                // --- 底部導航按鈕 ---
-                HStack {
-                    // "返回" 按鈕
-                    Button(action: {
-                        self.presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Text("返回")
-                            .font(Font.custom("Inria Sans", size: 20))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.leading) // 增加點擊區域
-
-                    Spacer()
-
-                    // "Next" 按鈕
-                    Button(action: {
-                        delaySettlementManager.markSettlementCompleted()
-                        print("SettlementView02 - 已標記結算完成")
-                        navigateToSettlementView03 = true
-                    }) {
-                        Text("Next")
-                            .font(Font.custom("Inria Sans", size: 20).weight(.bold))
-                            .foregroundColor(.black)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .frame(width: 279, height: 60)
-                    .background(.white)
-                    .cornerRadius(40.5)
-                }
-                .padding(.horizontal, 12)
-            }
-            .padding(.bottom, 40) // 底部安全距離
-            .background(Color.black) // 給予黑色背景，避免下方內容透出
-            
-        }
-        .fullScreenCover(isPresented: $showAddTimeView) {
-            // 這是根據 AddTimeView.swift 寫出的「關鍵程式」
-            AddTimeView(
-                isDateEnabled: $isDateEnabled,
-                isTimeEnabled: $isTimeEnabled,
-                selectedDate: $selectedDate,
-                onSave: {
-                    // 當 AddTimeView 儲存時，會執行這裡
-                    self.showAddTimeView = false
-                },
-                onBack: {
-                    // 當 AddTimeView 返回時，會執行這裡
-                    self.showAddTimeView = false
+            .background(
+                NavigationLink(destination: SettlementView03(), isActive: $navigateToSettlementView03) {
+                    EmptyView()
                 }
             )
         }
-        .fullScreenCover(isPresented: $showAddNoteView, onDismiss: {
-            // 確保 isPresented 狀態與視圖的實際顯示狀態同步
-            self.showAddNoteView = false
-        }) {
-            // 這是根據您提供的 AddNote.swift 寫出的「關鍵程式」
-            AddNote(noteText: self.note) { savedNote in
-                // 當 AddNote 儲存時，會執行這裡的程式碼
-                self.note = savedNote
-                self.showAddNoteView = false
-            }
-        }
-        
-        .keyboardReadable(height: $keyboardHeight) // <-- 新增這一行
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea(.keyboard, edges: .all)
-        .background(Color.black.ignoresSafeArea())
-        .background(Color.black.edgesIgnoringSafeArea(.all))
-        .navigationBarBackButtonHidden(true)
-        .navigationBarHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
-        
-        .onAppear {
-            // 日志输出，便于调试
-            print("SettlementView02 - onAppear: 移動未完成任務設置 = \(moveTasksToTomorrow)")
-            print("SettlementView02 - onAppear: 未完成任務數量 = \(uncompletedTasks.count)")
-            
-            // 重新載入任務列表以確保數據同步
-            loadTasksFromDataManager()
-        }
-        .background(
-            NavigationLink(destination: SettlementView03(), isActive: $navigateToSettlementView03) {
-                EmptyView()
-            }
-        )
     }
     
+    // MARK: - Body Subviews
+    
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    ProgressBarView()
+                    CheckmarkView()
+                }
+                .padding(.top, 0)
+                DividerView()
+                WakeUpTitleView()
+                TomorrowDateView(tomorrow: tomorrow, formatDateForDisplay: formatDateForDisplay)
+                AlarmInfoView()
+                Image("Vector 81").resizable().aspectRatio(contentMode: .fit).frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 2)
+            
+            ScrollView {
+                VStack(spacing: 0) {
+                    TaskListView(
+                        tasks: dailyTasks,
+                        onDeleteTask: { taskToDelete in deleteTask(taskToDelete) }
+                    )
+                    
+                    // 隱形錨點，用來探測列表底部的位置
+                    Color.clear
+                        .frame(height: 1)
+                        .background(GeometryReader {
+                            Color.clear.preference(key: ViewBottomYPreferenceKey.self, value: $0.frame(in: .global).maxY)
+                        })
+                }
+            }
+            .onPreferenceChange(ViewBottomYPreferenceKey.self) { newY in
+                self.listContentBottomY = newY
+            }
+            .scrollIndicators(.hidden)
+            .padding(.horizontal, 12)
+        }
+        .onTapGesture {
+            if isManualEditing {
+                isManualEditing = false
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
+        }
+    }
+
+    // MARK: - 懸浮按鈕視圖
+        private func floatingInputButtons(screenProxy: GeometryProxy) -> some View {
+            let screenHeight = screenProxy.size.height
+            let safeAreaBottom = screenProxy.safeAreaInsets.bottom
+            let buttonHeight: CGFloat = 70
+
+            // ▼▼▼ 根據您的指示，組合了兩個有效公式的最終版本 ▼▼▼
+            let buttonCenterY: CGFloat = {
+                if keyboardHeight > 0 {
+                    // --- 情況 1: 鍵盤已彈出 (根據不同輸入模式設定不同高度) ---
+                                    // ▼▼▼ 從這裡開始貼上 ▼▼▼
+                                    if isTextInputMode {
+                                        // AI 按鈕彈出時，使用 360
+                                        return 430.0
+                                    } else {
+                                        // Add task 手動輸入時，使用您調整好的 380
+                                        return 380.0
+                                    }
+                                    // ▲▲▲ 在這裡結束貼上 ▲▲▲
+                } else {
+                    // --- 情況 2: 鍵盤已收合 (使用您指定的、先前有效的公式) ---
+                    let contentBottomY = (listContentBottomY == 0) ? screenHeight : listContentBottomY
+                    let idealY = contentBottomY + (buttonHeight / 2) - 60
+                    let clampedY = min(idealY, screenHeight - safeAreaBottom - (buttonHeight / 2) - 80)
+                    return clampedY
+                }
+            }()
+            // ▲▲▲ 最終版計算邏輯結束 ▲▲▲
+           
+        return ZStack {
+            AddTaskButton(
+                isEditing: $isManualEditing, displayText: $displayText, priority: $priority,
+                isPinned: $isPinned, note: $note, isDateEnabled: $isDateEnabled,
+                isTimeEnabled: $isTimeEnabled, selectedDate: $selectedDate,
+                onTaskAdded: { loadTasksFromDataManager() },
+                onShowAddTime: { showAddTimeView = true },
+                onShowAddNote: { showAddNoteView = true }
+            )
+            .opacity(isRecording || isTextInputMode ? 0 : 1)
+            .animation(.easeInOut(duration: 0.3), value: isRecording || isTextInputMode)
+            
+            GeometryReader { geometry in
+                HStack {
+                    Spacer()
+                    Group {
+                        if isTextInputMode {
+                            TextInputView(
+                                namespace: namespace, isTextInputMode: $isTextInputMode,
+                                isSending: $isSendingText, text: $newTodoText,
+                                width: geometry.size.width - 10,
+                                onSend: { text in handleSend(text: text) }
+                            )
+                        } else {
+                            ExpandableSoundButton(
+                                namespace: namespace, isRecording: $isRecording,
+                                isTextInputMode: $isTextInputMode, isSaving: $isSavingRecording,
+                                audioLevel: speechManager.audioLevel,
+                                onRecordingStart: startRecording, onRecordingEnd: endRecording,
+                                onRecordingCancel: cancelRecording,
+                                expandedWidth: geometry.size.width - 10
+                            )
+                        }
+                    }
+                    .opacity(isManualEditing ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.35), value: isManualEditing)
+                }
+            }
+            .frame(height: 50)
+            .offset(x: -5)
+            .allowsHitTesting(!isManualEditing)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: buttonHeight)
+        .position(x: screenProxy.size.width / 2, y: buttonCenterY)
+        .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: listContentBottomY)
+        .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: keyboardHeight)
+    }
+
+    @ViewBuilder
+    private var bottomNavigationView: some View {
+        VStack(spacing: 0) {
+            Spacer()
+             VStack(spacing: 0) {
+                if showTodoQueue {
+                     SettlementTodoQueueView(
+                         items: $allTodoItems,
+                         selectedFilter: $selectedFilterInSettlement,
+                         collapseAction: {
+                             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                                 showTodoQueue = false
+                             }
+                         },
+                         onTaskAdded: {
+                             loadTasksFromDataManager()
+                         }
+                     )
+                     .padding(.horizontal, 12)
+                     .transition(.asymmetric(
+                         insertion: .move(edge: .bottom).combined(with: .opacity).animation(.spring(response: 0.4, dampingFraction: 0.85)),
+                         removal: .move(edge: .bottom).combined(with: .opacity).animation(.easeInOut(duration: 0.2))
+                     ))
+                     .padding(.bottom, 10)
+                 } else {
+                     Button(action: {
+                         withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                             showTodoQueue.toggle()
+                         }
+                     }) {
+                         HStack {
+                             Text("待辦事項佇列")
+                                 .font(.system(size: 15, weight: .medium))
+                                 .foregroundColor(Color.white.opacity(0.8))
+                             Spacer()
+                             Image(systemName: "chevron.up")
+                                 .foregroundColor(Color.white.opacity(0.8))
+                         }
+                         .padding(.vertical, 16)
+                         .padding(.horizontal, 16)
+                         .frame(maxWidth: .infinity)
+                         .background(Color(white: 0.12))
+                         .cornerRadius(12)
+                     }
+                     .padding(.horizontal, 12)
+                     .padding(.bottom, 10)
+                     .transition(.asymmetric(
+                         insertion: .opacity.animation(.easeInOut(duration: 0.2)),
+                         removal: .opacity.animation(.easeInOut(duration: 0.05))
+                     ))
+                 }
+
+                 HStack {
+                     Button(action: {
+                         self.presentationMode.wrappedValue.dismiss()
+                     }) {
+                         Text("返回")
+                             .font(Font.custom("Inria Sans", size: 20))
+                             .foregroundColor(.white)
+                     }
+                     .padding(.leading)
+                     Spacer()
+                     Button(action: {
+                         delaySettlementManager.markSettlementCompleted()
+                         navigateToSettlementView03 = true
+                     }) {
+                         Text("Next")
+                             .font(Font.custom("Inria Sans", size: 20).weight(.bold))
+                             .foregroundColor(.black)
+                             .frame(maxWidth: .infinity)
+                     }
+                     .frame(width: 279, height: 60)
+                     .background(.white)
+                     .cornerRadius(40.5)
+                 }
+                 .padding(.horizontal, 12)
+             }
+             .padding(.bottom, 40)
+             .background(Color.black)
+        }
+        .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+        .ignoresSafeArea(.all, edges: .bottom)
+    }
+    
+    @ViewBuilder
+    private var overlays: some View {
+        if showTaskSelectionOverlay {
+            TaskSelectionOverlay(
+                tasks: $pendingTasks,
+                onCancel: { withAnimation { self.showTaskSelectionOverlay = false } },
+                onAdd: { itemsToAdd in
+                    for var item in itemsToAdd {
+                        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+                        if item.taskDate == nil || item.taskDate! < tomorrow {
+                            item.taskDate = tomorrow
+                        }
+                        DataSyncManager.shared.addTodoItem(item) { _ in }
+                    }
+                    withAnimation { self.showTaskSelectionOverlay = false }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.loadTasksFromDataManager()
+                    }
+                },
+                onEditTask: { task in
+                    self.showTaskSelectionOverlay = false
+                    self.taskToEdit = task
+                }
+            )
+            .zIndex(500)
+            .transition(.opacity)
+        }
+
+        if let taskToEdit = self.taskToEdit,
+           let taskIndex = self.pendingTasks.firstIndex(where: { $0.id == taskToEdit.id }) {
+            TaskEditView(task: $pendingTasks[taskIndex], onClose: {
+                self.taskToEdit = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.showTaskSelectionOverlay = true
+                }
+            })
+            .zIndex(600)
+            .transition(.opacity.animation(.easeInOut))
+        }
+    }
+    
+    
+    // MARK: - Functions
+        private func setupKeyboardListeners() {
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { notification in
+                guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                self.keyboardHeight = keyboardFrame.height
+            }
+            NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) { _ in
+                self.keyboardHeight = 0
+            }
+        }
     // MARK: - 任務管理功能
     
     /// 從 DataManager 重新載入任務列表
     private func loadTasksFromDataManager() {
-        // 從 LocalDataManager 獲取最新的數據（與 Home.swift 保持一致）
         let allItems = LocalDataManager.shared.getAllTodoItems()
         
-        // 更新所有待辦事項（與 Home.swift 同步）
         allTodoItems = allItems
         print("SettlementView02 - 載入所有待辦事項: \(allTodoItems.count) 個")
         
         if moveTasksToTomorrow {
-            // 如果設置移動未完成任務到明日，顯示相關任務
-            // 這裡需要找出今天未完成且已移動到明日的任務
             dailyTasks = allItems.filter { item in
-                // 檢查是否為明日任務（狀態為 toBeStarted 或 undone）
                 item.status == .toBeStarted || item.status == .undone
             }
             print("SettlementView02 - 重新載入明日任務: \(dailyTasks.count) 個")
@@ -437,18 +440,15 @@ struct SettlementView02: View {
     private func deleteTask(_ task: TodoItem) {
         print("SettlementView02: 開始刪除任務 - \(task.title)")
         
-        // 使用 DataSyncManager 刪除任務
         DataSyncManager.shared.deleteTodoItem(withID: task.id) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success():
                     print("SettlementView02: 成功刪除任務 - \(task.title)")
-                    // 重新載入任務列表以確保同步
                     self.loadTasksFromDataManager()
                     
                 case .failure(let error):
                     print("SettlementView02: 刪除任務失敗 - \(error.localizedDescription)")
-                    // 即使雲端刪除失敗，也重新載入本地數據
                     self.loadTasksFromDataManager()
                 }
             }
@@ -509,13 +509,15 @@ struct SettlementView02: View {
                     
                 case .failure(let error):
                     print("❌ Gemini API 錯誤: \(error.localizedDescription)")
-                    // 您可以在此處添加錯誤提示 UI
                 }
             }
         }
     }
 }
 // MARK: - 辅助视图组件
+// ... (此處以下的所有輔助視圖，包括 ProgressBarView, TaskRowView, AddTaskButton 等，都沒有任何修改，保持原樣即可)
+// ... (The rest of the file remains unchanged. You can copy it from your original file.)
+
 // 进度条视图组件
 struct ProgressBarView: View {
     var body: some View {
@@ -1705,4 +1707,3 @@ struct ExpandableSoundButton: View {
         }
     }
 }
-
