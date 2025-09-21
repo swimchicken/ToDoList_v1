@@ -85,7 +85,7 @@
 		8DF757FB2E3FEC5600F1CDA9 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */; };
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
-		EB8F20332E7D76D70004912C /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB8F20322E7D76D70004912C /* Release.xcconfig */; };
+		EB8F20402E7E7DE90004912C /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB8F203F2E7E7DE90004912C /* Release.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -208,7 +208,7 @@
 		8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataManager.swift; sourceTree = "<group>"; };
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
-		EB8F20322E7D76D70004912C /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		EB8F203F2E7E7DE90004912C /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -272,7 +272,7 @@
 				8DF757E62E3FEB1900F1CDA9 /* ToDoListWidget */,
 				8DF757E12E3FEB1900F1CDA9 /* Frameworks */,
 				7911CDE12D633BAD0034BEE6 /* Products */,
-				EB8F20322E7D76D70004912C /* Release.xcconfig */,
+				EB8F203F2E7E7DE90004912C /* Release.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -587,7 +587,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EB8F20332E7D76D70004912C /* Release.xcconfig in Resources */,
+				EB8F20402E7E7DE90004912C /* Release.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -713,7 +713,7 @@
 /* Begin XCBuildConfiguration section */
 		7911CE042D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB8F20322E7D76D70004912C /* Release.xcconfig */;
+			baseConfigurationReference = EB8F203F2E7E7DE90004912C /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -777,7 +777,7 @@
 		};
 		7911CE052D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB8F20322E7D76D70004912C /* Release.xcconfig */;
+			baseConfigurationReference = EB8F203F2E7E7DE90004912C /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -834,7 +834,7 @@
 		};
 		7911CE072D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB8F20322E7D76D70004912C /* Release.xcconfig */;
+			baseConfigurationReference = EB8F203F2E7E7DE90004912C /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -872,7 +872,7 @@
 		};
 		7911CE082D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EB8F20322E7D76D70004912C /* Release.xcconfig */;
+			baseConfigurationReference = EB8F203F2E7E7DE90004912C /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
