@@ -59,9 +59,31 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
     private func handleUserRecord(userId: String, email: String?, fullName: PersonNameComponents?, completion: @escaping (_ destination: String) -> Void) {
         // 先確保 CloudKit 認證狀態正常
         let cloudKitService = CloudKitService.shared
-        
+
         // 直接執行查詢，如果失敗就使用預設流程
-        performUserRecordQuery(userId: userId, email: email, fullName: fullName, completion: completion)
+        performUserRecordQuery(userId: userId, email: email, fullName: fullName) { destination in
+            // 在返回導向結果前，觸發CloudKit資料同步
+            print("Apple登入成功，準備觸發CloudKit資料同步")
+
+            // 延遲2秒後觸發同步，確保CloudKit認證狀態穩定
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                DataSyncManager.shared.performSync { result in
+                    switch result {
+                    case .success(let count):
+                        print("Apple登入後成功同步 \(count) 個待辦事項")
+                        // 發送資料更新通知
+                        NotificationCenter.default.post(
+                            name: Notification.Name("TodoItemsDataRefreshed"),
+                            object: nil
+                        )
+                    case .failure(let error):
+                        print("Apple登入後同步失敗: \(error.localizedDescription)")
+                    }
+                }
+            }
+
+            completion(destination)
+        }
     }
     
     /// 執行實際的用戶記錄查詢

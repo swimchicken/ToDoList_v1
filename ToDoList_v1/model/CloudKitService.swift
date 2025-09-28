@@ -200,12 +200,46 @@ class CloudKitService {
                     completion(false)
                     return
                 }
-                
+
                 if let recordID = recordID {
                     let userID = recordID.recordName
+                    let oldUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID")
+
                     print("INFO: 當前 iCloud 用戶ID: \(userID)")
+
+                    // 檢查是否為重新安裝或用戶變更的情況
+                    let isUserChange = oldUserID != userID
+                    let isReinstall = oldUserID == nil && userID != nil
+
                     // 保存當前用戶ID
                     UserDefaults.standard.set(userID, forKey: "currentCloudKitUserID")
+
+                    // 如果是重新安裝或用戶變更，觸發資料同步
+                    if isUserChange || isReinstall {
+                        if isReinstall {
+                            print("INFO: 檢測到應用重新安裝，觸發CloudKit資料同步")
+                        } else {
+                            print("INFO: 檢測到用戶變更，觸發CloudKit資料同步")
+                        }
+
+                        // 延遲3秒後觸發同步，確保認證狀態完全穩定
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            DataSyncManager.shared.performSync { result in
+                                switch result {
+                                case .success(let count):
+                                    print("CloudKit認證後成功同步 \(count) 個待辦事項")
+                                    // 發送資料更新通知
+                                    NotificationCenter.default.post(
+                                        name: Notification.Name("TodoItemsDataRefreshed"),
+                                        object: nil
+                                    )
+                                case .failure(let error):
+                                    print("CloudKit認證後同步失敗: \(error.localizedDescription)")
+                                }
+                            }
+                        }
+                    }
+
                     completion(true)
                 } else {
                     print("WARNING: 無法獲取有效的用戶記錄ID")
