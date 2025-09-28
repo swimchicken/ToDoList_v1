@@ -40,10 +40,13 @@ struct ToDoSheetView: View {
             // 備忘錄 - 篩選沒有時間的項目 (taskDate == nil)
             return mutableItems.filter { $0.taskDate == nil }
         case .incomplete:
-            // 未完成 - 有時間且狀態為未完成
+            // 未完成 - 過去日期且狀態為未完成（不包含今天和未來）
+            let today = Calendar.current.startOfDay(for: Date())
             return mutableItems.filter { 
-                $0.taskDate != nil && 
-                ($0.status == .undone || $0.status == .toBeStarted) 
+                guard let taskDate = $0.taskDate else { return false }
+                let taskDay = Calendar.current.startOfDay(for: taskDate)
+                return taskDay < today && 
+                       ($0.status == .undone || $0.status == .toBeStarted)
             }
         }
     }

@@ -28,15 +28,21 @@ struct ContentView: View {
     @State private var splashOpacity: Double = 1.0
     // Login 頁面透明度
     @State private var loginOpacity: Double = 0.0
+    // Home 頁面透明度
+    @State private var homeOpacity: Double = 0.0
     // 控制是否顯示 Splash 層
-    @State private var showSplash: Bool = true
+    @State private var showSplash: Bool = false
+    // 登入狀態檢查
+    @State private var isCheckingLogin = true
+    @State private var shouldShowAnimation = false
+    @State private var shouldShowHome = false
     
     var body: some View {
         ZStack {
             // 全螢幕黑色背景
             Color.black.ignoresSafeArea()
             
-            if showSplash {
+            if shouldShowAnimation && showSplash {
                 // Splash 層 (以 transition 平滑移除)
                 ZStack {
                     // 背景動畫層
@@ -109,27 +115,60 @@ struct ContentView: View {
             }
             
             // Login 頁面層 (預先佈局，透明度控制顯示)
-            Login()
-                .opacity(loginOpacity)
-                .zIndex(1)
-                .transition(.opacity)
+            if !shouldShowHome {
+                Login()
+                    .opacity(loginOpacity)
+                    .zIndex(1)
+                    .transition(.opacity)
+            }
+            
+            // Home 頁面層 (已登入用戶直接顯示)
+            if shouldShowHome {
+                Home()
+                    .opacity(homeOpacity)
+                    .zIndex(2)
+                    .transition(.opacity)
+            }
         }
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
-                if currentStageIndex < stages.count - 1 {
-                    withAnimation {
-                        currentStageIndex += 1
+            // 首先檢查登入狀態
+            LoginStatusChecker.shared.checkLoginStatus { destination in
+                DispatchQueue.main.async {
+                    isCheckingLogin = false
+                    
+                    switch destination {
+                    case .home:
+                        // 已登入：直接進入Home頁面，跳過動畫
+                        shouldShowHome = true
+                        shouldShowAnimation = false
+                        withAnimation(.easeInOut(duration: 1.0)) {
+                            homeOpacity = 1.0
+                        }
+                        
+                    case .login:
+                        // 未登入：顯示啟動動畫
+                        shouldShowAnimation = true
+                        showSplash = true
+                        startSplashAnimation()
                     }
                 }
-                else {
-                    showSplash = false
-                    timer.invalidate()
-                    withAnimation(.easeInOut(duration: 2.0)) {
-//                        showSplash = false
-                        splashOpacity = 0
-                        loginOpacity = 1
-                    }
-                                   
+            }
+        }
+    }
+    
+    // 啟動動畫函數（分離原有邏輯）
+    private func startSplashAnimation() {
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            if currentStageIndex < stages.count - 1 {
+                withAnimation {
+                    currentStageIndex += 1
+                }
+            } else {
+                showSplash = false
+                timer.invalidate()
+                withAnimation(.easeInOut(duration: 2.0)) {
+                    splashOpacity = 0
+                    loginOpacity = 1
                 }
             }
         }
