@@ -46,6 +46,11 @@ struct Add: View {
     @State private var isSaving: Bool = false
     @State private var saveError: String? = nil
     @State private var showSaveAlert: Bool = false
+
+    // 新增：防重複提交機制
+    @State private var lastSubmissionTime: Date = Date.distantPast
+    @State private var currentTaskId: String? = nil
+    private let minimumSubmissionInterval: TimeInterval = 2.0 // 最小提交間隔2秒
     
     // 用於記住初始模式
     var mode: AddMode = .today
@@ -343,7 +348,7 @@ struct Add: View {
                                 .focused($isTextFieldFocused)
                                 .submitLabel(.done)
                                 .onSubmit {
-                                    if !displayText.isEmpty {
+                                    if !displayText.isEmpty && !isSaving {
                                         saveToCloudKit()
                                     }
                                 }
@@ -516,7 +521,10 @@ struct Add: View {
                             
                             // 修改ADD按鈕，加入保存到CloudKit的邏輯
                             Button(action: {
-                                saveToCloudKit()
+                                // 額外防護：再次檢查是否正在保存
+                                if !isSaving {
+                                    saveToCloudKit()
+                                }
                             }) {
                                 // 根據保存狀態顯示不同文字
                                 if isSaving {
@@ -534,7 +542,7 @@ struct Add: View {
                                         .cornerRadius(25)
                                 }
                             }
-                            .disabled(displayText.isEmpty || isSaving)
+                            .disabled(displayText.isEmpty || isSaving || Date().timeIntervalSince(lastSubmissionTime) < minimumSubmissionInterval)
                         }
                         .padding(.top, 16)
                         .padding(.horizontal, 16)
@@ -661,15 +669,74 @@ struct Add: View {
     
     // 添加新任務並保存到本地和雲端
     func saveToCloudKit() {
-        guard !displayText.isEmpty else { return }
-        
-        // 設置保存中狀態
-        isSaving = true
-        
+        guard !displayText.isEmpty else {
+            print("內容為空，取消保存")
+            return
+        }
+
+        let now = Date()
+
+        // 多重防重複檢查
+        // 1. 檢查是否正在保存
+        guard !isSaving else {
+            print("正在保存中，忽略重複點擊 - isSaving檢查")
+            return
+        }
+
+        // 2. 檢查時間間隔防護
+        guard now.timeIntervalSince(lastSubmissionTime) >= minimumSubmissionInterval else {
+            print("提交間隔太短，忽略點擊 - 距離上次提交: \(now.timeIntervalSince(lastSubmissionTime))秒")
+            return
+        }
+
+        // 3. 生成唯一任務ID並檢查是否有重複任務正在處理
+        let taskId = "\(displayText)_\(Int(now.timeIntervalSince1970))"
+        guard currentTaskId != taskId else {
+            print("檢測到重複任務ID，忽略點擊")
+            return
+        }
+
+        // 4. 使用原子操作設置狀態
+        DispatchQueue.main.async {
+            // 再次檢查，確保在異步執行時狀態沒有改變
+            guard !self.isSaving else {
+                print("異步檢查：正在保存中，取消操作")
+                return
+            }
+
+            // 立即設置所有保護狀態
+            self.isSaving = true
+            self.lastSubmissionTime = now
+            self.currentTaskId = taskId
+
+            print("開始保存任務 - ID: \(taskId)")
+
+            // 設置超時保護，10秒後自動重置保存狀態
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
+                if self.isSaving && self.currentTaskId == taskId {
+                    print("保存操作超時，重置保存狀態 - TaskID: \(taskId)")
+                    self.isSaving = false
+                    self.currentTaskId = nil
+                }
+            }
+
+            // 執行實際的保存邏輯
+            self.performSave(taskId: taskId)
+        }
+    }
+
+    // 分離出實際的保存邏輯
+    private func performSave(taskId: String) {
+        // 驗證任務ID是否仍然有效
+        guard currentTaskId == taskId else {
+            print("任務ID不匹配，取消保存 - 當前ID: \(currentTaskId ?? "nil"), 請求ID: \(taskId)")
+            return
+        }
+
         // 根據當前模式和是否設置了時間來選擇正確的日期
         var finalTaskDate: Date?
-        var hasTimeData = isDateEnabled || isTimeEnabled
-        
+        let hasTimeData = isDateEnabled || isTimeEnabled
+
         // MARK: - MODIFIED: 簡化日期決定邏輯
         if currentBlockIndex == 0 {
              // 備忘錄模式且沒有設置時間 - 日期設為 nil
@@ -680,10 +747,10 @@ struct Add: View {
             finalTaskDate = selectedDate
             print("日期模式，使用所選日期: \(selectedDate)")
         }
-        
+
         // 判斷狀態：如果是從備忘錄添加（沒有時間資料）或有添加時間，都設為 toBeStarted
         let taskStatus: TodoStatus = .toBeStarted // 將狀態設為 toBeStarted
-        
+
         // 創建新的 TodoItem
         let newTask = TodoItem(
             id: UUID(),
@@ -698,61 +765,68 @@ struct Add: View {
             updatedAt: Date(),
             correspondingImageID: "new_task"
         )
-        
+
         // 使用 DataSyncManager 保存（先本地，後雲端）
-        print("嘗試保存待辦事項...")
+        print("嘗試保存待辦事項 - TaskID: \(taskId)")
         DataSyncManager.shared.addTodoItem(newTask) { result in
             // 回到主線程處理結果
             DispatchQueue.main.async {
-                // 結束保存中狀態
-                isSaving = false
-                
+                // 確保還是同一個任務才重置狀態
+                guard self.currentTaskId == taskId else {
+                    print("任務ID已變更，不重置狀態")
+                    return
+                }
+
+                // 重置保存狀態
+                self.isSaving = false
+                self.currentTaskId = nil
+
                 switch result {
                 case .success(let savedItem):
-                    print("成功保存待辦事項到本地! ID: \(savedItem.id)")
+                    print("成功保存待辦事項到本地! ID: \(savedItem.id), TaskID: \(taskId)")
                     print("正在後台同步到雲端...")
-                    toDoItems.append(savedItem)
-                    
+                    self.toDoItems.append(savedItem)
+
                     // 短暫延遲確保 UI 更新
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        if let onClose = onClose {
+                        if let onClose = self.onClose {
                             onClose()
                         }
                     }
-                    
+
                 case .failure(let error):
                     // 保存失敗時才顯示錯誤警告
                     let nsError = error as NSError
-                    print("保存失敗: \(error.localizedDescription)")
-                    
+                    print("保存失敗: \(error.localizedDescription), TaskID: \(taskId)")
+
                     if nsError.domain == CKErrorDomain {
                         switch nsError.code {
                         case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                            saveError = "網絡連接問題，但項目已保存到本地"
+                            self.saveError = "網絡連接問題，但項目已保存到本地"
                         case CKError.notAuthenticated.rawValue:
-                            saveError = "未登入 iCloud，項目已保存到本地"
+                            self.saveError = "未登入 iCloud，項目已保存到本地"
                         case CKError.quotaExceeded.rawValue:
-                            saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
+                            self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
                         case CKError.serverRejectedRequest.rawValue:
-                            saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
+                            self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
                         default:
-                            saveError = "iCloud 錯誤，項目已保存到本地"
+                            self.saveError = "iCloud 錯誤，項目已保存到本地"
                         }
                     } else {
-                        saveError = "保存錯誤: \(error.localizedDescription)"
+                        self.saveError = "保存錯誤: \(error.localizedDescription)"
                     }
-                    
+
                     // 顯示錯誤警告
-                    showSaveAlert = true
-                    
+                    self.showSaveAlert = true
+
                     // 嘗試只保存到本地
                     print("發生錯誤，嘗試只保存到本地")
                     LocalDataManager.shared.addTodoItem(newTask)
-                    toDoItems.append(newTask)
-                    
+                    self.toDoItems.append(newTask)
+
                     // 短暫延遲關閉視圖
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        if let onClose = onClose {
+                        if let onClose = self.onClose {
                             onClose()
                         }
                     }
