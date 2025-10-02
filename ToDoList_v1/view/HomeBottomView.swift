@@ -453,14 +453,14 @@ struct HomeBottomView: View {
                 onError("轉譯錯誤，請再試一次")
                 
                 // 停止傳送狀態
-                isSendingText = false
+                //isSendingText = false
                 
                 // 清空文字並關閉輸入模式
-                newTodoText = ""
+                /*newTodoText = ""
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                     isTextInputMode = false
                 }
-                
+                */
             }
             
         }
@@ -721,6 +721,7 @@ struct HomeBottomView: View {
         @FocusState private var isTextFieldFocused: Bool
         @State private var showContents = false
         
+        
         var body: some View {
             ZStack {
                 RoundedRectangle(cornerRadius: 30)
@@ -734,7 +735,8 @@ struct HomeBottomView: View {
                     )
                 
                 if showContents {
-                    HStack(spacing: 0) {
+                    HStack(alignment: .center, spacing: 0) {  // ✅ 改為 .center 對齊
+                        // 左側 X 按鈕
                         Button(action: { closeTextInput() }) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 18, weight: .medium))
@@ -742,23 +744,51 @@ struct HomeBottomView: View {
                         }
                         .frame(width: 60, height: 60)
                         
+                        // 中間文字輸入區域
                         ZStack(alignment: .leading) {
-                            TextField("輸入待辦事項, 或直接跟 AI 說要做什麼", text: $text)
-                                .focused($isTextFieldFocused)
-                                .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                                .opacity(isSending ? 0 : 1)
+                            if !isSending {
+                                ZStack(alignment: .topLeading) {
+                                    // Placeholder
+                                    if text.isEmpty && !isTextFieldFocused {
+                                        Text("輸入待辦事項, 或直接跟 AI 說要做什麼")
+                                            .foregroundColor(.gray.opacity(0.5))
+                                            .multilineTextAlignment(.leading)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.leading, 5)
+                                            .padding(.top, 8)
+                                    }
+                                    
+                                    TextEditor(text: $text)
+                                        .focused($isTextFieldFocused)
+                                        .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                        .scrollContentBackground(.hidden)
+                                        .background(Color.clear)
+                                        .multilineTextAlignment(.leading)
+                                        .padding(.top, 12)  // ✅ 顶部 padding 让单行文字看起来更居中
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .frame(minHeight: isTextFieldFocused ? 60 : nil)
+                                }
+                            }
                             
                             if isSending {
-                                AnimatedGradientTextView(text: text)
+                                ScrollView {
+                                    AnimatedGradientTextView(text: text)
+                                        .multilineTextAlignment(.leading)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.leading, 9)
+                                        .padding(.vertical, 8)
+                                }
                             }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 8)
                         
+                        // 右側按鈕
                         if isSending {
                             TextLoadingIndicatorView()
                                 .frame(width: 44, height: 44)
                                 .padding(.trailing, 8)
                         } else if !text.isEmpty {
-                            // 確保按鈕呼叫 onSend 回調
                             Button(action: {
                                 onSend(text)
                             }) {
@@ -772,22 +802,26 @@ struct HomeBottomView: View {
                             .frame(width: 44, height: 44)
                             .padding(.trailing, 8)
                             .transition(.scale.animation(.spring()))
+                        } else {
+                            // 空白佔位符，保持佈局一致
+                            Spacer()
+                                .frame(width: 44, height: 44)
+                                .padding(.trailing, 8)
                         }
                     }
                     .transition(.opacity.animation(.easeIn(duration: 0.3).delay(0.2)))
                 }
             }
-            .frame(width: width, height: 60)
+            .frame(width: width)
+            .frame(maxHeight: 200)
+            .fixedSize(horizontal: false, vertical: true)  // ✅ 讓高度根據內容自動調整
+            .frame(maxWidth: width, alignment: .bottom)  // ✅ 底部固定
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showContents = true
+                        showContents = true
                 }
             }
-            .onChange(of: isTextInputMode) { newValue in
-                if !newValue {
-                    isTextFieldFocused = false
-                }
-            }
+            
         }
         
         private func closeTextInput() {
@@ -842,6 +876,7 @@ struct HomeBottomView: View {
         var body: some View {
             Text(text)
                 .font(.system(size: 17))
+                .multilineTextAlignment(.leading)  // ✅ 改為靠左
                 .foregroundColor(.clear)
                 .overlay(
                     LinearGradient(
