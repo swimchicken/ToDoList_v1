@@ -846,6 +846,7 @@ struct HomeBottomView: View {
         }
         
         private func closeTextInput() {
+            text = ""  // ← 新增：清空输入内容
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 isTextInputMode = false
             }

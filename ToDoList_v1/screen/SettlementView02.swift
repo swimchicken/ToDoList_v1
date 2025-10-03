@@ -9,6 +9,14 @@ fileprivate struct ViewBottomYPreferenceKey: PreferenceKey {
     }
 }
 
+// 用于检测 TextEditor 内容高度的 PreferenceKey
+fileprivate struct ViewHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 // MARK: - S02ProgressBarSegment (專為 SettlementView02 設計的進度條樣式)
 struct S02ProgressBarSegment: View {
     let isActive: Bool // true: 帶綠色邊框的灰色; false: 純灰色
@@ -1267,10 +1275,11 @@ struct TextInputView: View {
     @Binding var isSending: Bool
     @Binding var text: String
     let width: CGFloat
-    var onSend: (String) -> Void // 新增回調
+    var onSend: (String) -> Void
     
     @FocusState private var isTextFieldFocused: Bool
     @State private var showContents = false
+    @State private var isMultiline = false  // ← 新增：追踪是否多行
     
     var body: some View {
         ZStack {
@@ -1285,7 +1294,8 @@ struct TextInputView: View {
                 )
             
             if showContents {
-                HStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 0) {  // ← 改为 .center 对齐
+                    // 左侧 X 按钮
                     Button(action: { closeTextInput() }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18, weight: .medium))
@@ -1293,23 +1303,63 @@ struct TextInputView: View {
                     }
                     .frame(width: 60, height: 60)
                     
+                    // 中间文字输入区域
                     ZStack(alignment: .leading) {
-                        TextField("輸入待辦事項, 或直接跟 AI 說要做什麼", text: $text)
-                            .focused($isTextFieldFocused)
-                            .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
-                            .opacity(isSending ? 0 : 1)
+                        if !isSending {
+                            ZStack(alignment: .topLeading) {
+                                // Placeholder
+                                if text.isEmpty && !isTextFieldFocused {
+                                    Text("輸入待辦事項, 或直接跟 AI 說要做什麼")
+                                        .foregroundColor(.gray.opacity(0.5))
+                                        .multilineTextAlignment(.leading)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.leading, 5)
+                                        .padding(.top, 8)
+                                }
+                                
+                                TextEditor(text: $text)
+                                    .focused($isTextFieldFocused)
+                                    .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
+                                    .scrollContentBackground(.hidden)
+                                    .background(
+                                        GeometryReader { geometry in
+                                            Color.clear.preference(
+                                                key: ViewHeightKey.self,
+                                                value: geometry.size.height
+                                            )
+                                        }
+                                    )
+                                    .multilineTextAlignment(.leading)
+                                    .padding(.top, isMultiline ? 8 : 12)  // ← 多行时用 8，单行时用 12
+                                    .padding(.bottom, isMultiline ? 8 : 0) // ← 多行时加上下相等的 padding
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .frame(minHeight: isTextFieldFocused ? 60 : nil)
+                                    .onPreferenceChange(ViewHeightKey.self) { height in
+                                        // 判断高度是否超过单行（约 40-45pt）
+                                        isMultiline = height > 45
+                                    }
+                            }
+                        }
                         
                         if isSending {
-                            AnimatedGradientTextView(text: text)
+                            ScrollView {
+                                AnimatedGradientTextView(text: text)
+                                    .multilineTextAlignment(.leading)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.leading, 9)
+                                    .padding(.vertical, 8)
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 8)
                     
+                    // 右侧按钮
                     if isSending {
                         TextLoadingIndicatorView()
                             .frame(width: 44, height: 44)
                             .padding(.trailing, 8)
                     } else if !text.isEmpty {
-                        // 確保按鈕呼叫 onSend 回調
                         Button(action: {
                             onSend(text)
                         }) {
@@ -1323,14 +1373,22 @@ struct TextInputView: View {
                         .frame(width: 44, height: 44)
                         .padding(.trailing, 8)
                         .transition(.scale.animation(.spring()))
+                    } else {
+                        // 空白占位符，保持布局一致
+                        Spacer()
+                            .frame(width: 44, height: 44)
+                            .padding(.trailing, 8)
                     }
                 }
                 .transition(.opacity.animation(.easeIn(duration: 0.3).delay(0.2)))
             }
         }
-        .frame(width: width, height: 60)
+        .frame(width: width)
+        .frame(minHeight: 60, maxHeight: 200)  // ← 加上 minHeight: 60，确保初始高度
+        .fixedSize(horizontal: false, vertical: true)  // ← 让高度根据内容自动调整
+        .frame(maxWidth: width, alignment: .bottom)  // ← 底部固定
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {  // ← 缩短延迟
                 showContents = true
             }
         }
@@ -1342,6 +1400,7 @@ struct TextInputView: View {
     }
     
     private func closeTextInput() {
+        text = ""  // ← 新增：清空输入内容
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
             isTextInputMode = false
         }
