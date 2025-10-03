@@ -13,7 +13,7 @@ enum AppSecrets {
 
     /// API 的 URL 位址。
     static let apiURL: URL = {
-        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+        let urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
         guard let url = URL(string: urlString) else {
             fatalError("內部 URL 字串無效: \(urlString)")
         }
@@ -96,18 +96,30 @@ class GeminiService: ObservableObject {
     
     private let apiKey = AppSecrets.apiKey
     private let apiURL = AppSecrets.apiURL
+    
+    // 重試配置
+        private let maxRetries = 5
+        private let minRetries = 3
+        private let retryableStatusCodes: Set<Int> = [429, 500, 502, 503, 504]
+    
 
-    /// ✨✨✨ 修改 #2: 簡化 `analyzeText` 函式，讓它直接回傳 `[TodoItem]` ✨✨✨
-    /// 分析使用者輸入的文字，並回傳標準的 `[TodoItem]` 陣列。
-    /// - Parameters:
-    ///   - text: 使用者輸入的文字。
-    ///   - completion: 完成時的回調，回傳 `Result<[TodoItem], Error>`。
     func analyzeText(_ text: String, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
+            performRequestWithRetry(text: text, attemptNumber: 1, completion: completion)
+    }
+    
+    /// 執行請求並處理重試邏輯
+    private func performRequestWithRetry(
+        text: String,
+        attemptNumber: Int,
+        completion: @escaping (Result<[TodoItem], Error>) -> Void
+    ) {
+        print("🔄 嘗試第 \(attemptNumber) 次請求...")
         
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        request.timeoutInterval = 30
         
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -150,47 +162,110 @@ class GeminiService: ObservableObject {
         
         request.httpBody = httpBody
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            // 檢查 HTTP 狀態碼
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                
+                // 如果是可重試的錯誤且未達最大重試次數
+                if self.retryableStatusCodes.contains(statusCode) && attemptNumber < self.maxRetries {
+                    let delay = self.calculateBackoffDelay(attemptNumber: attemptNumber)
+                    print("⚠️ 收到 \(statusCode) 錯誤，將在 \(delay) 秒後重試...")
+                    
+                    DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+                        self.performRequestWithRetry(text: text, attemptNumber: attemptNumber + 1, completion: completion)
+                    }
+                    return
+                }
+                
+                // 達到最小重試次數但仍失敗
+                if self.retryableStatusCodes.contains(statusCode) && attemptNumber >= self.minRetries {
+                    print("❌ 已重試 \(attemptNumber) 次，仍然失敗（錯誤碼: \(statusCode)）")
+                    DispatchQueue.main.async {
+                        completion(.failure(NSError(
+                            domain: "GeminiService",
+                            code: statusCode,
+                            userInfo: [NSLocalizedDescriptionKey: "服務暫時無法使用，已重試 \(attemptNumber) 次（HTTP \(statusCode)）"]
+                        )))
+                    }
+                    return
+                }
+            }
+            
+            // 處理網絡錯誤
             if let error = error {
+                print("❌ 網絡錯誤: \(error.localizedDescription)")
+                
+                if attemptNumber < self.maxRetries {
+                    let delay = self.calculateBackoffDelay(attemptNumber: attemptNumber)
+                    print("⚠️ 網絡錯誤，將在 \(delay) 秒後重試...")
+                    
+                    DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+                        self.performRequestWithRetry(text: text, attemptNumber: attemptNumber + 1, completion: completion)
+                    }
+                    return
+                }
+                
                 DispatchQueue.main.async { completion(.failure(error)) }
                 return
             }
             
             guard let data = data else {
-                DispatchQueue.main.async { completion(.failure(NSError(domain: "GeminiService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No data received"]))) }
+                DispatchQueue.main.async {
+                    completion(.failure(NSError(domain: "GeminiService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                }
                 return
             }
             
-            // 解析 Gemini API 的回傳內容
-            do {
-                if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let candidates = jsonObject["candidates"] as? [[String: Any]],
-                   let firstCandidate = candidates.first,
-                   let content = firstCandidate["content"] as? [String: Any],
-                   let parts = content["parts"] as? [[String: Any]],
-                   let firstPart = parts.first,
-                   let textData = firstPart["text"] as? String {
+            // 成功收到資料
+            print("✅ 請求成功（第 \(attemptNumber) 次嘗試）")
+            self.parseResponse(data: data, completion: completion)
+            
+        }.resume()
+    }
+    
+    /// 計算指數退避延遲時間
+    private func calculateBackoffDelay(attemptNumber: Int) -> TimeInterval {
+        let baseDelay: TimeInterval = 1.0
+        let maxDelay: TimeInterval = 16.0
+        let delay = min(baseDelay * pow(2.0, Double(attemptNumber - 1)), maxDelay)
+        
+        // 加入隨機抖動避免多個請求同時重試
+        let jitter = Double.random(in: 0...0.3) * delay
+        return delay + jitter
+    }
+    
+    /// 解析 API 回應
+    private func parseResponse(data: Data, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
+        do {
+            if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let candidates = jsonObject["candidates"] as? [[String: Any]],
+               let firstCandidate = candidates.first,
+               let content = firstCandidate["content"] as? [String: Any],
+               let parts = content["parts"] as? [[String: Any]],
+               let firstPart = parts.first,
+               let textData = firstPart["text"] as? String {
+                
+                if let responseData = textData.data(using: .utf8) {
+                    let decoder = JSONDecoder()
+                    let geminiResponse = try decoder.decode(GeminiResponse.self, from: responseData)
                     
-                    if let responseData = textData.data(using: .utf8) {
-                        let decoder = JSONDecoder()
-                        let geminiResponse = try decoder.decode(GeminiResponse.self, from: responseData)
-                        
-                        // ✨✨✨ 修改 #3: 直接回傳轉換好的 `[TodoItem]` ✨✨✨
-                        DispatchQueue.main.async {
-                            completion(.success(geminiResponse.asTodoItems))
-                        }
-                    } else {
-                        throw NSError(domain: "GeminiService", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to convert response text to data"])
+                    DispatchQueue.main.async {
+                        completion(.success(geminiResponse.asTodoItems))
                     }
                 } else {
-                    if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                        print("❌ Gemini returned an error or unexpected structure: \(jsonObject)")
-                    }
-                    throw NSError(domain: "GeminiService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON structure from Gemini"])
+                    throw NSError(domain: "GeminiService", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to convert response text to data"])
                 }
-            } catch {
-                DispatchQueue.main.async { completion(.failure(error)) }
+            } else {
+                if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    print("❌ Gemini returned an error or unexpected structure: \(jsonObject)")
+                }
+                throw NSError(domain: "GeminiService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON structure from Gemini"])
             }
-        }.resume()
+        } catch {
+            DispatchQueue.main.async { completion(.failure(error)) }
+        }
     }
 }
