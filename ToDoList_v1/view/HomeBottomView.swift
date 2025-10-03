@@ -710,6 +710,14 @@ struct HomeBottomView: View {
         }
     }
     
+    // 用于检测 TextEditor 内容高度的 PreferenceKey
+    struct ViewHeightKey: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+            value = max(value, nextValue())
+        }
+    }
+    
     struct TextInputView: View {
         let namespace: Namespace.ID
         @Binding var isTextInputMode: Bool
@@ -720,7 +728,7 @@ struct HomeBottomView: View {
         
         @FocusState private var isTextFieldFocused: Bool
         @State private var showContents = false
-        
+        @State private var isMultiline = false  // ← 新增：追踪是否多行
         
         var body: some View {
             ZStack {
@@ -762,11 +770,23 @@ struct HomeBottomView: View {
                                         .focused($isTextFieldFocused)
                                         .foregroundColor(Color(red: 0, green: 0.72, blue: 0.41))
                                         .scrollContentBackground(.hidden)
-                                        .background(Color.clear)
+                                        .background(
+                                            GeometryReader { geometry in
+                                                Color.clear.preference(
+                                                    key: ViewHeightKey.self,
+                                                    value: geometry.size.height
+                                                )
+                                            }
+                                        )
                                         .multilineTextAlignment(.leading)
-                                        .padding(.top, 12)  // ✅ 顶部 padding 让单行文字看起来更居中
+                                        .padding(.top, isMultiline ? 8 : 12)  // ← 多行时用 8，单行时用 12
+                                        .padding(.bottom, isMultiline ? 8 : 0) // ← 多行时加上下相等的 padding
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .frame(minHeight: isTextFieldFocused ? 60 : nil)
+                                        .onPreferenceChange(ViewHeightKey.self) { height in
+                                            // 判断高度是否超过单行（约 40-45pt）
+                                            isMultiline = height > 45
+                                        }
                                 }
                             }
                             
@@ -813,6 +833,7 @@ struct HomeBottomView: View {
                 }
             }
             .frame(width: width)
+            .frame(minHeight: 60)
             .frame(maxHeight: 200)
             .fixedSize(horizontal: false, vertical: true)  // ✅ 讓高度根據內容自動調整
             .frame(maxWidth: width, alignment: .bottom)  // ✅ 底部固定
