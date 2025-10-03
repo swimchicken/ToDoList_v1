@@ -1638,14 +1638,15 @@ struct ExpandableSoundButton: View {
             
             ZStack {
                 AudioWaveformView(audioLevel: audioLevel, isSaving: $isSaving)
-                if isSaving {
-                    LoadingIndicatorView()
-                }
+                
             }
             .frame(maxWidth: .infinity)
             .transition(.opacity.combined(with: .scale))
             
             ZStack {
+                if isSaving {
+                    LoadingIndicatorView()
+                }
                 ZStack {
                     ZStack {
                         Circle().fill(Color(red: 0, green: 0.72, blue: 0.41))
@@ -1666,9 +1667,10 @@ struct ExpandableSoundButton: View {
                         .scaleEffect(pressEffectScale)
                         .opacity(isOverSendButton ? 1 : 0)
                 }
+                .opacity(isSaving ? 0 : 1)
             }
             .frame(width: 60, height: 60)
-            .opacity(isSaving ? 0 : 1)
+            
             .transition(.opacity)
         }
         .transition(.opacity)
