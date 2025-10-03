@@ -119,7 +119,18 @@ struct SettlementView02: View {
                 // MARK: - 圖層 1: 背景與主要內容 (列表)
                 mainContent
                     .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
-
+                // MARK: - 圖層 1.5: 编辑模式时的透明背景（用于检测点击外部）
+                if isTextInputMode {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                isTextInputMode = false
+                            }
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                        }
+                        .ignoresSafeArea()
+                }
                 // MARK: - 圖層 2: 懸浮的 Add Task & AI 按鈕
                 floatingInputButtons(screenProxy: geometry)
                 
@@ -286,6 +297,7 @@ struct SettlementView02: View {
         .position(x: screenProxy.size.width / 2, y: buttonCenterY)
         .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: listContentBottomY)
         .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: keyboardHeight)
+        
     }
 
     @ViewBuilder
