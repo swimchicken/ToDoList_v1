@@ -239,7 +239,7 @@ struct Home: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // 1. 背景
                 Color.black
@@ -308,6 +308,8 @@ struct Home: View {
                         isCurrentDay: isCurrentDay,
                         isSyncing: isSyncing,
                         onEndTodayTapped: {
+                            print("🔥 用戶點擊 end today 按鈕")
+                            print("🔥 當前 isSyncing 狀態: \(isSyncing)")
                             if !isSyncing {
                                 let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
                                 print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
@@ -319,11 +321,37 @@ struct Home: View {
                                 )
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     let allItems = LocalDataManager.shared.getAllTodoItems()
-                                    let filteredItems = allItems.filter { item in
-                                        !self.recentlyDeletedItemIDs.contains(item.id)
+                                    print("🔥 所有項目數量: \(allItems.count)")
+
+                                    // 修正邏輯：應該只檢查今天的項目，而不是所有項目
+                                    let today = Date()
+                                    let calendar = Calendar.current
+                                    let startOfToday = calendar.startOfDay(for: today)
+                                    let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+
+                                    // 過濾今天的項目（有日期且在今天範圍內）
+                                    let todayItems = allItems.filter { item in
+                                        // 過濾已刪除的項目
+                                        guard !self.recentlyDeletedItemIDs.contains(item.id) else {
+                                            print("🔥 跳過已刪除項目: \(item.title)")
+                                            return false
+                                        }
+
+                                        // 只包含有日期且在今天的項目
+                                        guard let taskDate = item.taskDate else {
+                                            print("🔥 跳過沒有日期的項目（備忘錄）: \(item.title)")
+                                            return false
+                                        }
+
+                                        let isToday = taskDate >= startOfToday && taskDate < endOfToday
+                                        print("🔥 項目 '\(item.title)' 是否為今天: \(isToday)")
+                                        return isToday
                                     }
-                                    if allItems.count != filteredItems.count {
-                                        print("結算前過濾了 \(allItems.count - filteredItems.count) 個已刪除項目")
+
+                                    print("🔥 今天的項目數量: \(todayItems.count)")
+
+                                    if allItems.count != (allItems.count - self.recentlyDeletedItemIDs.count) {
+                                        print("結算前過濾了 \(self.recentlyDeletedItemIDs.count) 個已刪除項目")
                                         let deletedButStillExistIDs = allItems
                                             .filter { self.recentlyDeletedItemIDs.contains($0.id) }
                                             .map { $0.id }
@@ -331,17 +359,20 @@ struct Home: View {
                                             LocalDataManager.shared.deleteTodoItem(withID: id)
                                             print("結算前強制刪除項目 ID: \(id)")
                                         }
-                                        self.toDoItems = filteredItems
                                     }
-                                    
-                                    // 檢查是否有事件，沒有則顯示提示彈窗
-                                    if filteredItems.isEmpty {
-                                        print("用戶主動結算但沒有任何事件，顯示提示彈窗")
+
+                                    // 檢查今天是否有事件
+                                    if todayItems.isEmpty {
+                                        print("🔥 今天沒有任何事件，顯示提示彈窗")
                                         showNoEventsAlert = true
                                     } else {
-                                        navigateToSettlementView = true
+                                        // 【修改點】直接設置為 true 即可，不再需要延遲或重置
+                                        print("🔥 今天有 \(todayItems.count) 個事件，準備跳轉到結算頁面")
+                                        self.navigateToSettlementView = true
                                     }
                                 }
+                            } else {
+                                print("🔥 正在同步中，無法執行結算")
                             }
                         },
                         onReturnToTodayTapped: {
@@ -744,19 +775,33 @@ struct Home: View {
                 .animation(.easeInOut(duration: 0.3), value: showNoEventsAlert)
                 .zIndex(600)
             }
-            
-            
         }
-        
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationDestination(isPresented: $navigateToSettlementView) {
+            SettlementView()
+                .onAppear {
+                    print("🔥 SettlementView onAppear 被觸發")
+                }
+                .onDisappear {
+                    print("🔥 SettlementView onDisappear 被觸發")
+                }
+        }
+        .navigationDestination(isPresented: $navigateToSleep01View) {
+            Sleep01View()
+        }
+        .navigationDestination(isPresented: $navigateToTestPage) {
+            TestPage()
+        }
+        .navigationDestination(isPresented: $navigateToLogin) {
+            Login()
+        }
+
         .animation(.easeOut, value: showToDoSheet)
         .animation(.easeOut, value: showAddTaskSheet)
         .animation(.easeOut, value: showCalendarView)
         .animation(.easeOut, value: showingDeleteView)
         .animation(.easeOut, value: showTaskSelectionOverlay) // 為新的 Overlay 也加上動畫
         .animation(.easeOut, value: showNoEventsAlert) // 為沒有事件提示彈窗加上動畫
-        .navigationBarHidden(true)
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
     }
     .onAppear {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
@@ -809,7 +854,27 @@ struct Home: View {
     }
     .background(
         Group {
-            NavigationLink(destination: SettlementView(), isActive: $navigateToSettlementView) { EmptyView() }
+            NavigationLink(destination:
+                SettlementView()
+                    .onAppear {
+                        print("🔥 SettlementView onAppear 被觸發")
+                    }
+                    .onDisappear {
+                        print("🔥 SettlementView onDisappear 被觸發")
+                        navigateToSettlementView = false
+                    }
+                , isActive: $navigateToSettlementView) {
+                EmptyView()
+            }
+            .onAppear {
+                print("🔥 NavigationLink to SettlementView appeared")
+            }
+            .onChange(of: navigateToSettlementView) { newValue in
+                print("🔥 navigateToSettlementView 變更為: \(newValue)")
+                if newValue {
+                    print("🔥 NavigationLink 應該觸發跳轉")
+                }
+            }
             NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) { EmptyView() }
             NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) { EmptyView() }
             NavigationLink(destination: Login(), isActive: $navigateToLogin) { EmptyView() }
