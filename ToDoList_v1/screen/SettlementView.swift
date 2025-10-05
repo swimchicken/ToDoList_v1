@@ -614,14 +614,10 @@ struct BottomControlsView: View {
             .cornerRadius(12)
 
             Button(action: {
-                // 如果選擇移至明日，先執行移動邏輯
-                if moveUncompletedTasksToTomorrow {
-                    moveUncompletedTasksToTomorrowData()
-                }
-                
-                // 固定行為：無論是否為當天結算，都進入 SettlementView02 繼續流程
+                // 不在這裡執行移動邏輯，只傳遞設定到下一個視圖
+                // 移動邏輯將在結算流程完成時執行
                 navigateToSettlementView02 = true
-                print("繼續到 SettlementView02 設置計畫")
+                print("繼續到 SettlementView02 設置計畫，移動設定: \(moveUncompletedTasksToTomorrow)")
             }) {
                 // 根據模式選擇不同文字
                 Text(isSameDaySettlement ? "開始設定明日計畫" : "開始設定今天的計畫")
@@ -656,6 +652,34 @@ struct BottomControlsView: View {
         let tomorrowStart = calendar.startOfDay(for: tomorrow)
         
         for task in uncompletedTasks {
+            // 決定新的任務時間
+            let newTaskDate: Date?
+
+            if let originalTaskDate = task.taskDate {
+                // 如果原本有時間，檢查是否為 00:00:00
+                let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalTaskDate)
+                let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
+
+                if isTimeZero {
+                    // 原本是 00:00:00 的事件，變成沒有時間的備忘錄
+                    newTaskDate = nil
+                    print("任務 '\(task.title)' 原本沒有時間，移至明日後保持為備忘錄")
+                } else {
+                    // 原本有具體時間的事件，保留時間但改日期為明天
+                    var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+                    tomorrowComponents.hour = timeComponents.hour
+                    tomorrowComponents.minute = timeComponents.minute
+                    tomorrowComponents.second = timeComponents.second
+
+                    newTaskDate = calendar.date(from: tomorrowComponents)
+                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至明天")
+                }
+            } else {
+                // 原本就沒有時間（備忘錄），保持沒有時間
+                newTaskDate = nil
+                print("任務 '\(task.title)' 原本是備忘錄，移至明日後保持為備忘錄")
+            }
+
             // 創建更新後的任務
             let updatedTask = TodoItem(
                 id: task.id,
@@ -663,7 +687,7 @@ struct BottomControlsView: View {
                 title: task.title,
                 priority: task.priority,
                 isPinned: task.isPinned,
-                taskDate: tomorrowStart, // 設定為明天的開始時間
+                taskDate: newTaskDate, // 使用新的邏輯決定的時間
                 note: task.note,
                 status: task.status,
                 createdAt: task.createdAt,
