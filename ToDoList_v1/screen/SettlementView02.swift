@@ -80,6 +80,9 @@ struct SettlementView02: View {
     // 接收的數據
     let uncompletedTasks: [TodoItem]
     let moveTasksToTomorrow: Bool
+
+    // 數據同步管理器
+    private let dataSyncManager = DataSyncManager.shared
     
     // 本地狀態
     @State private var dailyTasks: [TodoItem] = []
@@ -363,6 +366,11 @@ struct SettlementView02: View {
                      .padding(.leading)
                      Spacer()
                      Button(action: {
+                         // 如果用戶選擇移動任務到明天，在結算完成時執行移動
+                         if moveTasksToTomorrow {
+                             moveUncompletedTasksToTomorrowData()
+                         }
+
                          delaySettlementManager.markSettlementCompleted()
                          navigateToSettlementView03 = true
                      }) {
@@ -767,22 +775,37 @@ struct PriorityStarsView: View {
 // 时间显示视图
 struct TimeDisplayView: View {
     let taskDate: Date?
-    
-    var body: some View {
-        // 创建一个基本的Text视图，然后根据条件应用不同的修饰符
+
+    private var shouldShowTime: Bool {
+        guard let taskDate = taskDate else { return false }
+
+        let calendar = Calendar.current
+        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: taskDate)
+        let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
+
+        return !isTimeZero
+    }
+
+    private var timeText: String {
+        guard let taskDate = taskDate, shouldShowTime else { return "" }
+
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
-        
-        let displayText = taskDate != nil ?
-            formatter.string(from: taskDate!) :
-            "00:00"
-        
-        return Text(displayText)
-            .font(Font.custom("Inria Sans", size: 16).weight(.light))
-            .foregroundColor(.white)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .opacity(taskDate == nil ? 0 : 1) // 如果没有日期，则设为透明
+        return formatter.string(from: taskDate)
+    }
+
+    var body: some View {
+        if shouldShowTime {
+            Text(timeText)
+                .font(Font.custom("Inria Sans", size: 16).weight(.light))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: 39.55874, height: 20.58333, alignment: .topLeading)
+        } else {
+            Text("")
+                .frame(width: 39.55874, height: 20.58333)
+        }
     }
 }
 
@@ -1219,21 +1242,60 @@ struct SettlementTodoItemRow: View {
                     .padding(.trailing, 8)
                 }
                 
-                // 右側箭頭按鈕 - 添加到今日並賦予當前時間
+                // 右側箭頭按鈕 - 添加到今日，保留原時間或賦予當前時間
                 Button {
                     print("SettlementTodoItem: 將項目添加到今日 - \(item.title)")
-                    
+
                     // 創建一個新的副本
                     var todayItem = item
-                    
-                    // 賦予當前時間
-                    todayItem.taskDate = Date()
-                    
+
+                    // 檢查是否沒有時間或者時間為00:00
+                    let calendar = Calendar.current
+                    let isNoTimeEvent: Bool
+
+                    if todayItem.taskDate == nil {
+                        isNoTimeEvent = true
+                        print("SettlementTodoItem: 項目沒有日期時間（備忘錄）")
+                    } else {
+                        // 檢查時間是否為 00:00:00（表示只有日期沒有時間）
+                        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: todayItem.taskDate!)
+                        let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
+                        isNoTimeEvent = isTimeZero
+                        print("SettlementTodoItem: 項目時間為 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0):\(timeComponents.second ?? 0), 是否為無時間事件: \(isNoTimeEvent)")
+                    }
+
+                    if isNoTimeEvent {
+                        // 如果是沒有時間的事件，保持為沒有時間（備忘錄狀態）
+                        todayItem.taskDate = nil
+                        print("SettlementTodoItem: 無時間事件保持為備忘錄狀態")
+                    } else {
+                        // 如果已有時間，保留原時間，只更新日期為明天
+                        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+
+                        // 提取原本的時間部分
+                        let originalTimeComponents = calendar.dateComponents([.hour, .minute, .second], from: todayItem.taskDate!)
+
+                        // 組合明天的日期與原本的時間
+                        var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+                        tomorrowComponents.hour = originalTimeComponents.hour
+                        tomorrowComponents.minute = originalTimeComponents.minute
+                        tomorrowComponents.second = originalTimeComponents.second
+
+                        if let newDate = calendar.date(from: tomorrowComponents) {
+                            todayItem.taskDate = newDate
+                            print("SettlementTodoItem: 保留原時間 \(originalTimeComponents.hour ?? 0):\(originalTimeComponents.minute ?? 0)，設定為明天")
+                        } else {
+                            // 如果日期組合失敗，使用當前時間作為後備
+                            todayItem.taskDate = calendar.startOfDay(for: tomorrow)
+                            print("SettlementTodoItem: 日期組合失敗，使用當前時間")
+                        }
+                    }
+
                     // 如果之前是備忘錄（待辦佇列），更改狀態為 toBeStarted
                     if todayItem.status == .toDoList {
                         todayItem.status = .toBeStarted
                     }
-                    
+
                     // 更新 updatedAt 時間戳
                     todayItem.updatedAt = Date()
                     
@@ -1243,7 +1305,16 @@ struct SettlementTodoItemRow: View {
                             switch result {
                             case .success(_):
                                 print("SettlementTodoItem: 成功將項目添加到今日")
-                                
+                                let formatter = DateFormatter()
+                                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                                if let taskDate = todayItem.taskDate {
+                                    print("SettlementTodoItem: 更新後的任務時間為 - \(formatter.string(from: taskDate))")
+                                } else {
+                                    print("SettlementTodoItem: 更新後的任務沒有時間（應該不顯示時間）")
+                                }
+
+                               
+
                                 // 如果有回調，傳遞新項目
                                 if let onAddToToday = onAddToToday {
                                     onAddToToday(todayItem)
@@ -1778,5 +1849,74 @@ struct ExpandableSoundButton: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
             }
         }
+    }
+}
+
+
+// MARK: - SettlementView02 Extensions
+extension SettlementView02 {
+    // 將未完成任務移至明日的數據處理
+    func moveUncompletedTasksToTomorrowData() {
+        print("結算完成時開始將 \(uncompletedTasks.count) 個未完成任務移至明日")
+
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let calendar = Calendar.current
+
+        for task in uncompletedTasks {
+            // 決定新的任務時間
+            let newTaskDate: Date?
+
+            if let originalTaskDate = task.taskDate {
+                // 如果原本有時間，檢查是否為 00:00:00
+                let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalTaskDate)
+                let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
+
+                if isTimeZero {
+                    // 原本是 00:00:00 的事件，變成沒有時間的備忘錄
+                    newTaskDate = nil
+                    print("任務 '\(task.title)' 原本沒有時間，移至明日後保持為備忘錄")
+                } else {
+                    // 原本有具體時間的事件，保留時間但改日期為明天
+                    var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+                    tomorrowComponents.hour = timeComponents.hour
+                    tomorrowComponents.minute = timeComponents.minute
+                    tomorrowComponents.second = timeComponents.second
+
+                    newTaskDate = calendar.date(from: tomorrowComponents)
+                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至明天")
+                }
+            } else {
+                // 原本就沒有時間（備忘錄），保持沒有時間
+                newTaskDate = nil
+                print("任務 '\(task.title)' 原本是備忘錄，移至明日後保持為備忘錄")
+            }
+
+            // 創建更新後的任務
+            let updatedTask = TodoItem(
+                id: task.id,
+                userID: task.userID,
+                title: task.title,
+                priority: task.priority,
+                isPinned: task.isPinned,
+                taskDate: newTaskDate, // 使用新的邏輯決定的時間
+                note: task.note,
+                status: task.status,
+                createdAt: task.createdAt,
+                updatedAt: Date(), // 更新修改時間
+                correspondingImageID: task.correspondingImageID
+            )
+
+            // 使用 DataSyncManager 更新任務
+            dataSyncManager.updateTodoItem(updatedTask) { result in
+                switch result {
+                case .success:
+                    print("結算完成時成功將任務 '\(task.title)' 移至明日")
+                case .failure(let error):
+                    print("結算完成時移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        print("結算完成時完成未完成任務移至明日的處理")
     }
 }
