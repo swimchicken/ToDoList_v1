@@ -15,8 +15,6 @@ struct TodoItem: Identifiable, Codable {
     var updatedAt: Date
     // 對應圖像 ID（若需要在前端顯示相對應的圖片）
     var correspondingImageID: String
-    // 新增：記錄用戶是否有啟用時間設定
-    var hasTimeSet: Bool = false
 }
 
 

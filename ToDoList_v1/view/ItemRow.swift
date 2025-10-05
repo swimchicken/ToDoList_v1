@@ -88,17 +88,17 @@ struct ItemRow: View {
                 .background(Color.clear) // 用於調試布局的顏色，可以移除
 
                 // 4. 時間：固定大小，最右
-                if item.hasTimeSet, let taskDate = item.taskDate {
+                if let taskDate = item.taskDate {
                     Text("\(taskDate, formatter: ItemRow.timeFormatter)")
                         .font(.subheadline)
                         .fixedSize(horizontal: true, vertical: false) // 確保時間寬度固定
                         .foregroundColor(item.status == .completed ? doneColor : .white)
                 } else {
-                    // 如果沒有啟用時間設定，顯示透明占位符
+                    // 如果沒有時間（nil），顯示空白占位符
                     Text("--:--")
                         .font(.subheadline)
                         .fixedSize(horizontal: true, vertical: false)
-                        .foregroundColor(.clear)
+                        .foregroundColor(.gray.opacity(0.7))
                 }
             }
             .padding(.vertical, 13) // 增加垂直內距使內容更舒適
@@ -130,37 +130,32 @@ struct ItemRow_Previews: PreviewProvider {
         id: UUID(), userID: "u",
         title: "未完成事件，這是一個比較長的標題來測試對齊", priority: 2, isPinned: false,
         taskDate: Date(), note: "", status: .toBeStarted,
-        createdAt: Date(), updatedAt: Date(), correspondingImageID: "",
-        hasTimeSet: true
+        createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     @State static var todo2 = TodoItem(
         id: UUID(), userID: "u",
         title: "已完成範例", priority: 1, isPinned: false,
         taskDate: Date().addingTimeInterval(3600), note: "", status: .completed,
-        createdAt: Date(), updatedAt: Date(), correspondingImageID: "",
-        hasTimeSet: true
+        createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     @State static var todo3 = TodoItem(
         id: UUID(), userID: "u",
         title: "置頂項目示例", priority: 3, isPinned: true,
         taskDate: Date().addingTimeInterval(7200), note: "", status: .toBeStarted,
-        createdAt: Date(), updatedAt: Date(), correspondingImageID: "",
-        hasTimeSet: true
+        createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     @State static var todo4 = TodoItem(
         id: UUID(), userID: "u",
         title: "已完成的置頂項目", priority: 2, isPinned: true,
         taskDate: Date().addingTimeInterval(10800), note: "", status: .completed,
-        createdAt: Date(), updatedAt: Date(), correspondingImageID: "",
-        hasTimeSet: true
+        createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     // 新增一個無時間的項目
     @State static var todo5 = TodoItem(
         id: UUID(), userID: "u",
         title: "備忘錄項目（無時間）", priority: 0, isPinned: false,
         taskDate: nil, note: "測試無時間項目的顯示方式", status: .toBeStarted,
-        createdAt: Date(), updatedAt: Date(), correspondingImageID: "",
-        hasTimeSet: false
+        createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
 
     static var previews: some View {

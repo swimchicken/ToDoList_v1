@@ -1,4 +1,4 @@
-import SwiftUI
+    import SwiftUI
 import CloudKit
 
 // 導入本地數據和同步管理器
@@ -776,8 +776,7 @@ struct Add: View {
             status: taskStatus,
             createdAt: Date(),
             updatedAt: Date(),
-            correspondingImageID: "new_task",
-            hasTimeSet: isTimeEnabled  // 記錄用戶是否啟用了時間設定
+            correspondingImageID: "new_task"
         )
 
         // 使用 DataSyncManager 保存（先本地，後雲端）
