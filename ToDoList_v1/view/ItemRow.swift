@@ -9,6 +9,18 @@ struct ItemRow: View {
         f.dateFormat = "HH:mm"
         return f
     }()
+    
+    // 智能判斷用戶是否有設定時間（與 TaskEditView 邏輯一致）
+    private func shouldShowTime(for item: TodoItem) -> Bool {
+        guard let taskDate = item.taskDate else { return false }
+        
+        // 檢查時間是否為午夜，如果不是，則認為用戶有設定時間
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: taskDate)
+        let minute = calendar.component(.minute, from: taskDate)
+        
+        return hour != 0 || minute != 0
+    }
 
     private let doneColor = Color.green
     private let starAreaWidth: CGFloat = 50 // 星星區固定寬度
@@ -88,17 +100,17 @@ struct ItemRow: View {
                 .background(Color.clear) // 用於調試布局的顏色，可以移除
 
                 // 4. 時間：固定大小，最右
-                if let taskDate = item.taskDate {
+                if shouldShowTime(for: item), let taskDate = item.taskDate {
                     Text("\(taskDate, formatter: ItemRow.timeFormatter)")
                         .font(.subheadline)
                         .fixedSize(horizontal: true, vertical: false) // 確保時間寬度固定
                         .foregroundColor(item.status == .completed ? doneColor : .white)
                 } else {
-                    // 如果沒有時間（nil），顯示空白占位符
+                    // 如果用戶未設定時間，顯示透明占位符
                     Text("--:--")
                         .font(.subheadline)
                         .fixedSize(horizontal: true, vertical: false)
-                        .foregroundColor(.gray.opacity(0.7))
+                        .foregroundColor(.clear) // 透明，不顯示但保持布局
                 }
             }
             .padding(.vertical, 13) // 增加垂直內距使內容更舒適
