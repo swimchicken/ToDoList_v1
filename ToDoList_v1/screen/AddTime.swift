@@ -202,6 +202,15 @@ struct AddTimeView: View {
                                         if newValue {
                                             // When enabling time, update the selectedDate with the current time settings
                                             updateTimeInSelectedDate()
+                                        } else {
+                                            // When disabling time, clear time part from selectedDate if date is enabled
+                                            if isDateEnabled {
+                                                let calendar = Calendar.current
+                                                let dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+                                                if let dateOnly = calendar.date(from: dateComponents) {
+                                                    selectedDate = dateOnly
+                                                }
+                                            }
                                         }
                                     }
                             }
@@ -267,9 +276,18 @@ struct AddTimeView: View {
                     Spacer()
                     
                     Button(action: {
-                        // Update the final time before saving
+                        // 只有在時間啟用時才更新時間
                         if isTimeEnabled {
                             updateTimeInSelectedDate()
+                        } else {
+                            // 時間停用時，清除selectedDate中的時間部分，只保留日期
+                            if isDateEnabled {
+                                let calendar = Calendar.current
+                                let dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+                                if let dateOnly = calendar.date(from: dateComponents) {
+                                    selectedDate = dateOnly
+                                }
+                            }
                         }
                         
                         // Call the onSave callback

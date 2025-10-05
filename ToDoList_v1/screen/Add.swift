@@ -1,4 +1,4 @@
-import SwiftUI
+    import SwiftUI
 import CloudKit
 
 // 導入本地數據和同步管理器
@@ -575,8 +575,12 @@ struct Add: View {
                     onSave: {
                         // This will be called when Save is tapped in AddTimeView
                         showAddTimeView = false
-                        // Update the task date with the selected date/time
-                        taskDate = selectedDate
+                        
+                        // 只有在時間啟用時才更新taskDate
+                        if isTimeEnabled {
+                            taskDate = selectedDate
+                        }
+                        // 如果時間未啟用，保持taskDate不變
                         
                         // 根據選擇的日期更新滑匡的日期視圖位置
                         // 計算所選日期與當前日期的差異天數
@@ -733,19 +737,28 @@ struct Add: View {
             return
         }
 
-        // 根據當前模式和是否設置了時間來選擇正確的日期
+        // 根據當前模式和時間啟用狀態來決定最終的日期時間
         var finalTaskDate: Date?
-        let hasTimeData = isDateEnabled || isTimeEnabled
 
-        // MARK: - MODIFIED: 簡化日期決定邏輯
-        if currentBlockIndex == 0 {
-             // 備忘錄模式且沒有設置時間 - 日期設為 nil
-             finalTaskDate = nil
-             print("備忘錄模式，日期設為 nil")
-        } else {
-            // 所有非備忘錄模式，都使用 selectedDate
+        // MARK: - MODIFIED: 修正時間顯示邏輯
+        if currentBlockIndex == 0 && !isTimeEnabled {
+            // 備忘錄模式且沒有啟用時間 - 日期設為 nil
+            finalTaskDate = nil
+            print("備忘錄模式且未啟用時間，日期設為 nil")
+        } else if isTimeEnabled {
+            // 有啟用時間才使用完整的selectedDate（包含日期和時間）
             finalTaskDate = selectedDate
-            print("日期模式，使用所選日期: \(selectedDate)")
+            print("時間已啟用，使用所選日期和時間: \(selectedDate)")
+        } else if isDateEnabled {
+            // 有啟用日期但沒有啟用時間：使用日期但清除時間部分
+            let calendar = Calendar.current
+            let dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
+            finalTaskDate = calendar.date(from: dateComponents)
+            print("僅啟用日期，使用日期但清除時間: \(finalTaskDate ?? Date())")
+        } else {
+            // 都沒啟用的情況（理論上不應該發生）
+            finalTaskDate = nil
+            print("日期和時間都未啟用，日期設為 nil")
         }
 
         // 判斷狀態：如果是從備忘錄添加（沒有時間資料）或有添加時間，都設為 toBeStarted
