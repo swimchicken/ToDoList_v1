@@ -1286,7 +1286,7 @@ struct SettlementTodoItemRow: View {
                             print("SettlementTodoItem: 保留原時間 \(originalTimeComponents.hour ?? 0):\(originalTimeComponents.minute ?? 0)，設定為明天")
                         } else {
                             // 如果日期組合失敗，使用當前時間作為後備
-                            todayItem.taskDate = Date()
+                            todayItem.taskDate = calendar.startOfDay(for: tomorrow)
                             print("SettlementTodoItem: 日期組合失敗，使用當前時間")
                         }
                     }
@@ -1313,10 +1313,7 @@ struct SettlementTodoItemRow: View {
                                     print("SettlementTodoItem: 更新後的任務沒有時間（應該不顯示時間）")
                                 }
 
-                                // 強制重新載入數據以確保UI更新
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    print("SettlementTodoItem: 觸發數據重新載入")
-                                }
+                               
 
                                 // 如果有回調，傳遞新項目
                                 if let onAddToToday = onAddToToday {
