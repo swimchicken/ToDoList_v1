@@ -293,7 +293,8 @@ struct SettlementView02: View {
                                 namespace: namespace, isTextInputMode: $isTextInputMode,
                                 isSending: $isSendingText, text: $newTodoText,
                                 width: geometry.size.width - 10,
-                                onSend: { text in handleSend(text: text) }
+                                onSend: { text in handleSend(text: text) },
+                                onCancel: cancelAPIRequest
                             )
                         } else {
                             ExpandableSoundButton(
@@ -575,10 +576,17 @@ struct SettlementView02: View {
             }
         }
     }
+    // 取消 API 請求
+    private func cancelAPIRequest() {
+        geminiService.cancelRequest()
+        isSendingText = false
+        newTodoText = ""
+    }
+
 }
+
+
 // MARK: - 辅助视图组件
-// ... (此處以下的所有輔助視圖，包括 ProgressBarView, TaskRowView, AddTaskButton 等，都沒有任何修改，保持原樣即可)
-// ... (The rest of the file remains unchanged. You can copy it from your original file.)
 
 // 进度条视图组件
 struct ProgressBarView: View {
@@ -1393,10 +1401,10 @@ struct TextInputView: View {
     @Binding var text: String
     let width: CGFloat
     var onSend: (String) -> Void
+    var onCancel: () -> Void
     
     @FocusState private var isTextFieldFocused: Bool
     @State private var showContents = false
-    @State private var isMultiline = false  // ← 新增：追踪是否多行
     
     var body: some View {
         ZStack {
@@ -1447,14 +1455,9 @@ struct TextInputView: View {
                                         }
                                     )
                                     .multilineTextAlignment(.leading)
-                                    .padding(.top, isMultiline ? 8 : 12)  // ← 多行时用 8，单行时用 12
-                                    .padding(.bottom, isMultiline ? 8 : 0) // ← 多行时加上下相等的 padding
+                                    .padding(.vertical, 10)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .frame(minHeight: isTextFieldFocused ? 60 : nil)
-                                    .onPreferenceChange(ViewHeightKey.self) { height in
-                                        // 判断高度是否超过单行（约 40-45pt）
-                                        isMultiline = height > 45
-                                    }
                             }
                         }
                         
@@ -1517,7 +1520,12 @@ struct TextInputView: View {
     }
     
     private func closeTextInput() {
-        text = ""  // ← 新增：清空输入内容
+        // 如果正在發送，取消 API 請求
+        if isSending {
+            onCancel()
+        }
+        
+        text = ""
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
             isTextInputMode = false
         }

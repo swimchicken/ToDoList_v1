@@ -54,7 +54,6 @@
 		7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */; };
 		792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792297202DAD59DA00E1A97B /* TodoItem.swift */; };
 		792C41742DC9051D005CCE92 /* AddNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C41732DC9051D005CCE92 /* AddNote.swift */; };
-		792C74272DE1F9FA00ACF98D /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C74262DE1F9FA00ACF98D /* SettlementView02.swift */; };
 		792C74292DE20E6A00ACF98D /* TobestartedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C74282DE20E6A00ACF98D /* TobestartedView.swift */; };
 		792C742D2DE22D4900ACF98D /* SettlementView03.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C742C2DE22D4900ACF98D /* SettlementView03.swift */; };
 		792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */; };
@@ -85,6 +84,7 @@
 		8DF757FB2E3FEC5600F1CDA9 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */; };
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
+		EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB967F8C2E95506C00F4D066 /* SettlementView02.swift */; };
 		EBD5AD262E9540B00087D95B /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD5AD252E9540B00087D95B /* Release.xcconfig */; };
 		EBD5AD272E9540B00087D95B /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD5AD252E9540B00087D95B /* Release.xcconfig */; };
 /* End PBXBuildFile section */
@@ -177,7 +177,6 @@
 		7922971E2DAD45BC00E1A97B /* VisualEffectBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBlur.swift; sourceTree = "<group>"; };
 		792297202DAD59DA00E1A97B /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		792C41732DC9051D005CCE92 /* AddNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddNote.swift; sourceTree = "<group>"; };
-		792C74262DE1F9FA00ACF98D /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
 		792C74282DE20E6A00ACF98D /* TobestartedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TobestartedView.swift; sourceTree = "<group>"; };
 		792C742C2DE22D4900ACF98D /* SettlementView03.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView03.swift; sourceTree = "<group>"; };
 		792C742E2DE22DE300ACF98D /* ProgressBarSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBarSegment.swift; sourceTree = "<group>"; };
@@ -209,6 +208,7 @@
 		8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataManager.swift; sourceTree = "<group>"; };
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
+		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
 		EBD5AD252E9540B00087D95B /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -382,7 +382,7 @@
 				791217BC2DC7B92F00E22FF6 /* AddTime.swift */,
 				792C41732DC9051D005CCE92 /* AddNote.swift */,
 				793B5C112DDA3A55008F92FC /* SettlementView.swift */,
-				792C74262DE1F9FA00ACF98D /* SettlementView02.swift */,
+				EB967F8C2E95506C00F4D066 /* SettlementView02.swift */,
 				792C742C2DE22D4900ACF98D /* SettlementView03.swift */,
 				793451ED2DEAD9BD00898474 /* Sleep01.swift */,
 			);
@@ -605,7 +605,6 @@
 				793451EE2DEAD9BD00898474 /* Sleep01.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				7914F98A2DEF21B900BD4801 /* PhysicsSceneWrapper.swift in Sources */,
-				792C74272DE1F9FA00ACF98D /* SettlementView02.swift in Sources */,
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
 				792073FF2DB292EC00057A45 /* TodoSheetItemRow.swift in Sources */,
 				28E117012E58B43800DE2142 /* GeminiService.swift in Sources */,
@@ -619,6 +618,7 @@
 				792C74292DE20E6A00ACF98D /* TobestartedView.swift in Sources */,
 				282FF9AA2E4DD5E000754DB2 /* WidgetFileManager.swift in Sources */,
 				791217BD2DC7B92F00E22FF6 /* AddTime.swift in Sources */,
+				EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */,
 				792297212DAD59DA00E1A97B /* TodoItem.swift in Sources */,
 				793D1B422DAE748100E0B653 /* BumpyCircle.swift in Sources */,
 				79E0AD842D758EEF00DDDC8C /* Login.swift in Sources */,
