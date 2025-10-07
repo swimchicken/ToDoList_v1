@@ -334,10 +334,27 @@ struct SettlementView: View {
         for (index, item) in localItems.enumerated() {
             print("  項目\(index): ID=\(item.id), 標題=\(item.title), 狀態=\(item.status.rawValue), 有日期=\(item.taskDate != nil)")
         }
-        
+
         // 從本地項目中過濾已完成和未完成的項目
-        self.completedTasks = localItems.filter { $0.status == .completed }
-        self.uncompletedTasks = localItems.filter { $0.status == .undone || $0.status == .toBeStarted }
+        // 首先按日期篩選當天的任務，再按狀態篩選
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        // 篩選當天的任務（排除沒有日期的備忘錄任務）
+        let todayTasks = localItems.filter { task in
+            guard let taskDate = task.taskDate else {
+                // 沒有日期的任務（備忘錄）不納入結算範圍
+                return false
+            }
+            let taskDay = calendar.startOfDay(for: taskDate)
+            return taskDay == today
+        }
+
+        // 從當天任務中分類已完成和未完成的項目
+        self.completedTasks = todayTasks.filter { $0.status == .completed }
+        self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
+
+        print("SettlementView - 當天任務篩選結果: 總共 \(todayTasks.count) 個當天任務（排除備忘錄）")
         
         print("SettlementView - 從本地加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
         
@@ -361,8 +378,23 @@ struct SettlementView: View {
                     }
                     
                     // 根據任務狀態進行分類
-                    self.completedTasks = filteredItems.filter { $0.status == .completed }
-                    self.uncompletedTasks = filteredItems.filter { $0.status == .undone || $0.status == .toBeStarted }
+                    // 首先按日期篩選當天的任務，再按狀態篩選
+                    let calendar = Calendar.current
+                    let today = calendar.startOfDay(for: Date())
+
+                    // 篩選當天的任務（排除沒有日期的備忘錄任務）
+                    let todayTasks = filteredItems.filter { task in
+                        guard let taskDate = task.taskDate else {
+                            // 沒有日期的任務（備忘錄）不納入結算範圍
+                            return false
+                        }
+                        let taskDay = calendar.startOfDay(for: taskDate)
+                        return taskDay == today
+                    }
+
+                    // 從當天任務中分類已完成和未完成的項目
+                    self.completedTasks = todayTasks.filter { $0.status == .completed }
+                    self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
                     
                     print("SettlementView - 成功從雲端加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
                     for (index, item) in self.completedTasks.enumerated() {
@@ -438,10 +470,25 @@ struct SettlementView: View {
         }
         
         // 從本地項目中過濾已完成和未完成的項目
-        self.completedTasks = localItems.filter { $0.status == .completed }
-        self.uncompletedTasks = localItems.filter { $0.status == .undone || $0.status == .toBeStarted }
-        
-        print("SettlementView - 數據刷新通知後直接更新: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
+        // 首先按日期篩選當天的任務，再按狀態篩選
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        // 篩選當天的任務（排除沒有日期的備忘錄任務）
+        let todayTasks = localItems.filter { task in
+            guard let taskDate = task.taskDate else {
+                // 沒有日期的任務（備忘錄）不納入結算範圍
+                return false
+            }
+            let taskDay = calendar.startOfDay(for: taskDate)
+            return taskDay == today
+        }
+
+        // 從當天任務中分類已完成和未完成的項目
+        self.completedTasks = todayTasks.filter { $0.status == .completed }
+        self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
+
+        print("SettlementView - 數據刷新通知後直接更新: 當天任務 \(todayTasks.count) 個, 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個（排除備忘錄）")
     }
 }
 
