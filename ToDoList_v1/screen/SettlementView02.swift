@@ -100,7 +100,26 @@ struct SettlementView02: View {
     init(uncompletedTasks: [TodoItem], moveTasksToTomorrow: Bool) {
         self.uncompletedTasks = uncompletedTasks
         self.moveTasksToTomorrow = moveTasksToTomorrow
-        let initialDailyTasks = moveTasksToTomorrow ? uncompletedTasks : []
+
+        // 如果要移動到明天，只顯示當天的未完成任務
+        let initialDailyTasks: [TodoItem]
+        if moveTasksToTomorrow {
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+
+            // 篩選當天的未完成任務（排除備忘錄）
+            initialDailyTasks = uncompletedTasks.filter { task in
+                guard let taskDate = task.taskDate else {
+                    // 沒有日期的任務（備忘錄）不納入結算範圍
+                    return false
+                }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                return taskDay == today
+            }
+        } else {
+            initialDailyTasks = []
+        }
+
         self._dailyTasks = State(initialValue: initialDailyTasks)
         self._allTodoItems = State(initialValue: [])
     }
@@ -449,15 +468,30 @@ struct SettlementView02: View {
     /// 從 DataManager 重新載入任務列表
     private func loadTasksFromDataManager() {
         let allItems = LocalDataManager.shared.getAllTodoItems()
-        
+
         allTodoItems = allItems
         print("SettlementView02 - 載入所有待辦事項: \(allTodoItems.count) 個")
-        
+
         if moveTasksToTomorrow {
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+
+            // 先篩選當天的未完成任務
             dailyTasks = allItems.filter { item in
-                item.status == .toBeStarted || item.status == .undone
+                // 檢查狀態
+                let isUncompleted = item.status == .toBeStarted || item.status == .undone
+
+                // 檢查日期
+                guard let taskDate = item.taskDate else {
+                    // 沒有日期的任務（備忘錄）不納入結算範圍
+                    return false
+                }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                let isToday = taskDay == today
+
+                return isUncompleted && isToday
             }
-            print("SettlementView02 - 重新載入明日任務: \(dailyTasks.count) 個")
+            print("SettlementView02 - 重新載入當天未完成任務: \(dailyTasks.count) 個")
         } else {
             dailyTasks = []
             print("SettlementView02 - 清空任務列表")
@@ -1859,10 +1893,23 @@ extension SettlementView02 {
     func moveUncompletedTasksToTomorrowData() {
         print("結算完成時開始將 \(uncompletedTasks.count) 個未完成任務移至明日")
 
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
 
-        for task in uncompletedTasks {
+        // 再次篩選，確保只處理當天的未完成事項（排除備忘錄）
+        let todayUncompletedTasks = uncompletedTasks.filter { task in
+            guard let taskDate = task.taskDate else {
+                // 沒有日期的任務（備忘錄）不應該被移動
+                return false
+            }
+            let taskDay = calendar.startOfDay(for: taskDate)
+            return taskDay == today
+        }
+
+        print("實際將移動的當天未完成任務: \(todayUncompletedTasks.count) 個（從總計 \(uncompletedTasks.count) 個中篩選）")
+
+        for task in todayUncompletedTasks {
             // 決定新的任務時間
             let newTaskDate: Date?
 

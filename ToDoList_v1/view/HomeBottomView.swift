@@ -729,7 +729,7 @@ struct HomeBottomView: View {
         
         @FocusState private var isTextFieldFocused: Bool
         @State private var showContents = false
-        @State private var isMultiline = false  // ← 新增：追踪是否多行
+
         
         var body: some View {
             ZStack {
@@ -756,7 +756,7 @@ struct HomeBottomView: View {
                         // 中間文字輸入區域
                         ZStack(alignment: .leading) {
                             if !isSending {
-                                ZStack(alignment: .topLeading) {
+                                ZStack(alignment: .leading) {  // ← 改為 .leading（移除 .top）
                                     // Placeholder
                                     if text.isEmpty && !isTextFieldFocused {
                                         Text("輸入待辦事項, 或直接跟 AI 說要做什麼")
@@ -764,7 +764,6 @@ struct HomeBottomView: View {
                                             .multilineTextAlignment(.leading)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .padding(.leading, 5)
-                                            .padding(.top, 8)
                                     }
                                     
                                     TextEditor(text: $text)
@@ -780,14 +779,10 @@ struct HomeBottomView: View {
                                             }
                                         )
                                         .multilineTextAlignment(.leading)
-                                        .padding(.top, isMultiline ? 8 : 12)  // ← 多行时用 8，单行时用 12
-                                        .padding(.bottom, isMultiline ? 8 : 0) // ← 多行时加上下相等的 padding
+                                        .padding(.vertical, 10)  // ← 改為統一的上下 padding
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .frame(minHeight: isTextFieldFocused ? 60 : nil)
-                                        .onPreferenceChange(ViewHeightKey.self) { height in
-                                            // 判断高度是否超过单行（约 40-45pt）
-                                            isMultiline = height > 45
-                                        }
+                                        
                                 }
                             }
                             
