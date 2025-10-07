@@ -102,9 +102,21 @@ class GeminiService: ObservableObject {
         private let minRetries = 3
         private let retryableStatusCodes: Set<Int> = [429, 500, 502, 503, 504]
     
+    // 當前正在執行的請求
+    private var currentTask: URLSessionDataTask?
+    private var isCancelled = false
 
+    /// 取消當前的 API 請求
+    func cancelRequest() {
+        isCancelled = true
+        currentTask?.cancel()
+        currentTask = nil
+        print("🚫 API 請求已取消")
+    }
+    
     func analyzeText(_ text: String, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
-            performRequestWithRetry(text: text, attemptNumber: 1, completion: completion)
+        isCancelled = false  // 重置取消標記
+        performRequestWithRetry(text: text, attemptNumber: 1, completion: completion)
     }
     
     /// 執行請求並處理重試邏輯
@@ -162,8 +174,12 @@ class GeminiService: ObservableObject {
         
         request.httpBody = httpBody
         
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
+            
+            // 清除已完成的 task
+            self.currentTask = nil
+            
             
             // 檢查 HTTP 狀態碼
             if let httpResponse = response as? HTTPURLResponse {
@@ -196,6 +212,19 @@ class GeminiService: ObservableObject {
             
             // 處理網絡錯誤
             if let error = error {
+                // 檢查是否為用戶主動取消
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                    print("🚫 請求已被用戶取消，不進行重試")
+                    return
+                }
+                
+                // 檢查取消標記
+                if self.isCancelled {
+                    print("🚫 請求已被標記為取消，不進行重試")
+                    return
+                }
+                
                 print("❌ 網絡錯誤: \(error.localizedDescription)")
                 
                 if attemptNumber < self.maxRetries {
@@ -219,11 +248,21 @@ class GeminiService: ObservableObject {
                 return
             }
             
+            // 檢查是否已被取消
+            if self.isCancelled {
+                print("🚫 請求已取消，忽略回應")
+                return
+            }
+            
             // 成功收到資料
             print("✅ 請求成功（第 \(attemptNumber) 次嘗試）")
             self.parseResponse(data: data, completion: completion)
             
-        }.resume()
+        }
+        
+        // 保存當前的 task 以便取消
+        currentTask = task
+        task.resume()
     }
     
     /// 計算指數退避延遲時間
@@ -239,6 +278,12 @@ class GeminiService: ObservableObject {
     
     /// 解析 API 回應
     private func parseResponse(data: Data, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
+        // 最後檢查：即使收到資料，如果已取消就不處理
+        guard !isCancelled else {
+            print("🚫 解析前檢查：請求已取消，不處理回應")
+            return
+        }
+        
         do {
             if let jsonObject = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let candidates = jsonObject["candidates"] as? [[String: Any]],
