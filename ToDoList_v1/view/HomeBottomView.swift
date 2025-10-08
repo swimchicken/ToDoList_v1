@@ -62,6 +62,7 @@ struct HomeBottomView: View {
     @State private var newTodoText = ""
     @State private var isSavingRecording = false
     @State private var isSendingText = false
+    @State private var isInputMultiline = false
     
     
     @Namespace private var namespace
@@ -89,7 +90,20 @@ struct HomeBottomView: View {
                 
                 Spacer().frame(height: 20)
             }
+            .zIndex(1)
             
+            // 透明背景检测层（只在输入模式时显示）
+            if isTextInputMode {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            isTextInputMode = false
+                        }
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                    .ignoresSafeArea()
+            }
         }
         .padding(.horizontal, 10)
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -187,6 +201,8 @@ struct HomeBottomView: View {
                         .frame(height: 60)
                     }
                     .allowsHitTesting(false)
+                    .opacity(isInputMultiline ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.2), value: isInputMultiline)
                     
                     // 輸入框 / AI 按鈕
                     ZStack {
@@ -198,7 +214,9 @@ struct HomeBottomView: View {
                                 text: $newTodoText,
                                 width: max(60, grayBoxWidth - 20),
                                 onSend: { handleSend(text: $0) },
-                                onCancel: cancelAPIRequest
+                                onCancel: cancelAPIRequest,
+                                onMultilineChange: { isInputMultiline = $0 }
+                                
                             )
                         } else {
                             ExpandableSoundButton(
@@ -298,6 +316,8 @@ struct HomeBottomView: View {
                         .frame(height: 60)
                     }
                     .allowsHitTesting(false)
+                    .opacity(isInputMultiline ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.2), value: isInputMultiline)
                     
                     ZStack {
                         if isTextInputMode {
@@ -308,7 +328,8 @@ struct HomeBottomView: View {
                                 text: $newTodoText,
                                 width: max(60, grayBoxWidth - 20),
                                 onSend: { handleSend(text: $0) },
-                                onCancel: cancelAPIRequest
+                                onCancel: cancelAPIRequest,
+                                onMultilineChange: { isInputMultiline = $0 }
                             )
                         } else {
                             ExpandableSoundButton(namespace: namespace, isRecording: $isRecording, isTextInputMode: $isTextInputMode, isSaving: $isSavingRecording, audioLevel: speechManager.audioLevel, onRecordingStart: startRecording, onRecordingEnd: endRecording, onRecordingCancel: cancelRecording, expandedWidth: max(60, grayBoxWidth - 20))
@@ -739,6 +760,7 @@ struct HomeBottomView: View {
         let width: CGFloat
         var onSend: (String) -> Void // 新增回調
         var onCancel: () -> Void // 新增取消回調
+        var onMultilineChange: (Bool) -> Void
         
         @FocusState private var isTextFieldFocused: Bool
         @State private var showContents = false
@@ -795,7 +817,10 @@ struct HomeBottomView: View {
                                         .padding(.vertical, 10)  // ← 改為統一的上下 padding
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .frame(minHeight: isTextFieldFocused ? 60 : nil)
-                                        
+                                        .onPreferenceChange(ViewHeightKey.self) { height in
+                                            let isMultiline = height > 50
+                                            onMultilineChange(isMultiline)
+                                        }
                                 }
                             }
                             

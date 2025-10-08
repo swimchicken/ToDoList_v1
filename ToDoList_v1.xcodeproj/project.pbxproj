@@ -85,8 +85,8 @@
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
 		EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB967F8C2E95506C00F4D066 /* SettlementView02.swift */; };
-		EBD5AD262E9540B00087D95B /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD5AD252E9540B00087D95B /* Release.xcconfig */; };
-		EBD5AD272E9540B00087D95B /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD5AD252E9540B00087D95B /* Release.xcconfig */; };
+		EB967F9A2E963A7400F4D066 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB967F992E963A7400F4D066 /* Release.xcconfig */; };
+		EB967F9B2E963A7400F4D066 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB967F992E963A7400F4D066 /* Release.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -209,7 +209,7 @@
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
 		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
-		EBD5AD252E9540B00087D95B /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		EB967F992E963A7400F4D066 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -273,7 +273,7 @@
 				8DF757E62E3FEB1900F1CDA9 /* ToDoListWidget */,
 				8DF757E12E3FEB1900F1CDA9 /* Frameworks */,
 				7911CDE12D633BAD0034BEE6 /* Products */,
-				EBD5AD252E9540B00087D95B /* Release.xcconfig */,
+				EB967F992E963A7400F4D066 /* Release.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -564,7 +564,7 @@
 			files = (
 				7911CDED2D633BB60034BEE6 /* Preview Assets.xcassets in Resources */,
 				79F7C2472D926DD500B2E19E /* MyProject.entitlements in Resources */,
-				EBD5AD272E9540B00087D95B /* Release.xcconfig in Resources */,
+				EB967F9B2E963A7400F4D066 /* Release.xcconfig in Resources */,
 				5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */,
 				7911CDEA2D633BB60034BEE6 /* Assets.xcassets in Resources */,
 				5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */,
@@ -589,7 +589,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EBD5AD262E9540B00087D95B /* Release.xcconfig in Resources */,
+				EB967F9A2E963A7400F4D066 /* Release.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -715,7 +715,7 @@
 /* Begin XCBuildConfiguration section */
 		7911CE042D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD5AD252E9540B00087D95B /* Release.xcconfig */;
+			baseConfigurationReference = EB967F992E963A7400F4D066 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -779,7 +779,7 @@
 		};
 		7911CE052D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD5AD252E9540B00087D95B /* Release.xcconfig */;
+			baseConfigurationReference = EB967F992E963A7400F4D066 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -836,7 +836,7 @@
 		};
 		7911CE072D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD5AD252E9540B00087D95B /* Release.xcconfig */;
+			baseConfigurationReference = EB967F992E963A7400F4D066 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -874,7 +874,7 @@
 		};
 		7911CE082D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD5AD252E9540B00087D95B /* Release.xcconfig */;
+			baseConfigurationReference = EB967F992E963A7400F4D066 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
