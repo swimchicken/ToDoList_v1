@@ -1462,13 +1462,12 @@ struct TextInputView: View {
                         }
                         
                         if isSending {
-                            ScrollView {
-                                AnimatedGradientTextView(text: text)
-                                    .multilineTextAlignment(.leading)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.leading, 9)
-                                    .padding(.vertical, 8)
-                            }
+                            AnimatedGradientTextView(text: text)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.leading, 9)
+                                .padding(.vertical, 8)
+                            
                         }
                     }
                     .frame(maxWidth: .infinity)
