@@ -422,7 +422,19 @@ struct Home: View {
                         alarmTimeString: alarmTimeString,
                         dayProgress: dayProgress,
                         onSleepButtonTapped: {
-                            navigateToSleep01View = true
+                            print("Sleep button tapped, current navigateToSleep01View: \(navigateToSleep01View)")
+
+                            // 先重置為 false，然後再設為 true 以確保觸發導航
+                            if navigateToSleep01View {
+                                navigateToSleep01View = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    navigateToSleep01View = true
+                                    print("Force navigation to Sleep01View")
+                                }
+                            } else {
+                                navigateToSleep01View = true
+                                print("Direct navigation to Sleep01View")
+                            }
                         }
                     )
                     .zIndex(2)
@@ -788,6 +800,14 @@ struct Home: View {
         }
         .navigationDestination(isPresented: $navigateToSleep01View) {
             Sleep01View()
+                .onAppear {
+                    print("Sleep01View appeared, resetting navigation flag")
+                }
+                .onDisappear {
+                    print("Sleep01View disappeared")
+                    // 當從 Sleep01 返回時，重置導航狀態
+                    navigateToSleep01View = false
+                }
         }
         .navigationDestination(isPresented: $navigateToTestPage) {
             TestPage()
@@ -875,9 +895,7 @@ struct Home: View {
                     print("🔥 NavigationLink 應該觸發跳轉")
                 }
             }
-            NavigationLink(destination: Sleep01View(), isActive: $navigateToSleep01View) { EmptyView() }
-            NavigationLink(destination: TestPage(), isActive: $navigateToTestPage) { EmptyView() }
-            NavigationLink(destination: Login(), isActive: $navigateToLogin) { EmptyView() }
+            // 移除舊式 NavigationLink，只使用新的 navigationDestination
         }
     )
 }
@@ -1197,6 +1215,23 @@ struct Home: View {
             print("收到鬧鐘觸發通知，準備導航到 Sleep01")
             alarmStateManager.triggerAlarm()
             navigateToSleep01View = true
+        }
+
+        // 監聽睡眠模式狀態變更通知
+        NotificationCenter.default.addObserver(forName: Notification.Name("SleepModeStateChanged"), object: nil, queue: .main) { _ in
+            print("收到睡眠模式狀態變更通知")
+            // 重新檢查睡眠模式狀態
+            if UserDefaults.standard.bool(forKey: "isSleepMode") {
+                isSleepMode = true
+                if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
+                    alarmTimeString = savedAlarmTime
+                }
+                updateDayProgress(currentTime: Date())
+            } else {
+                isSleepMode = false
+                dayProgress = 0.0
+                print("睡眠模式已關閉，UI 狀態已重置")
+            }
         }
     }
     
