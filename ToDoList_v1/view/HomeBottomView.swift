@@ -246,7 +246,7 @@ struct HomeBottomView: View {
         ZStack {
             // 背景和靜態按鈕
             VStack(spacing: 10) {
-                Spacer().frame(height: 140) // 佔位符，模擬 PhysicsSceneWrapper 的高度
+//                Spacer().frame(height: 140) // 佔位符，模擬 PhysicsSceneWrapper 的高度
                 
                 // 靜態按鈕區域
                 ZStack {
@@ -261,17 +261,21 @@ struct HomeBottomView: View {
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
-                        .foregroundColor(.black)
+                        .foregroundColor(.white)
                         .frame(width: 230, height: 60) // 寬度與 end today 保持一致
-                        .background(Color.white)
+                        .background(Color(hex:"262626"))
                         .cornerRadius(40.5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 40.5)
+                                .stroke(Color.white, lineWidth: 1)
+                        )
                         
                         Spacer()
                         
                         // 按鈕 2: Add
                         Button(action: onAddButtonTapped) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 77).fill(Color.gray)
+                                RoundedRectangle(cornerRadius: 77).fill(Color(hex:"262626"))
                                 Image(systemName: "plus").foregroundColor(.white)
                             }
                             .frame(width: 60, height: 60)

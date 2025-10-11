@@ -235,7 +235,7 @@ struct Home: View {
     private var bottomPaddingForTaskList: CGFloat {
         // 當天顯示物理場景時需要更多間距
         // 非當天只顯示按鈕時需要較少間距
-        return isCurrentDay ? 170 : 90
+        return isCurrentDay ? 190 : 90
     }
     
     var body: some View {
