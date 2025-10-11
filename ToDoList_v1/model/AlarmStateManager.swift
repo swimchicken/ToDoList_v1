@@ -179,7 +179,18 @@ class AlarmStateManager: ObservableObject {
             alarmTimeString = savedAlarmTime
         }
         
+        // Debug：檢查sleepStartTime的狀態
+        let sleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+
         print("AlarmStateManager初始化: sleepModeExists=\(sleepModeExists), isSleepModeActive=\(isSleepModeActive), alarmTime=\(alarmTimeString)")
+        if let sleepStartTime = sleepStartTime {
+            print("已保存的睡眠開始時間: \(formatter.string(from: sleepStartTime))")
+        } else {
+            print("未找到睡眠開始時間")
+        }
         
         if isSleepModeActive {
             updateSleepProgress()
@@ -262,12 +273,13 @@ class AlarmStateManager: ObservableObject {
         }
 
         // 獲取睡眠設定的開始時間（鬧鐘設定的瞬間）
-        let sleepStartTime: Date
-        if let savedSleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date {
-            sleepStartTime = savedSleepStartTime
-        } else {
-            sleepStartTime = currentTime
-            UserDefaults.standard.set(currentTime, forKey: "sleepStartTime")
+        // 這個時間應該在睡眠模式啟動時就已經設定好，不應該在這裡重新設定
+        guard let sleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date else {
+            print("警告：沒有找到睡眠開始時間，進度條無法計算")
+            DispatchQueue.main.async {
+                self.sleepProgress = 0.0
+            }
+            return
         }
 
         // 計算離當前時間最近的鬧鐘時間點
