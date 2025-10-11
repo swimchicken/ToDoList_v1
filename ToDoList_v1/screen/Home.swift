@@ -1138,58 +1138,13 @@ struct Home: View {
     
  // MARK: - Functions
     private func updateDayProgress(currentTime: Date) {
-        let calendar = self.taipeiCalendar
-        let localAlarmStringParser = self.alarmStringParser
-        var newProgress = 0.0
-        
-        guard let parsedAlarmTime = localAlarmStringParser.date(from: alarmTimeString) else {
-            self.dayProgress = 0.0
-            return
-        }
-        
-        let alarmHourMinuteComponents = calendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
-        guard let alarmHour = alarmHourMinuteComponents.hour,
-              let alarmMinute = alarmHourMinuteComponents.minute else {
-            self.dayProgress = 0.0
-            return
-        }
+        // 統一進度條邏輯：使用與AlarmStateManager相同的邏輯
+        // 直接同步AlarmStateManager的sleepProgress
+        self.dayProgress = alarmStateManager.sleepProgress
 
-        var todayAlarmDateComponents = calendar.dateComponents([.year, .month, .day], from: currentTime)
-        todayAlarmDateComponents.hour = alarmHour
-        todayAlarmDateComponents.minute = alarmMinute
-        todayAlarmDateComponents.second = 0
-        
-        guard let alarmTimeOnCurrentDay = calendar.date(from: todayAlarmDateComponents) else {
-            self.dayProgress = 0.0
-            return
-        }
-
-        let cycleStart: Date
-        let cycleEnd: Date
-
-        guard let tomorrowAlarmTime = calendar.date(byAdding: .day, value: 1, to: alarmTimeOnCurrentDay) else {
-            self.dayProgress = 0.0; return
-        }
-        
-        if currentTime < alarmTimeOnCurrentDay {
-            guard let yesterdayAlarmTime = calendar.date(byAdding: .day, value: -1, to: alarmTimeOnCurrentDay) else {
-                self.dayProgress = 0.0; return
-            }
-            cycleStart = yesterdayAlarmTime
-            cycleEnd = tomorrowAlarmTime
-        } else {
-            cycleStart = alarmTimeOnCurrentDay
-            cycleEnd = tomorrowAlarmTime
-        }
-
-        let totalCycleDuration = cycleEnd.timeIntervalSince(cycleStart)
-        let elapsedInCycle = currentTime.timeIntervalSince(cycleStart)
-
-        if totalCycleDuration > 0 {
-            newProgress = elapsedInCycle / totalCycleDuration
-        }
-        
-        self.dayProgress = min(max(newProgress, 0.0), 1.0)
+        print("=== 統一進度條邏輯 - Home.swift ===")
+        print("同步AlarmStateManager進度: \(String(format: "%.1f", self.dayProgress * 100))%")
+        print("==============================")
     }
     
     private func setupDataChangeObservers() {

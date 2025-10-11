@@ -331,7 +331,10 @@ struct Sleep01View: View {
                 .padding(.horizontal, 20).padding(.top, 20)
                 
                 Button(action: {
-                    alarmStateManager.startSleepMode(alarmTime: alarmTimeString)
+                    // 如果睡眠模式還沒啟動才需要啟動，避免重新設定睡眠開始時間
+                    if !alarmStateManager.isSleepModeActive {
+                        alarmStateManager.startSleepMode(alarmTime: alarmTimeString)
+                    }
                     presentationMode.wrappedValue.dismiss()
                 }) {
                     Text("back to home page")

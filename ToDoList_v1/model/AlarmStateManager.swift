@@ -179,7 +179,18 @@ class AlarmStateManager: ObservableObject {
             alarmTimeString = savedAlarmTime
         }
         
+        // Debug：檢查sleepStartTime的狀態
+        let sleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+
         print("AlarmStateManager初始化: sleepModeExists=\(sleepModeExists), isSleepModeActive=\(isSleepModeActive), alarmTime=\(alarmTimeString)")
+        if let sleepStartTime = sleepStartTime {
+            print("已保存的睡眠開始時間: \(formatter.string(from: sleepStartTime))")
+        } else {
+            print("未找到睡眠開始時間")
+        }
         
         if isSleepModeActive {
             updateSleepProgress()
@@ -244,14 +255,14 @@ class AlarmStateManager: ObservableObject {
     private func updateSleepProgress() {
         let currentTime = Date()
         var newProgress = 0.0
-        
+
         guard let parsedAlarmTime = alarmStringParser.date(from: alarmTimeString) else {
             DispatchQueue.main.async {
                 self.sleepProgress = 0.0
             }
             return
         }
-        
+
         let alarmHourMinuteComponents = taipeiCalendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
         guard let alarmHour = alarmHourMinuteComponents.hour,
               let alarmMinute = alarmHourMinuteComponents.minute else {
@@ -261,46 +272,44 @@ class AlarmStateManager: ObservableObject {
             return
         }
 
-        var todayAlarmDateComponents = taipeiCalendar.dateComponents([.year, .month, .day], from: currentTime)
-        todayAlarmDateComponents.hour = alarmHour
-        todayAlarmDateComponents.minute = alarmMinute
-        todayAlarmDateComponents.second = 0
-        
-        guard let alarmTimeOnCurrentDay = taipeiCalendar.date(from: todayAlarmDateComponents) else {
+        // 獲取睡眠設定的開始時間（鬧鐘設定的瞬間）
+        // 這個時間應該在睡眠模式啟動時就已經設定好，不應該在這裡重新設定
+        guard let sleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date else {
+            print("警告：沒有找到睡眠開始時間，進度條無法計算")
             DispatchQueue.main.async {
                 self.sleepProgress = 0.0
             }
             return
         }
 
-        // 獲取睡眠設定的開始時間
-        let sleepStartTime: Date
-        if let savedSleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date {
-            sleepStartTime = savedSleepStartTime
-        } else {
-            sleepStartTime = currentTime
-            UserDefaults.standard.set(currentTime, forKey: "sleepStartTime")
-        }
-        
-        // 計算最近的鬧鐘時間（可能是今天或明天）
-        let todayAlarmTime = alarmTimeOnCurrentDay
-        guard let tomorrowAlarmTime = taipeiCalendar.date(byAdding: .day, value: 1, to: alarmTimeOnCurrentDay) else {
+        // 計算離當前時間最近的鬧鐘時間點
+        let todayAlarmDateComponents = taipeiCalendar.dateComponents([.year, .month, .day], from: currentTime)
+        var targetAlarmDateComponents = todayAlarmDateComponents
+        targetAlarmDateComponents.hour = alarmHour
+        targetAlarmDateComponents.minute = alarmMinute
+        targetAlarmDateComponents.second = 0
+
+        guard let todayAlarmTime = taipeiCalendar.date(from: targetAlarmDateComponents) else {
             DispatchQueue.main.async {
                 self.sleepProgress = 0.0
             }
             return
         }
-        
-        // 選擇最近的鬧鐘時間作為終點
+
+        // 計算離當前時間最近的鬧鐘時間
         let cycleEnd: Date
-        if currentTime <= todayAlarmTime {
+        if currentTime < todayAlarmTime {
             // 如果當前時間還沒到今天的鬧鐘時間，使用今天的鬧鐘時間
             cycleEnd = todayAlarmTime
-            print("使用今天的鬧鐘時間作為終點: \(todayAlarmTime)")
         } else {
             // 如果已經過了今天的鬧鐘時間，使用明天的鬧鐘時間
+            guard let tomorrowAlarmTime = taipeiCalendar.date(byAdding: .day, value: 1, to: todayAlarmTime) else {
+                DispatchQueue.main.async {
+                    self.sleepProgress = 0.0
+                }
+                return
+            }
             cycleEnd = tomorrowAlarmTime
-            print("使用明天的鬧鐘時間作為終點: \(tomorrowAlarmTime)")
         }
 
         let totalCycleDuration = cycleEnd.timeIntervalSince(sleepStartTime)
@@ -309,22 +318,22 @@ class AlarmStateManager: ObservableObject {
         if totalCycleDuration > 0 {
             newProgress = elapsedInCycle / totalCycleDuration
         }
-        
+
         DispatchQueue.main.async {
             self.sleepProgress = min(max(newProgress, 0.0), 1.0)
-            
+
             // 詳細的調試信息
             let formatter = DateFormatter()
             formatter.dateFormat = "HH:mm:ss"
             formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
-            
-            print("=== AlarmStateManager 進度條更新 ===")
+
+            print("=== 統一進度條邏輯 - AlarmStateManager ===")
             print("當前時間: \(formatter.string(from: currentTime))")
             print("睡眠開始: \(formatter.string(from: sleepStartTime))")
-            print("週期終點: \(formatter.string(from: cycleEnd))")
-            print("總週期長度: \(String(format: "%.1f", totalCycleDuration/3600))小時")
-            print("已經過時間: \(String(format: "%.1f", elapsedInCycle/3600))小時")
-            print("進度百分比: \(String(format: "%.1f", self.sleepProgress * 100))%")
+            print("目標鬧鐘: \(formatter.string(from: cycleEnd))")
+            print("總時長: \(String(format: "%.1f", totalCycleDuration/3600))小時")
+            print("已過時間: \(String(format: "%.1f", elapsedInCycle/3600))小時")
+            print("進度: \(String(format: "%.1f", self.sleepProgress * 100))%")
             print("===============================")
         }
     }
