@@ -62,7 +62,7 @@ struct SettlementView02: View {
     @State private var displayText: String = ""
     @State private var priority: Int = 0
     @State private var isPinned: Bool = false
-    @State private var selectedDate: Date = Date()
+    @State private var selectedDate: Date = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     @State private var isDateEnabled: Bool = false
     @State private var isTimeEnabled: Bool = false
     
@@ -90,6 +90,9 @@ struct SettlementView02: View {
     @State private var selectedFilterInSettlement = "全部"
     @State private var showTodoQueue: Bool = false
     @State private var navigateToSettlementView03: Bool = false
+
+    // 記錄settlement開始時明天已有的任務ID，用於過濾
+    @State private var existingTomorrowTaskIDs: Set<UUID> = []
     
     // **新增**: 用於儲存列表內容底部在螢幕上的Y座標
     @State private var listContentBottomY: CGFloat = .zero
@@ -108,13 +111,22 @@ struct SettlementView02: View {
             let today = calendar.startOfDay(for: Date())
             let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
 
-            // 從 LocalDataManager 獲取所有任務，以便包含明天已有的任務
+            // 從 LocalDataManager 獲取所有任務
             let allItems = LocalDataManager.shared.getAllTodoItems()
 
-            // 只篩選當天的未完成任務（準備移動到明天的）
+            // 記錄settlement開始時明天已有的任務ID，這些不應該顯示在事件列表中
+            let existingTomorrowTasks = allItems.filter { task in
+                guard let taskDate = task.taskDate else { return false }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                return taskDay == tomorrow
+            }
+
+            // 篩選要顯示在事件列表的任務：只顯示當天的未完成任務
             initialDailyTasks = allItems.filter { task in
                 guard let taskDate = task.taskDate else { return false }
                 let taskDay = calendar.startOfDay(for: taskDate)
+
+                // 只顯示當天的未完成任務（準備移動到明天的）
                 return (taskDay == today) && (task.status == .toBeStarted || task.status == .undone)
             }
         } else {
@@ -123,6 +135,21 @@ struct SettlementView02: View {
 
         self._dailyTasks = State(initialValue: initialDailyTasks)
         self._allTodoItems = State(initialValue: [])
+
+        // 設定已存在的明天任務ID
+        if moveTasksToTomorrow {
+            let calendar = Calendar.current
+            let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+            let allItems = LocalDataManager.shared.getAllTodoItems()
+            let existingTomorrowTaskIDs: Set<UUID> = Set(allItems.compactMap { task -> UUID? in
+                guard let taskDate = task.taskDate else { return nil }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                return taskDay == tomorrow ? task.id : nil
+            })
+            self._existingTomorrowTaskIDs = State(initialValue: existingTomorrowTaskIDs)
+        } else {
+            self._existingTomorrowTaskIDs = State(initialValue: [])
+        }
     }
 
     private func formatDateForDisplay(_ date: Date) -> (monthDay: String, weekday: String) {
@@ -479,13 +506,22 @@ struct SettlementView02: View {
             let today = calendar.startOfDay(for: Date())
             let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
 
-            // 只篩選當天的未完成任務（準備移動到明天的）
+            // 篩選要顯示在事件列表的任務：
+            // 1. 當天的未完成任務（準備移動到明天的）
+            // 2. 明天的任務（但排除settlement開始時已存在的任務）
             dailyTasks = allItems.filter { item in
                 guard let taskDate = item.taskDate else { return false }
                 let taskDay = calendar.startOfDay(for: taskDate)
-                return (taskDay == today) && (item.status == .toBeStarted || item.status == .undone)
+
+                // 當天的未完成任務
+                let isTodayUncompleted = (taskDay == today) && (item.status == .toBeStarted || item.status == .undone)
+
+                // 明天的任務，但排除settlement開始時已存在的任務
+                let isNewTomorrowTask = (taskDay == tomorrow) && !existingTomorrowTaskIDs.contains(item.id)
+
+                return isTodayUncompleted || isNewTomorrowTask
             }
-            print("SettlementView02 - 重新載入當天未完成任務（準備移動）: \(dailyTasks.count) 個")
+            print("SettlementView02 - 重新載入事件列表任務: \(dailyTasks.count) 個（包含當天未完成和settlement期間新增的明天任務）")
         } else {
             dailyTasks = []
             print("SettlementView02 - 清空任務列表")
@@ -1018,17 +1054,21 @@ struct AddTaskButton: View {
     // 儲存任務
     private func saveTask() {
         guard !displayText.isEmpty else { return }
-        
-        // 在結算頁面中，新增的任務預設為當天任務（這樣會出現在事件列表中）
-        // 當用戶完成結算時，會和其他當天未完成任務一起被移動到明天
+
+        // 在結算頁面中，新增的任務預設為明天任務
         let finalTaskDate: Date?
         if isDateEnabled || isTimeEnabled {
             // 如果用戶有明確選擇日期/時間，使用用戶選擇的
             finalTaskDate = selectedDate
+            print("SettlementView02: 用戶選擇的日期/時間: \(selectedDate)")
         } else {
-            // 如果沒有明確選擇，預設為當天的開始時間（00:00:00）
-            // 這樣任務會出現在事件列表中，並在結算時一起移動到明天
-            finalTaskDate = Calendar.current.startOfDay(for: Date())
+            // 如果沒有明確選擇，預設為明天的開始時間（00:00:00）
+            let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+            finalTaskDate = Calendar.current.startOfDay(for: tomorrow)
+
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            print("SettlementView02: 預設設定明天日期 - \(formatter.string(from: finalTaskDate!))")
         }
         
         // 請根據您的 TodoItem 初始化方法確認以下參數是否完整
@@ -1046,14 +1086,28 @@ struct AddTaskButton: View {
             correspondingImageID: "new_task"
         )
         
+        // 在保存前再次確認任務日期
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        if let taskDate = newTask.taskDate {
+            print("SettlementView02: 即將保存的任務日期 - \(formatter.string(from: taskDate))")
+        } else {
+            print("SettlementView02: 即將保存的任務沒有日期（備忘錄）")
+        }
+
         DataSyncManager.shared.addTodoItem(newTask) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    print("手動新增任務成功: \(newTask.title)")
+                    print("SettlementView02: 手動新增任務成功: \(newTask.title)")
+                    if let taskDate = newTask.taskDate {
+                        print("SettlementView02: 保存成功的任務日期 - \(formatter.string(from: taskDate))")
+                    } else {
+                        print("SettlementView02: 保存成功的任務沒有日期（備忘錄）")
+                    }
                     onTaskAdded() // 通知父視圖刷新
                 case .failure(let error):
-                    print("手動新增任務失敗: \(error.localizedDescription)")
+                    print("SettlementView02: 手動新增任務失敗: \(error.localizedDescription)")
                 }
                 resetEditingState()
             }
@@ -1070,7 +1124,7 @@ struct AddTaskButton: View {
         note = ""
         isDateEnabled = false
         isTimeEnabled = false
-        selectedDate = Date()
+        selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date() // 重置為明天
         isEditing = false
         isTextFieldFocused = false
     }
@@ -1139,47 +1193,50 @@ struct SettlementTodoQueueView: View {
             .padding(.top, 16)
             .padding(.bottom, 15)
 
-            // 待辦事項列表
-            VStack(spacing: 0) {
-                if filteredItems.isEmpty {
-                    VStack(spacing: 8) {
-                        Text(getEmptyStateMessage())
-                            .font(.system(size: 14))
-                            .foregroundColor(.white.opacity(0.7))
-                            .padding(.top, 20)
-                        
-                        if selectedFilter == "備忘錄" {
-                            Text("點擊加號來添加一個沒有時間的備忘錄項目")
-                                .font(.system(size: 12))
-                                .foregroundColor(.gray.opacity(0.7))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
+            // 待辦事項列表 - 使用 ScrollView 並限制高度
+            ScrollView {
+                VStack(spacing: 0) {
+                    if filteredItems.isEmpty {
+                        VStack(spacing: 8) {
+                            Text(getEmptyStateMessage())
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.7))
+                                .padding(.top, 20)
+
+                            if selectedFilter == "備忘錄" {
+                                Text("點擊加號來添加一個沒有時間的備忘錄項目")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray.opacity(0.7))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                            }
                         }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 30)
-                } else {
-                    ForEach(filteredItems.indices, id: \.self) { index in
-                        let item = filteredItems[index]
-                        if let originalIndex = items.firstIndex(where: { $0.id == item.id }) {
-                            SettlementTodoItemRow(
-                                item: $items[originalIndex],
-                                onAddToToday: { todayItem in
-                                    // 通知重新載入數據
-                                    onTaskAdded()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 30)
+                    } else {
+                        ForEach(filteredItems.indices, id: \.self) { index in
+                            let item = filteredItems[index]
+                            if let originalIndex = items.firstIndex(where: { $0.id == item.id }) {
+                                SettlementTodoItemRow(
+                                    item: $items[originalIndex],
+                                    onAddToToday: { todayItem in
+                                        // 通知重新載入數據
+                                        onTaskAdded()
+                                    }
+                                )
+
+                                if index < filteredItems.count - 1 {
+                                    Rectangle()
+                                        .frame(height: 1)
+                                        .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
+                                        .padding(.leading, 56)
                                 }
-                            )
-                            
-                            if index < filteredItems.count - 1 {
-                                Rectangle()
-                                    .frame(height: 1)
-                                    .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
-                                    .padding(.leading, 56)
                             }
                         }
                     }
                 }
             }
+            .frame(maxHeight: 300) // 限制最大高度為 300
             .padding(.horizontal, 16)
 
             // 收合按鈕
@@ -1975,5 +2032,10 @@ extension SettlementView02 {
         }
 
         print("結算完成時完成未完成任務移至明日的處理")
+
+        // 發送通知讓 Home.swift 重新載入數據
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            NotificationCenter.default.post(name: Notification.Name("TodoItemStatusChanged"), object: nil)
+        }
     }
 }
