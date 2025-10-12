@@ -204,10 +204,10 @@ struct Add: View {
             var timeComponents = calendar.dateComponents([.hour, .minute], from: selectedDate)
             var dateComponents = calendar.dateComponents([.year, .month, .day], from: targetDate)
             
-            // 如果之前沒有啟用時間，則使用當前時間
+            // 如果之前沒有啟用時間，則使用 00:00:00 (午夜)
             if !isTimeEnabled {
-                let now = Date()
-                timeComponents = calendar.dateComponents([.hour, .minute], from: now)
+                timeComponents.hour = 0
+                timeComponents.minute = 0
             }
             
             // 合併日期和時間
@@ -601,9 +601,9 @@ struct Add: View {
                             print("設置日期滑匡位置為: \(currentBlockIndex)，日期差異: \(dayDifference) 天")
                         }
                         
-                        // 設置日期和時間狀態
+                        // 設置日期狀態，保持時間狀態不變
                         isDateEnabled = true
-                        isTimeEnabled = true
+                        // isTimeEnabled 保持從 AddTimeView 傳回的狀態
                         
                         // Refocus the text field after a short delay if needed
                         if shouldRefocusAfterReturn {
