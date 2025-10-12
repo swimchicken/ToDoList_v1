@@ -54,7 +54,7 @@ struct SettlementView02: View {
     
     @State private var keyboardHeight: CGFloat = 0
     @State private var isManualEditing: Bool = false
-    
+    @State private var textInputViewHeight: CGFloat = 60
     // AddTime & AddNote 相關
     @State private var note: String = ""
     @State private var showAddTimeView: Bool = false
@@ -273,36 +273,37 @@ struct SettlementView02: View {
             }
         }
     }
-
-    // MARK: - 懸浮按鈕視圖
-        private func floatingInputButtons(screenProxy: GeometryProxy) -> some View {
-            let screenHeight = screenProxy.size.height
+    
+    private func calculateButtonCenterY(screenProxy: GeometryProxy) -> CGFloat {
+        let screenHeight = screenProxy.size.height
+        
+        if keyboardHeight > 0 {
+            // --- 情況 1: 鍵盤已彈出 ---
+            if isTextInputMode {
+                // **套用【公式 B】**
+                let startY: CGFloat = 400.0
+                let initialHeight: CGFloat = 60.0
+                let heightDifference = textInputViewHeight - initialHeight
+                
+                return startY - (heightDifference)
+            } else {
+                // Add task 手動輸入時，使用您調整好的 380
+                return 380.0
+            }
+        } else {
+            // --- 情況 2: 鍵盤已收合 (保持您原本的邏輯) ---
             let safeAreaBottom = screenProxy.safeAreaInsets.bottom
             let buttonHeight: CGFloat = 70
-
-            // ▼▼▼ 根據您的指示，組合了兩個有效公式的最終版本 ▼▼▼
-            let buttonCenterY: CGFloat = {
-                if keyboardHeight > 0 {
-                    // --- 情況 1: 鍵盤已彈出 (根據不同輸入模式設定不同高度) ---
-                                    // ▼▼▼ 從這裡開始貼上 ▼▼▼
-                                    if isTextInputMode {
-                                        // AI 按鈕彈出時，使用 360
-                                        return 430.0
-                                    } else {
-                                        // Add task 手動輸入時，使用您調整好的 380
-                                        return 380.0
-                                    }
-                                    // ▲▲▲ 在這裡結束貼上 ▲▲▲
-                } else {
-                    // --- 情況 2: 鍵盤已收合 (使用您指定的、先前有效的公式) ---
-                    let contentBottomY = (listContentBottomY == 0) ? screenHeight : listContentBottomY
-                    let idealY = contentBottomY + (buttonHeight / 2) - 60
-                    let clampedY = min(idealY, screenHeight - safeAreaBottom - (buttonHeight / 2) - 80)
-                    return clampedY
-                }
-            }()
-            // ▲▲▲ 最終版計算邏輯結束 ▲▲▲
-           
+            let contentBottomY = (listContentBottomY == 0) ? screenHeight : listContentBottomY
+            let idealY = contentBottomY + (buttonHeight / 2) - 60
+            let clampedY = min(idealY, screenHeight - safeAreaBottom - (buttonHeight / 2) - 80)
+            return clampedY
+        }
+    }
+    
+    // MARK: - 懸浮按鈕視圖
+        private func floatingInputButtons(screenProxy: GeometryProxy) -> some View {
+            
         return ZStack {
             AddTaskButton(
                 isEditing: $isManualEditing, displayText: $displayText, priority: $priority,
@@ -327,6 +328,17 @@ struct SettlementView02: View {
                                 onSend: { text in handleSend(text: text) },
                                 onCancel: cancelAPIRequest
                             )
+                            // **▼▼▼ 從這裡開始新增 ▼▼▼**
+                            .onPreferenceChange(ViewHeightKey.self) { newHeight in
+                                // 當 TextEditor 內容高度變化時，更新狀態變數
+                                // 只有在高度真的有變時才更新，避免不必要的畫面重繪
+                                // 60 是 TextEditor 的最小高度
+                                let currentHeight = max(newHeight, 60)
+                                if self.textInputViewHeight != currentHeight {
+                                    self.textInputViewHeight = currentHeight
+                                }
+                            }
+                            // **▲▲▲ 在這裡結束新增 ▲▲▲**
                         } else {
                             ExpandableSoundButton(
                                 namespace: namespace, isRecording: $isRecording,
@@ -347,10 +359,12 @@ struct SettlementView02: View {
             .allowsHitTesting(!isManualEditing)
         }
         .padding(.horizontal, 12)
-        .frame(height: buttonHeight)
-        .position(x: screenProxy.size.width / 2, y: buttonCenterY)
-        .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: listContentBottomY)
-        .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: keyboardHeight)
+            .frame(height: 70) // 直接使用 70，因為 buttonHeight 在這裡已經不可見
+            // **▼▼▼ 從這裡開始修改 ▼▼▼**
+            .position(x: screenProxy.size.width / 2, y: calculateButtonCenterY(screenProxy: screenProxy))
+            .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: listContentBottomY)
+            .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0.5), value: keyboardHeight)
+            // **▲▲▲ 在這裡結束修改 ▲▲▲**
         
     }
 
