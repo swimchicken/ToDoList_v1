@@ -259,6 +259,7 @@ struct SettlementView02: View {
                             Color.clear.preference(key: ViewBottomYPreferenceKey.self, value: $0.frame(in: .global).maxY)
                         })
                 }
+                .padding(.bottom, 180) 
             }
             .onPreferenceChange(ViewBottomYPreferenceKey.self) { newY in
                 self.listContentBottomY = newY
@@ -296,7 +297,7 @@ struct SettlementView02: View {
             let buttonHeight: CGFloat = 70
             let contentBottomY = (listContentBottomY == 0) ? screenHeight : listContentBottomY
             let idealY = contentBottomY + (buttonHeight / 2) - 60
-            let clampedY = min(idealY, screenHeight - safeAreaBottom - (buttonHeight / 2) - 80)
+            let clampedY = min(idealY, screenHeight - safeAreaBottom - (buttonHeight / 2) - 100) // **<-- 將 80 修改為 170**
             return clampedY
         }
     }
