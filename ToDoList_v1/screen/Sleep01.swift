@@ -460,18 +460,106 @@ struct Sleep01View: View {
         if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
             alarmTimeString = savedAlarmTime
         }
-        
+
+        // 設定正常鬧鐘（取代開發者模式）
+        scheduleRealAlarm()
+
         // 載入用戶名稱
         loadUserName()
-        
+
         // 載入今天的待辦事項
         loadTodayTodoItems()
     }
     
+    /// 設定正常鬧鐘
+    private func scheduleRealAlarm() {
+        // 解析鬧鐘時間字串
+        guard let alarmTime = alarmStringParser.date(from: alarmTimeString) else {
+            print("❌ 無法解析鬧鐘時間: \(alarmTimeString)")
+            return
+        }
+
+        // 獲取鬧鐘的小時和分鐘
+        let alarmComponents = taipeiCalendar.dateComponents([.hour, .minute], from: alarmTime)
+        guard let alarmHour = alarmComponents.hour, let alarmMinute = alarmComponents.minute else {
+            print("❌ 無法提取鬧鐘時間組件")
+            return
+        }
+
+        // 計算鬧鐘應該在哪一天觸發
+        let now = Date()
+        let nowComponents = taipeiCalendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
+
+        var targetAlarmComponents = DateComponents()
+        targetAlarmComponents.year = nowComponents.year
+        targetAlarmComponents.month = nowComponents.month
+        targetAlarmComponents.hour = alarmHour
+        targetAlarmComponents.minute = alarmMinute
+        targetAlarmComponents.second = 0
+
+        // 判斷是今天還是明天的鬧鐘
+        if let currentHour = nowComponents.hour, let currentMinute = nowComponents.minute {
+            let currentTimeInMinutes = currentHour * 60 + currentMinute
+            let alarmTimeInMinutes = alarmHour * 60 + alarmMinute
+
+            if alarmTimeInMinutes <= currentTimeInMinutes {
+                // 如果鬧鐘時間已過，設定為明天
+                targetAlarmComponents.day = (nowComponents.day ?? 1) + 1
+                print("🕐 鬧鐘時間已過，設定為明天: \(alarmTimeString)")
+            } else {
+                // 鬧鐘時間還沒到，設定為今天
+                targetAlarmComponents.day = nowComponents.day
+                print("🕐 鬧鐘設定為今天: \(alarmTimeString)")
+            }
+        }
+
+        // 建立鬧鐘日期
+        guard let targetDate = taipeiCalendar.date(from: targetAlarmComponents) else {
+            print("❌ 無法建立目標鬧鐘日期")
+            return
+        }
+
+        print("⏰ 正常鬧鐘已設定為: \(targetDate)")
+
+        // 使用 AlarmStateManager 的 scheduleAlarm 方法
+        alarmStateManager.scheduleAlarm(at: targetDate, identifier: "sleep-mode-alarm")
+
+        // 開始監聽鬧鐘觸發
+        startAlarmMonitoring()
+    }
+
+    /// 開始監聽鬧鐘觸發
+    private func startAlarmMonitoring() {
+        // 每分鐘檢查一次是否到了鬧鐘時間
+        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+            self.checkAlarmTime()
+        }
+    }
+
+    /// 檢查是否到了鬧鐘時間
+    private func checkAlarmTime() {
+        guard let alarmTime = alarmStringParser.date(from: alarmTimeString) else { return }
+
+        let now = Date()
+        let currentComponents = taipeiCalendar.dateComponents([.hour, .minute], from: now)
+        let alarmComponents = taipeiCalendar.dateComponents([.hour, .minute], from: alarmTime)
+
+        // 檢查小時和分鐘是否匹配
+        if currentComponents.hour == alarmComponents.hour &&
+           currentComponents.minute == alarmComponents.minute {
+            print("⏰ 鬧鐘時間到了！觸發鬧鐘")
+
+            // 觸發鬧鐘
+            DispatchQueue.main.async {
+                self.alarmStateManager.triggerAlarm()
+            }
+        }
+    }
+
     /// 格式化任務時間
     private func formatTaskTime(_ date: Date?) -> String {
         guard let date = date else { return "" }
-        
+
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
@@ -716,11 +804,14 @@ struct Sleep01View: View {
     private func cancelSleepMode() {
         // 取消鬧鐘通知
         cancelAlarmNotification()
-        
+
+        // 取消所有鬧鐘（包括正常鬧鐘）
+        alarmStateManager.cancelAllAlarms()
+
         // 重置 AlarmStateManager 的狀態
         alarmStateManager.endSleepMode()
         alarmStateManager.resetAlarmState()
-        
+
         // 重置本地 UI 狀態
         withAnimation(.easeInOut(duration: 0.3)) {
             showTopUI = true
@@ -731,13 +822,13 @@ struct Sleep01View: View {
             eventListHeight = 0
             backgroundDimming = 0.0
         }
-        
+
         // 延遲一下確保動畫完成後再關閉畫面
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             presentationMode.wrappedValue.dismiss()
         }
-        
-        print("Sleep mode 已完全取消，所有狀態已重置")
+
+        print("Sleep mode 已完全取消，所有狀態已重置，鬧鐘已取消")
     }
 
     // MARK: - Developer Mode & Other Functions
@@ -763,26 +854,11 @@ struct Sleep01View: View {
                 Divider()
                 Button(action: { timeOffset += 3600 }) { Label("時間+1小時", systemImage: "clock.arrow.circlepath") }
                 Button(action: { timeOffset += 60 }) { Label("時間+1分鐘", systemImage: "clock") }
-                Button(action: { 
-                    resetAnimationState()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                        alarmStateManager.triggerAlarm()
-                    }
-                }) { Label("模擬鬧鐘觸發", systemImage: "bell.circle.fill") }
-                Button(action: { 
-                    // 設定一個 5 秒後的真實鬧鐘測試
-                    let content = UNMutableNotificationContent()
-                    content.title = "🚨 真實鬧鐘測試"
-                    content.body = "請先切到背景，5 秒後觸發"
-                    content.sound = UNNotificationSound.default
-                    
-                    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-                    let request = UNNotificationRequest(identifier: "BackgroundTestAlarm", content: content, trigger: trigger)
-                    
-                    UNUserNotificationCenter.current().add(request) { error in
-                        print(error != nil ? "❌ 背景測試失敗: \(error!)" : "✅ 5秒後背景鬧鐘已設定")
-                    }
-                }) { Label("5秒後背景鬧鐘", systemImage: "clock.badge.exclamationmark") }
+                Button(action: {
+                    print("⏰ 當前鬧鐘設定: \(alarmTimeString)")
+                    print("🛌 睡眠模式狀態: \(alarmStateManager.isSleepModeActive)")
+                    print("⏰ 鬧鐘觸發狀態: \(alarmStateManager.isAlarmTriggered)")
+                }) { Label("檢查鬧鐘狀態", systemImage: "info.circle") }
                 Button(action: { resetAnimationState() }) { Label("重置動畫狀態", systemImage: "arrow.clockwise") }
                 Divider()
             }

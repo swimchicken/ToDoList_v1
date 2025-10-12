@@ -708,9 +708,9 @@ struct BottomControlsView: View {
                 let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
 
                 if isTimeZero {
-                    // 原本是 00:00:00 的事件，變成沒有時間的備忘錄
-                    newTaskDate = nil
-                    print("任務 '\(task.title)' 原本沒有時間，移至明日後保持為備忘錄")
+                    // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
+                    newTaskDate = tomorrowStart
+                    print("任務 '\(task.title)' 原本是日期無時間，移至明天的 00:00:00")
                 } else {
                     // 原本有具體時間的事件，保留時間但改日期為明天
                     var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)

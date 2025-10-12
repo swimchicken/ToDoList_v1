@@ -42,12 +42,25 @@ struct SettlementView03: View {
     @State private var selectedAmPm: Int = 1
     @State private var isAlarmDisabled: Bool = false
     // 由 Home 端負責關閉整個結算導覽鏈（透過通知），不在此再推一個 Home
-    
+
+    // 接收從SettlementView02傳遞的任務信息
+    let uncompletedTasks: [TodoItem]
+    let moveTasksToTomorrow: Bool
+
+    // 默認初始化方法（用於preview或無任務情況）
+    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false) {
+        self.uncompletedTasks = uncompletedTasks
+        self.moveTasksToTomorrow = moveTasksToTomorrow
+    }
+
     // 引用已完成日期數據管理器
     private let completeDayDataManager = CompleteDayDataManager.shared
     
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
+
+    // 數據同步管理器
+    private let dataSyncManager = DataSyncManager.shared
     
     // 用於將設置傳遞給 Home 視圖
     class SleepSettings: ObservableObject {
@@ -313,13 +326,18 @@ struct SettlementView03: View {
                 
                 // 使用 AlarmStateManager 啟動睡眠模式
                 alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
-                
+
+                // 如果用戶選擇移動任務到明天，在睡眠模式啟動時執行移動
+                if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
+                    moveUncompletedTasksToTomorrow()
+                }
+
                 // 保存到共享設置（為了兼容性保留）
                 SleepSettings.shared.isSleepMode = true
                 SleepSettings.shared.alarmTime = alarmTimeFormatted
-                
+
                 print("已啟動睡眠模式: \(alarmTimeFormatted)")
-                
+
                 // 完成設置並回到 Home 頁面
                 navigateToHome = true
             }) {
@@ -332,6 +350,86 @@ struct SettlementView03: View {
             .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
         }
         .padding(.bottom, 20)
+    }
+
+    // MARK: - Task Movement Logic
+
+    /// 將未完成任務移至明日的數據處理
+    private func moveUncompletedTasksToTomorrow() {
+        print("睡眠模式啟動時開始將 \(uncompletedTasks.count) 個未完成任務移至明日")
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+
+        // 再次篩選，確保只處理當天的未完成事項（排除備忘錄）
+        let todayUncompletedTasks = uncompletedTasks.filter { task in
+            guard let taskDate = task.taskDate else {
+                // 沒有日期的任務（備忘錄）不應該被移動
+                return false
+            }
+            let taskDay = calendar.startOfDay(for: taskDate)
+            return taskDay == today
+        }
+
+        print("實際將移動的當天未完成任務: \(todayUncompletedTasks.count) 個（從總計 \(uncompletedTasks.count) 個中篩選）")
+
+        for task in todayUncompletedTasks {
+            // 決定新的任務時間
+            let newTaskDate: Date?
+
+            if let originalTaskDate = task.taskDate {
+                // 如果原本有時間，檢查是否為 00:00:00
+                let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalTaskDate)
+                let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
+
+                if isTimeZero {
+                    // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
+                    newTaskDate = calendar.startOfDay(for: tomorrow)
+                    print("任務 '\(task.title)' 原本是日期無時間，移至明天的 00:00:00")
+                } else {
+                    // 原本有具體時間的事件，保留時間但改日期為明天
+                    var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+                    tomorrowComponents.hour = timeComponents.hour
+                    tomorrowComponents.minute = timeComponents.minute
+                    tomorrowComponents.second = timeComponents.second
+
+                    newTaskDate = calendar.date(from: tomorrowComponents)
+                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至明天")
+                }
+            } else {
+                // 原本就沒有時間（備忘錄），保持沒有時間
+                newTaskDate = nil
+                print("任務 '\(task.title)' 原本是備忘錄，移至明日後保持為備忘錄")
+            }
+
+            // 創建更新後的任務
+            let updatedTask = TodoItem(
+                id: task.id,
+                userID: task.userID,
+                title: task.title,
+                priority: task.priority,
+                isPinned: task.isPinned,
+                taskDate: newTaskDate,
+                note: task.note,
+                status: task.status,
+                createdAt: task.createdAt,
+                updatedAt: Date(),
+                correspondingImageID: task.correspondingImageID
+            )
+
+            // 使用 DataSyncManager 更新任務
+            dataSyncManager.updateTodoItem(updatedTask) { result in
+                switch result {
+                case .success:
+                    print("成功將任務 '\(task.title)' 移至明日")
+                case .failure(let error):
+                    print("移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        print("完成未完成任務移至明日的處理")
     }
 }
 

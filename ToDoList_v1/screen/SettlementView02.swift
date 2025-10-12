@@ -216,7 +216,10 @@ struct SettlementView02: View {
                 }
             }
             .background(
-                NavigationLink(destination: SettlementView03(), isActive: $navigateToSettlementView03) {
+                NavigationLink(destination: SettlementView03(
+                    uncompletedTasks: uncompletedTasks,
+                    moveTasksToTomorrow: moveTasksToTomorrow
+                ), isActive: $navigateToSettlementView03) {
                     EmptyView()
                 }
             )
@@ -414,10 +417,7 @@ struct SettlementView02: View {
                      .padding(.leading)
                      Spacer()
                      Button(action: {
-                         // 如果用戶選擇移動任務到明天，在結算完成時執行移動
-                         if moveTasksToTomorrow {
-                             moveUncompletedTasksToTomorrowData()
-                         }
+                         // 標記結算已開始，但任務移動邏輯將在SettlementView03完成時執行
 
                          delaySettlementManager.markSettlementCompleted()
                          navigateToSettlementView03 = true
@@ -1986,9 +1986,9 @@ extension SettlementView02 {
                 let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
 
                 if isTimeZero {
-                    // 原本是 00:00:00 的事件，變成沒有時間的備忘錄
-                    newTaskDate = nil
-                    print("任務 '\(task.title)' 原本沒有時間，移至明日後保持為備忘錄")
+                    // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
+                    newTaskDate = calendar.startOfDay(for: tomorrow)
+                    print("任務 '\(task.title)' 原本是日期無時間，移至明天的 00:00:00")
                 } else {
                     // 原本有具體時間的事件，保留時間但改日期為明天
                     var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
