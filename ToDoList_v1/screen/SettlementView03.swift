@@ -369,25 +369,48 @@ struct SettlementView03: View {
 
     /// 將未完成任務移至明日的數據處理
     private func moveUncompletedTasksToTomorrow() {
-        print("睡眠模式啟動時開始將 \(uncompletedTasks.count) 個未完成任務移至明日")
-
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+        let now = Date()
 
-        // 再次篩選，確保只處理當天的未完成事項（排除備忘錄）
-        let todayUncompletedTasks = uncompletedTasks.filter { task in
+        // 檢查是否在凌晨0:00-5:00時間段
+        let currentHour = calendar.component(.hour, from: now)
+        let isEarlyMorning = currentHour >= 0 && currentHour < 5
+
+        // 根據時間段決定移動邏輯
+        let sourceDay: Date
+        let targetDay: Date
+
+        if isEarlyMorning {
+            // 凌晨0:00-5:00：昨天的任務移到今天
+            let today = calendar.startOfDay(for: now)
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+            sourceDay = yesterday
+            targetDay = today
+            print("凌晨時段(\(currentHour):xx)：將昨天(\(yesterday))的未完成任務移至今天(\(today))")
+        } else {
+            // 其他時間：今天的任務移到明天
+            let today = calendar.startOfDay(for: now)
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            sourceDay = today
+            targetDay = tomorrow
+            print("一般時段(\(currentHour):xx)：將今天(\(today))的未完成任務移至明天(\(tomorrow))")
+        }
+
+        print("結算開始將 \(uncompletedTasks.count) 個未完成任務從源日期移動")
+
+        // 篩選要移動的任務：符合源日期的未完成事項（排除備忘錄）
+        let tasksToMove = uncompletedTasks.filter { task in
             guard let taskDate = task.taskDate else {
                 // 沒有日期的任務（備忘錄）不應該被移動
                 return false
             }
             let taskDay = calendar.startOfDay(for: taskDate)
-            return taskDay == today
+            return taskDay == sourceDay
         }
 
-        print("實際將移動的當天未完成任務: \(todayUncompletedTasks.count) 個（從總計 \(uncompletedTasks.count) 個中篩選）")
+        print("實際將移動的任務: \(tasksToMove.count) 個（從總計 \(uncompletedTasks.count) 個中篩選）")
 
-        for task in todayUncompletedTasks {
+        for task in tasksToMove {
             // 決定新的任務時間
             let newTaskDate: Date?
 
@@ -397,23 +420,23 @@ struct SettlementView03: View {
                 let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
 
                 if isTimeZero {
-                    // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
-                    newTaskDate = calendar.startOfDay(for: tomorrow)
-                    print("任務 '\(task.title)' 原本是日期無時間，移至明天的 00:00:00")
+                    // 原本是 00:00:00 的事件（日期無時間），移至目標日期的 00:00:00
+                    newTaskDate = calendar.startOfDay(for: targetDay)
+                    print("任務 '\(task.title)' 原本是日期無時間，移至目標日期的 00:00:00")
                 } else {
-                    // 原本有具體時間的事件，保留時間但改日期為明天
-                    var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
-                    tomorrowComponents.hour = timeComponents.hour
-                    tomorrowComponents.minute = timeComponents.minute
-                    tomorrowComponents.second = timeComponents.second
+                    // 原本有具體時間的事件，保留時間但改為目標日期
+                    var targetComponents = calendar.dateComponents([.year, .month, .day], from: targetDay)
+                    targetComponents.hour = timeComponents.hour
+                    targetComponents.minute = timeComponents.minute
+                    targetComponents.second = timeComponents.second
 
-                    newTaskDate = calendar.date(from: tomorrowComponents)
-                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至明天")
+                    newTaskDate = calendar.date(from: targetComponents)
+                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至目標日期")
                 }
             } else {
                 // 原本就沒有時間（備忘錄），保持沒有時間
                 newTaskDate = nil
-                print("任務 '\(task.title)' 原本是備忘錄，移至明日後保持為備忘錄")
+                print("任務 '\(task.title)' 原本是備忘錄，移動後保持為備忘錄")
             }
 
             // 創建更新後的任務
@@ -442,7 +465,7 @@ struct SettlementView03: View {
             }
         }
 
-        print("完成未完成任務移至明日的處理")
+        print("完成任務移動處理")
     }
 }
 
