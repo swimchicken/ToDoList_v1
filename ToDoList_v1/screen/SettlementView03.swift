@@ -133,6 +133,8 @@ struct SettlementView03: View {
             )
             .frame(height: 216)
             .frame(maxWidth: .infinity, alignment: .center)
+            .opacity(isAlarmDisabled ? 0.3 : 1.0)
+            .disabled(isAlarmDisabled)
             .padding(.vertical, 20)
 
             alarmToggleSection
@@ -291,57 +293,68 @@ struct SettlementView03: View {
                 let minuteToSave = selectedMinute
                 let ampmToSave = selectedAmPm == 0 ? "AM" : "PM"
                 let alarmEnabled = !isAlarmDisabled
-                
+
                 // 格式化時間字符串，確保分鐘有兩位數字
                 let formattedMinute = String(format: "%02d", minuteToSave)
                 let alarmTimeFormatted = "\(hourToSave):\(formattedMinute) \(ampmToSave)"
-                
-                print("保存鬧鐘設置: \(alarmTimeFormatted), 啟用: \(alarmEnabled)")
-                
-                // 保存到共享設置
-                SleepSettings.shared.isSleepMode = true
-                SleepSettings.shared.alarmTime = alarmTimeFormatted
-                
-                // 保存到 UserDefaults，以便在應用重啟後仍能保持狀態
-                UserDefaults.standard.set(true, forKey: "isSleepMode")
-                UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
-                
-                // 設定鬧鐘功能
-                if alarmEnabled {
-                    // 請求通知權限
-                    requestNotificationPermission()
-                    
-                    // 取消現有的鬧鐘
-                    cancelExistingAlarms()
-                    
-                    // 設定新的鬧鐘
-                    setAlarm(hour: hourToSave, minute: minuteToSave, ampm: ampmToSave)
-                    
-                    print("已設定鬧鐘: \(alarmTimeFormatted)")
-                } else {
-                    // 如果不啟用鬧鐘，取消所有現有鬧鐘
-                    cancelExistingAlarms()
-                    print("已取消鬧鐘")
-                }
-                
-                // 使用 AlarmStateManager 啟動睡眠模式
-                alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
 
-                // 如果用戶選擇移動任務到明天，在睡眠模式啟動時執行移動
+                print("保存設置: \(alarmTimeFormatted), 啟用鬧鐘: \(alarmEnabled)")
+
+                // 如果用戶選擇移動任務到明天，先執行移動（無論是否啟用鬧鐘）
                 if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
                     moveUncompletedTasksToTomorrow()
                 }
 
-                // 保存到共享設置（為了兼容性保留）
-                SleepSettings.shared.isSleepMode = true
-                SleepSettings.shared.alarmTime = alarmTimeFormatted
+                if alarmEnabled {
+                    // 啟用鬧鐘：設定鬧鐘並進入睡眠模式
 
-                print("已啟動睡眠模式: \(alarmTimeFormatted)")
+                    // 請求通知權限
+                    requestNotificationPermission()
+
+                    // 取消現有的鬧鐘
+                    cancelExistingAlarms()
+
+                    // 設定新的鬧鐘
+                    setAlarm(hour: hourToSave, minute: minuteToSave, ampm: ampmToSave)
+
+                    // 保存到 UserDefaults，啟動睡眠模式
+                    UserDefaults.standard.set(true, forKey: "isSleepMode")
+                    UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
+
+                    // 使用 AlarmStateManager 啟動睡眠模式
+                    alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
+
+                    // 保存到共享設置
+                    SleepSettings.shared.isSleepMode = true
+                    SleepSettings.shared.alarmTime = alarmTimeFormatted
+
+                    print("已設定鬧鐘並啟動睡眠模式: \(alarmTimeFormatted)")
+                } else {
+                    // 不啟用鬧鐘：只完成結算，不進入睡眠模式
+
+                    // 取消所有現有鬧鐘
+                    cancelExistingAlarms()
+
+                    // 確保睡眠模式為關閉狀態
+                    UserDefaults.standard.set(false, forKey: "isSleepMode")
+                    UserDefaults.standard.removeObject(forKey: "alarmTimeString")
+
+                    // 確保 AlarmStateManager 不在睡眠模式
+                    if alarmStateManager.isSleepModeActive {
+                        alarmStateManager.endSleepMode()
+                    }
+
+                    // 重置共享設置
+                    SleepSettings.shared.isSleepMode = false
+                    SleepSettings.shared.alarmTime = ""
+
+                    print("已完成結算但不啟動睡眠模式（用戶選擇不使用鬧鐘）")
+                }
 
                 // 完成設置並回到 Home 頁面
                 navigateToHome = true
             }) {
-                Text("Finish")
+                Text(isAlarmDisabled ? "完成結算" : "進入睡眠模式")
                     .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                     .multilineTextAlignment(.center)
                     .foregroundColor(.black)
