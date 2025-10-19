@@ -46,6 +46,8 @@ struct Add: View {
     @State private var isSaving: Bool = false
     @State private var saveError: String? = nil
     @State private var showSaveAlert: Bool = false
+    
+    @State private var editingItem: TodoItem? = nil  // 保存正在編輯的項目
 
     // 新增：防重複提交機制
     @State private var lastSubmissionTime: Date = Date.distantPast
@@ -129,6 +131,8 @@ struct Add: View {
             self._priority = State(initialValue: editingItem.priority)
             self._priorityLevel = State(initialValue: editingItem.priority)
             self._isPinned = State(initialValue: editingItem.isPinned)
+            
+            self._editingItem = State(initialValue: editingItem)
             
             // 處理時間和日期
             if let taskDate = editingItem.taskDate {
@@ -761,86 +765,179 @@ struct Add: View {
             print("日期和時間都未啟用，日期設為 nil")
         }
 
-        // 判斷狀態：如果是從備忘錄添加（沒有時間資料）或有添加時間，都設為 toBeStarted
-        let taskStatus: TodoStatus = .toBeStarted // 將狀態設為 toBeStarted
+        // 判斷狀態：如果是編輯模式則保持原狀態，否則設為 toBeStarted
+        let taskStatus: TodoStatus = editingItem?.status ?? .toBeStarted
+        
+        // ✅ 根據是否為編輯模式決定使用哪個 ID 和創建時間
+        let itemId = editingItem?.id ?? UUID()
+        let createdAt = editingItem?.createdAt ?? Date()
 
-        // 創建新的 TodoItem
-        let newTask = TodoItem(
-            id: UUID(),
-            userID: "user123", // 這裡可以使用實際的使用者ID
+        // 創建或更新 TodoItem
+        let taskToSave = TodoItem(
+            id: itemId,  // ✅ 編輯時使用原 ID，新增時創建新 ID
+            userID: editingItem?.userID ?? "user123",
             title: displayText,
             priority: priority,
             isPinned: isPinned,
             taskDate: finalTaskDate,
             note: note,
             status: taskStatus,
-            createdAt: Date(),
-            updatedAt: Date(),
-            correspondingImageID: "new_task"
+            createdAt: createdAt,  // ✅ 編輯時保持原創建時間
+            updatedAt: Date(),     // 更新時間總是當前時間
+            correspondingImageID: editingItem?.correspondingImageID ?? "new_task"
         )
-
+        
         // 使用 DataSyncManager 保存（先本地，後雲端）
-        print("嘗試保存待辦事項 - TaskID: \(taskId)")
-        DataSyncManager.shared.addTodoItem(newTask) { result in
-            // 回到主線程處理結果
-            DispatchQueue.main.async {
-                // 確保還是同一個任務才重置狀態
-                guard self.currentTaskId == taskId else {
-                    print("任務ID已變更，不重置狀態")
-                    return
+        print("嘗試\(editingItem == nil ? "新增" : "更新")待辦事項 - ItemID: \(itemId)")
+        
+        if let _ = editingItem {
+            DataSyncManager.shared.updateTodoItem(taskToSave) { result in
+                // 回到主線程處理結果
+                DispatchQueue.main.async {
+                    // 確保還是同一個任務才重置狀態
+                    guard self.currentTaskId == taskId else {
+                        print("任務ID已變更，不重置狀態")
+                        return
+                    }
+                    
+                    // 重置保存狀態
+                    self.isSaving = false
+                    self.currentTaskId = nil
+                    
+                    switch result {
+                    case .success(let savedItem):
+                        print("成功\(self.editingItem == nil ? "保存" : "更新")待辦事項到本地! ID: \(savedItem.id), TaskID: \(taskId)")
+                        print("正在後台同步到雲端...")
+                        
+                        // ✅ 根據模式決定是添加還是更新
+                        if let editingItem = self.editingItem {
+                            // 編輯模式：更新現有項目
+                            if let index = self.toDoItems.firstIndex(where: { $0.id == editingItem.id }) {
+                                self.toDoItems[index] = savedItem
+                                print("已更新列表中的項目，索引: \(index)")
+                            }
+                        } else {
+                            // 新增模式：添加新項目
+                            self.toDoItems.append(savedItem)
+                            print("已添加新項目到列表")
+                        }
+                        
+                        // 短暫延遲確保 UI 更新
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
+                        }
+                        
+                    case .failure(let error):
+                        // 保存失敗時才顯示錯誤警告
+                        let nsError = error as NSError
+                        print("保存失敗: \(error.localizedDescription), TaskID: \(taskId)")
+                        
+                        if nsError.domain == CKErrorDomain {
+                            switch nsError.code {
+                            case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
+                                self.saveError = "網絡連接問題，但項目已保存到本地"
+                            case CKError.notAuthenticated.rawValue:
+                                self.saveError = "未登入 iCloud，項目已保存到本地"
+                            case CKError.quotaExceeded.rawValue:
+                                self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
+                            case CKError.serverRejectedRequest.rawValue:
+                                self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
+                            default:
+                                self.saveError = "iCloud 錯誤，項目已保存到本地"
+                            }
+                        } else {
+                            self.saveError = "保存錯誤: \(error.localizedDescription)"
+                        }
+                        
+                        // 顯示錯誤警告
+                        self.showSaveAlert = true
+                        
+                        // 嘗試只保存到本地
+                        print("發生錯誤，嘗試只保存到本地")
+                        LocalDataManager.shared.updateTodoItem(taskToSave)  // ✅ 使用 taskToSave 和 updateTodoItem
+                        if let editingItem = self.editingItem {
+                            if let index = self.toDoItems.firstIndex(where: { $0.id == editingItem.id }) {
+                                self.toDoItems[index] = taskToSave  // ✅ 更新而不是添加
+                            }
+                        }
+                        
+                        // 短暫延遲關閉視圖
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
+                        }
+                    }
                 }
-
-                // 重置保存狀態
-                self.isSaving = false
-                self.currentTaskId = nil
-
-                switch result {
-                case .success(let savedItem):
-                    print("成功保存待辦事項到本地! ID: \(savedItem.id), TaskID: \(taskId)")
-                    print("正在後台同步到雲端...")
-                    self.toDoItems.append(savedItem)
-
-                    // 短暫延遲確保 UI 更新
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        if let onClose = self.onClose {
-                            onClose()
-                        }
+            }
+        } else {
+            // ✅ 新增模式：添加新項目
+            DataSyncManager.shared.addTodoItem(taskToSave) { result in
+                // 回到主線程處理結果
+                DispatchQueue.main.async {
+                    // 確保還是同一個任務才重置狀態
+                    guard self.currentTaskId == taskId else {
+                        print("任務ID已變更，不重置狀態")
+                        return
                     }
-
-                case .failure(let error):
-                    // 保存失敗時才顯示錯誤警告
-                    let nsError = error as NSError
-                    print("保存失敗: \(error.localizedDescription), TaskID: \(taskId)")
-
-                    if nsError.domain == CKErrorDomain {
-                        switch nsError.code {
-                        case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                            self.saveError = "網絡連接問題，但項目已保存到本地"
-                        case CKError.notAuthenticated.rawValue:
-                            self.saveError = "未登入 iCloud，項目已保存到本地"
-                        case CKError.quotaExceeded.rawValue:
-                            self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
-                        case CKError.serverRejectedRequest.rawValue:
-                            self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
-                        default:
-                            self.saveError = "iCloud 錯誤，項目已保存到本地"
+                    
+                    // 重置保存狀態
+                    self.isSaving = false
+                    self.currentTaskId = nil
+                    
+                    switch result {
+                    case .success(let savedItem):
+                        print("成功保存待辦事項到本地! ID: \(savedItem.id), TaskID: \(taskId)")
+                        print("正在後台同步到雲端...")
+                        
+                        // 添加新項目
+                        self.toDoItems.append(savedItem)
+                        print("已添加新項目到列表")
+                        
+                        // 短暫延遲確保 UI 更新
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
                         }
-                    } else {
-                        self.saveError = "保存錯誤: \(error.localizedDescription)"
-                    }
-
-                    // 顯示錯誤警告
-                    self.showSaveAlert = true
-
-                    // 嘗試只保存到本地
-                    print("發生錯誤，嘗試只保存到本地")
-                    LocalDataManager.shared.addTodoItem(newTask)
-                    self.toDoItems.append(newTask)
-
-                    // 短暫延遲關閉視圖
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        if let onClose = self.onClose {
-                            onClose()
+                        
+                    case .failure(let error):
+                        // 保存失敗時才顯示錯誤警告
+                        let nsError = error as NSError
+                        print("保存失敗: \(error.localizedDescription), TaskID: \(taskId)")
+                        
+                        if nsError.domain == CKErrorDomain {
+                            switch nsError.code {
+                            case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
+                                self.saveError = "網絡連接問題，但項目已保存到本地"
+                            case CKError.notAuthenticated.rawValue:
+                                self.saveError = "未登入 iCloud，項目已保存到本地"
+                            case CKError.quotaExceeded.rawValue:
+                                self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
+                            case CKError.serverRejectedRequest.rawValue:
+                                self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
+                            default:
+                                self.saveError = "iCloud 錯誤，項目已保存到本地"
+                            }
+                        } else {
+                            self.saveError = "保存錯誤: \(error.localizedDescription)"
+                        }
+                        
+                        // 顯示錯誤警告
+                        self.showSaveAlert = true
+                        
+                        // 嘗試只保存到本地
+                        print("發生錯誤，嘗試只保存到本地")
+                        LocalDataManager.shared.addTodoItem(taskToSave)
+                        self.toDoItems.append(taskToSave)
+                        
+                        // 短暫延遲關閉視圖
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            if let onClose = self.onClose {
+                                onClose()
+                            }
                         }
                     }
                 }

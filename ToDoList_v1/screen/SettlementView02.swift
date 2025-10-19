@@ -183,10 +183,12 @@ struct SettlementView02: View {
                 }
                 // MARK: - 圖層 2: 懸浮的 Add Task & AI 按鈕
                 floatingInputButtons(screenProxy: geometry)
-                
+                    .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
+
                 // MARK: - 圖層 3: 底部固定 UI
                 if keyboardHeight == 0 {
                     bottomNavigationView
+                        .blur(radius: showTaskSelectionOverlay || taskToEdit != nil ? 13.5 : 0)
                 }
 
                 // MARK: - 圖層 4: 彈出式 Overlay
