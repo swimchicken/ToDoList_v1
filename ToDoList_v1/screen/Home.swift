@@ -881,7 +881,10 @@ struct Home: View {
                     }
                     .onDisappear {
                         print("🔥 SettlementView onDisappear 被觸發")
-                        navigateToSettlementView = false
+                        // 當 SettlementView 消失時，重置導航狀態
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            navigateToSettlementView = false
+                        }
                     }
                 , isActive: $navigateToSettlementView) {
                 EmptyView()

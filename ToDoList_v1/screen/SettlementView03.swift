@@ -93,7 +93,7 @@ struct SettlementView03: View {
         let content = UNMutableNotificationContent()
         content.title = "鬧鐘"
         content.body = "該起床了！"
-        content.sound = UNNotificationSound.default
+        content.sound = nil // 使用媒體播放器處理聲音
         
         var dateComponents = DateComponents()
         let hour24 = ampm == "AM" ? (hour == 12 ? 0 : hour) : (hour == 12 ? 12 : hour + 12)

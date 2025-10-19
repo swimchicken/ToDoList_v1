@@ -7,8 +7,9 @@ class AlarmStateManager: ObservableObject {
     @Published var sleepProgress: Double = 0.0
     @Published var isSleepModeActive: Bool = false
     @Published var alarmTimeString: String = "9:00 AM"
-    
+
     private var progressTimer: Timer?
+    private var hasTriggeredAlarmToday: Bool = false // 防止同一天重複觸發通知
     private var taipeiCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
@@ -37,11 +38,19 @@ class AlarmStateManager: ObservableObject {
     }
     
     func triggerAlarm() {
+        // 防止重複觸發
+        guard !hasTriggeredAlarmToday else {
+            print("⏰ 今天已經觸發過鬧鐘，跳過重複觸發")
+            return
+        }
+
+        hasTriggeredAlarmToday = true
+
         DispatchQueue.main.async {
             self.isAlarmTriggered = true
             self.shouldNavigateToSleep01 = true
         }
-        
+
         // 先檢查並請求通知權限，然後發送通知
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             print("=== 通知權限狀態 ===")
@@ -55,59 +64,21 @@ class AlarmStateManager: ObservableObject {
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                     if granted {
                         print("✅ 通知權限已獲得")
-                        self.sendTestNotification()
                     } else {
                         print("❌ 通知權限被拒絕: \(error?.localizedDescription ?? "未知原因")")
                     }
                 }
             } else if settings.authorizationStatus == .authorized {
-                print("✅ 已有通知權限，直接發送通知")
-                self.sendTestNotification()
+                print("✅ 已有通知權限")
             } else {
                 print("❌ 通知權限被拒絕或受限，狀態: \(settings.authorizationStatus)")
             }
         }
     }
     
-    private func sendTestNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "🔔 測試鬧鐘"
-        content.body = "這是開發者模式的測試通知"
-        
-        // 嘗試使用自訂鬧鐘聲音，如果沒有則關閉聲音
-        if Bundle.main.path(forResource: "alarm_sound", ofType: "caf") != nil {
-            content.sound = UNNotificationSound(named: UNNotificationSoundName("alarm_sound.caf"))
-        } else {
-            content.sound = nil // 關閉預設通知聲音
-        }
-        
-        // 增加震動
-        content.categoryIdentifier = "ALARM_CATEGORY"
-        
-        print("📱 準備發送通知，聲音設定: \(content.sound?.description ?? "無")")
-        
-        // 立即觸發的通知
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
-        let request = UNNotificationRequest(identifier: "DeveloperModeAlarm", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ 模擬鬧鐘通知失敗: \(error)")
-            } else {
-                print("✅ 模擬鬧鐘通知已發送")
-                
-                // 額外檢查：列出所有待處理的通知
-                UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-                    print("📋 當前待處理通知數量: \(requests.count)")
-                    for request in requests {
-                        print("   - \(request.identifier): \(request.content.title)")
-                    }
-                }
-            }
-        }
-    }
     
     func resetAlarmState() {
+        hasTriggeredAlarmToday = false
         DispatchQueue.main.async {
             self.isAlarmTriggered = false
             self.shouldNavigateToSleep01 = false
@@ -220,6 +191,7 @@ class AlarmStateManager: ObservableObject {
     
     // 結束睡眠模式
     func endSleepMode() {
+        hasTriggeredAlarmToday = false
         DispatchQueue.main.async {
             self.isSleepModeActive = false
             self.sleepProgress = 0.0
@@ -296,27 +268,35 @@ class AlarmStateManager: ObservableObject {
             return
         }
 
-        // 計算離當前時間最近的鬧鐘時間
-        let cycleEnd: Date
-        if currentTime < todayAlarmTime {
-            // 如果當前時間還沒到今天的鬧鐘時間，使用今天的鬧鐘時間
-            cycleEnd = todayAlarmTime
-        } else {
-            // 如果已經過了今天的鬧鐘時間，使用明天的鬧鐘時間
+        // 決定使用今天還是明天的鬧鐘時間
+        let targetAlarmTime: Date
+        if todayAlarmTime <= sleepStartTime {
+            // 如果今天的鬧鐘時間在睡眠開始時間之前或相等，使用明天的鬧鐘時間
             guard let tomorrowAlarmTime = taipeiCalendar.date(byAdding: .day, value: 1, to: todayAlarmTime) else {
                 DispatchQueue.main.async {
                     self.sleepProgress = 0.0
                 }
                 return
             }
-            cycleEnd = tomorrowAlarmTime
+            targetAlarmTime = tomorrowAlarmTime
+        } else {
+            // 使用今天的鬧鐘時間
+            targetAlarmTime = todayAlarmTime
         }
 
-        let totalCycleDuration = cycleEnd.timeIntervalSince(sleepStartTime)
-        let elapsedInCycle = currentTime.timeIntervalSince(sleepStartTime)
+        // 計算鬧鐘時間和進度
+        if currentTime >= targetAlarmTime {
+            // 如果已經到了或過了鬧鐘時間，進度設為100%
+            newProgress = 1.0
+            print("⏰ 鬧鐘時間已到，設定進度為100%")
+        } else {
+            // 如果還沒到鬧鐘時間，計算正常進度
+            let totalCycleDuration = targetAlarmTime.timeIntervalSince(sleepStartTime)
+            let elapsedInCycle = currentTime.timeIntervalSince(sleepStartTime)
 
-        if totalCycleDuration > 0 {
-            newProgress = elapsedInCycle / totalCycleDuration
+            if totalCycleDuration > 0 {
+                newProgress = elapsedInCycle / totalCycleDuration
+            }
         }
 
         DispatchQueue.main.async {
@@ -330,10 +310,17 @@ class AlarmStateManager: ObservableObject {
             print("=== 統一進度條邏輯 - AlarmStateManager ===")
             print("當前時間: \(formatter.string(from: currentTime))")
             print("睡眠開始: \(formatter.string(from: sleepStartTime))")
-            print("目標鬧鐘: \(formatter.string(from: cycleEnd))")
-            print("總時長: \(String(format: "%.1f", totalCycleDuration/3600))小時")
-            print("已過時間: \(String(format: "%.1f", elapsedInCycle/3600))小時")
-            print("進度: \(String(format: "%.1f", self.sleepProgress * 100))%")
+            print("目標鬧鐘: \(formatter.string(from: targetAlarmTime))")
+
+            if currentTime >= targetAlarmTime {
+                print("鬧鐘已響起，進度: 100%")
+            } else {
+                let totalDuration = targetAlarmTime.timeIntervalSince(sleepStartTime)
+                let elapsed = currentTime.timeIntervalSince(sleepStartTime)
+                print("總時長: \(String(format: "%.1f", totalDuration/3600))小時")
+                print("已過時間: \(String(format: "%.1f", elapsed/3600))小時")
+                print("進度: \(String(format: "%.1f", self.sleepProgress * 100))%")
+            }
             print("===============================")
         }
     }
