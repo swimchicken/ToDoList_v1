@@ -44,6 +44,10 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Observab
     private func handleAlarmNotification() {
         DispatchQueue.main.async {
             print("🚨 處理鬧鐘通知，發送 AlarmTriggered 事件")
+
+            // 開始播放鬧鐘聲音
+            AlarmAudioManager.shared.playAlarmSound()
+
             // 發送通知給 UI 層進行導航
             NotificationCenter.default.post(name: Notification.Name("AlarmTriggered"), object: nil)
             print("🚨 AlarmTriggered 事件已發送")

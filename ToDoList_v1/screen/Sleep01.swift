@@ -24,6 +24,8 @@ struct Sleep01View: View {
     
     // MARK: - 鬧鐘通知相關
     @State private var isAlarmNotificationScheduled: Bool = false
+    @State private var alarmMonitoringTimer: Timer? // 追蹤鬧鐘監聽的 Timer
+    @State private var hasTriggeredToday: Bool = false // 防止同一天重複觸發鬧鐘
 
     // MARK: - 底部拖動相關狀態
     @State private var dragOffset: CGFloat = 0
@@ -438,7 +440,9 @@ struct Sleep01View: View {
             .onEnded { value in
                 let dragDistance = -value.translation.height
                 if dragDistance > dragThreshold {
-                    // ✅ 當拖曳成功
+                    // ✅ 當拖曳成功 - 停止鬧鐘並顯示事件列表
+                    AlarmAudioManager.shared.stopAlarmSound()
+
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         eventListHeight = UIScreen.main.bounds.height
                         isEventListPresented = true // 👈 << 更新狀態，鎖定畫面
@@ -521,17 +525,14 @@ struct Sleep01View: View {
 
         print("⏰ 正常鬧鐘已設定為: \(targetDate)")
 
-        // 使用 AlarmStateManager 的 scheduleAlarm 方法
-        alarmStateManager.scheduleAlarm(at: targetDate, identifier: "sleep-mode-alarm")
-
-        // 開始監聽鬧鐘觸發
+        // 開始監聽鬧鐘觸發（鬧鐘已由 SettlementView03 設置）
         startAlarmMonitoring()
     }
 
     /// 開始監聽鬧鐘觸發
     private func startAlarmMonitoring() {
         // 每分鐘檢查一次是否到了鬧鐘時間
-        Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+        alarmMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             self.checkAlarmTime()
         }
     }
@@ -544,10 +545,14 @@ struct Sleep01View: View {
         let currentComponents = taipeiCalendar.dateComponents([.hour, .minute], from: now)
         let alarmComponents = taipeiCalendar.dateComponents([.hour, .minute], from: alarmTime)
 
-        // 檢查小時和分鐘是否匹配
+        // 檢查小時和分鐘是否匹配，且今天還沒有觸發過
         if currentComponents.hour == alarmComponents.hour &&
-           currentComponents.minute == alarmComponents.minute {
+           currentComponents.minute == alarmComponents.minute &&
+           !hasTriggeredToday {
             print("⏰ 鬧鐘時間到了！觸發鬧鐘")
+
+            // 標記今天已經觸發過
+            hasTriggeredToday = true
 
             // 觸發鬧鐘
             DispatchQueue.main.async {
@@ -566,25 +571,62 @@ struct Sleep01View: View {
         return formatter.string(from: date)
     }
     
+    /// 計算鬧鐘當天日期（與 AlarmStateManager 邏輯一致）
+    private func calculateAlarmDay(currentTime: Date) -> Date {
+        guard let parsedAlarmTime = alarmStringParser.date(from: alarmTimeString) else {
+            return currentTime // 如果解析失敗，返回當前時間
+        }
+
+        let alarmHourMinuteComponents = taipeiCalendar.dateComponents([.hour, .minute], from: parsedAlarmTime)
+        guard let alarmHour = alarmHourMinuteComponents.hour,
+              let alarmMinute = alarmHourMinuteComponents.minute else {
+            return currentTime
+        }
+
+        // 計算今天的鬧鐘時間
+        let todayAlarmDateComponents = taipeiCalendar.dateComponents([.year, .month, .day], from: currentTime)
+        var targetAlarmDateComponents = todayAlarmDateComponents
+        targetAlarmDateComponents.hour = alarmHour
+        targetAlarmDateComponents.minute = alarmMinute
+        targetAlarmDateComponents.second = 0
+
+        guard let todayAlarmTime = taipeiCalendar.date(from: targetAlarmDateComponents) else {
+            return currentTime
+        }
+
+        // 計算鬧鐘當天
+        if currentTime < todayAlarmTime {
+            // 如果當前時間還沒到今天的鬧鐘時間，鬧鐘當天是今天
+            return taipeiCalendar.startOfDay(for: currentTime)
+        } else {
+            // 如果已經過了今天的鬧鐘時間，鬧鐘當天是明天
+            guard let tomorrow = taipeiCalendar.date(byAdding: .day, value: 1, to: currentTime) else {
+                return currentTime
+            }
+            return taipeiCalendar.startOfDay(for: tomorrow)
+        }
+    }
+
     /// 載入今天的待辦事項
     private func loadTodayTodoItems() {
         let allItems = LocalDataManager.shared.getAllTodoItems()
-        let today = Date()
-        let calendar = Calendar.current
-        
-        // 篩選今天的任務，排除已完成的
+        let currentTime = Date()
+
+        // 計算鬧鐘當天（使用與 AlarmStateManager 相同的邏輯）
+        let alarmDay = calculateAlarmDay(currentTime: currentTime)
+
+        // 篩選鬧鐘當天的任務，排除已完成的和待辦事項
         todayTodoItems = allItems.filter { item in
-            // 檢查是否為今天的任務
-            let isToday: Bool
-            if let taskDate = item.taskDate {
-                isToday = calendar.isDate(taskDate, inSameDayAs: today)
-            } else {
-                // 如果沒有設定日期，檢查創建日期是否為今天
-                isToday = calendar.isDate(item.createdAt, inSameDayAs: today)
+            // 只處理有明確日期的任務（排除待辦事項）
+            guard let taskDate = item.taskDate else {
+                return false // 排除沒有日期的待辦事項
             }
-            
-            // 只顯示今天的且未完成的任務
-            return isToday && item.status != .completed
+
+            // 檢查是否為鬧鐘當天的任務
+            let isAlarmDay = taipeiCalendar.isDate(taskDate, inSameDayAs: alarmDay)
+
+            // 只顯示鬧鐘當天的且未完成的任務
+            return isAlarmDay && item.status != .completed
         }
         .sorted { first, second in
             // 優先級高的在前
@@ -664,12 +706,15 @@ struct Sleep01View: View {
     }
     
     private func performSwipeUpAnimation() {
+        // 停止鬧鐘聲音
+        AlarmAudioManager.shared.stopAlarmSound()
+
         withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) {
             showTopUI = false
             isSwipeUpAnimationCompleted = true
             eventListHeight = 0
         }
-        
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             // 結束睡眠模式並回到一般模式的 home
             cancelSleepMode()
@@ -727,43 +772,9 @@ struct Sleep01View: View {
         content.body = "Good morning, \(userName)! 新的一天開始了"
         content.categoryIdentifier = "ALARM_CATEGORY"
         
-        // 嘗試使用自訂鈴聲 - 優先檢查 .caf 格式
-        if let cafPath = Bundle.main.path(forResource: "alarm_sound", ofType: "caf") {
-            print("✅ 找到 alarm_sound.caf 路徑: \(cafPath)")
-            
-            // 檢查檔案是否真的存在且可讀取
-            let fileManager = FileManager.default
-            if fileManager.fileExists(atPath: cafPath) {
-                print("✅ 檔案確實存在")
-                
-                // 檢查檔案大小
-                do {
-                    let attributes = try fileManager.attributesOfItem(atPath: cafPath)
-                    let fileSize = attributes[.size] as? NSNumber
-                    print("📏 檔案大小: \(fileSize?.intValue ?? 0) bytes")
-                } catch {
-                    print("⚠️ 無法讀取檔案屬性: \(error)")
-                }
-                
-                // 嘗試使用自訂聲音
-                let soundName = UNNotificationSoundName("alarm_sound.caf")
-                content.sound = UNNotificationSound(named: soundName)
-                print("🔊 設定自訂聲音: \(soundName.rawValue)")
-            } else {
-                print("❌ 檔案路徑存在但檔案不存在，關閉通知聲音")
-                content.sound = nil
-            }
-        } else if Bundle.main.path(forResource: "test_alarm", ofType: "caf") != nil {
-            print("🧪 使用測試鈴聲 test_alarm.caf")
-            content.sound = UNNotificationSound(named: UNNotificationSoundName("test_alarm.caf"))
-        } else if Bundle.main.path(forResource: "alarm_sound", ofType: "mp3") != nil {
-            print("⚠️ 找到 alarm_sound.mp3，但通知只支援 .caf 格式，關閉通知聲音")
-            print("💡 請將 MP3 轉換為 .caf 格式以使用自訂鈴聲")
-            content.sound = nil
-        } else {
-            print("⚠️ 未找到自訂鈴聲檔案，關閉通知聲音")
-            content.sound = nil
-        }
+        // 關閉通知聲音，改用媒體播放器處理
+        content.sound = nil
+        print("🔇 通知聲音已關閉，將使用媒體播放器處理鬧鐘聲音")
         
         print("🔔 準備發送通知，聲音設定: \(content.sound?.description ?? "預設")")
         
@@ -802,6 +813,16 @@ struct Sleep01View: View {
     
     /// 取消睡眠模式 - 完整重置所有狀態
     private func cancelSleepMode() {
+        // 停止鬧鐘聲音
+        AlarmAudioManager.shared.stopAlarmSound()
+
+        // 停止鬧鐘監聽 Timer
+        alarmMonitoringTimer?.invalidate()
+        alarmMonitoringTimer = nil
+
+        // 重置觸發標記
+        hasTriggeredToday = false
+
         // 取消鬧鐘通知
         cancelAlarmNotification()
 

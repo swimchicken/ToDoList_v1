@@ -221,7 +221,10 @@ class DataSyncManager {
         DispatchQueue.main.async {
             // 更新本地
             self.localDataManager.updateTodoItem(updatedItem)
-            
+
+            // 發送數據更新通知，讓 UI 重新載入
+            NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
+
             // 返回成功結果，不等待 CloudKit 同步完成
             completion(.success(updatedItem))
             

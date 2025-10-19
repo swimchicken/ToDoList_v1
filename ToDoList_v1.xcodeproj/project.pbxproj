@@ -18,6 +18,7 @@
 		28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117062E58B59E00DE2142 /* TaskEditView.swift */; };
 		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
 		5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */; };
+		5F9268CF2EA5171E00E54B02 /* AlarmAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */; };
 		5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */; };
 		5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
@@ -138,6 +139,7 @@
 		28E117062E58B59E00DE2142 /* TaskEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditView.swift; sourceTree = "<group>"; };
 		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
 		5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
+		5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmAudioManager.swift; sourceTree = "<group>"; };
 		5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = alarm_sound.mp3; sourceTree = "<group>"; };
 		5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = alarm_sound.caf; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
@@ -336,6 +338,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */,
 				5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */,
 				28E117002E58B43800DE2142 /* GeminiService.swift */,
 				282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */,
@@ -612,6 +615,7 @@
 				28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */,
 				7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */,
 				792C742F2DE22DE300ACF98D /* ProgressBarSegment.swift in Sources */,
+				5F9268CF2EA5171E00E54B02 /* AlarmAudioManager.swift in Sources */,
 				790FF7942DCA499200B9C70B /* CloudKitService.swift in Sources */,
 				7911CDE62D633BAD0034BEE6 /* ContentView.swift in Sources */,
 				791E53AD2DB3F4470096F3B2 /* TodoStatus.swift in Sources */,
