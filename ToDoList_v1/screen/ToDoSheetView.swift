@@ -11,6 +11,9 @@ struct ToDoSheetView: View {
     @Binding var toDoItems: [TodoItem]            // 使用 Binding 讓更新可以傳遞回父視圖
     let onDismiss: () -> Void                     // 用來從外部關閉此視圖
     var onAddButtonPressed: () -> Void = {}       // 回調函數，通知 Home 顯示 Add 視圖
+
+    // 新增：當前選擇的日期（從 Home 傳遞過來）
+    var selectedDate: Date = Date()
     
     // 創建一個內部可修改的副本
     @State private var mutableItems: [TodoItem]
@@ -18,10 +21,12 @@ struct ToDoSheetView: View {
     // 構造器，初始化可變副本
     init(toDoItems: Binding<[TodoItem]>,
          onDismiss: @escaping () -> Void,
-         onAddButtonPressed: @escaping () -> Void = {}) {
+         onAddButtonPressed: @escaping () -> Void = {},
+         selectedDate: Date = Date()) {
         self._toDoItems = toDoItems                 // 初始化繫結
         self.onDismiss = onDismiss
         self.onAddButtonPressed = onAddButtonPressed
+        self.selectedDate = selectedDate
         // 初始化內部副本
         _mutableItems = State(initialValue: toDoItems.wrappedValue)
     }
@@ -116,12 +121,13 @@ struct ToDoSheetView: View {
                                         onAddToHome: { homeItem in
                                             // 更新本地項目
                                             toDoItems = mutableItems
-                                            
+
                                             // 關閉待辦事項佇列視窗
                                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                                 onDismiss()
                                             }
-                                        }
+                                        },
+                                        selectedDate: selectedDate
                                     )
                                     Divider()
                                         .background(Color.white.opacity(0.1))
@@ -241,7 +247,8 @@ struct ToDoSheetView_Previews: PreviewProvider {
             Color.black.edgesIgnoringSafeArea(.all)
             ToDoSheetView(
                 toDoItems: .constant(previewItems),
-                onDismiss: {}
+                onDismiss: {},
+                selectedDate: Date()
             )
         }
         .preferredColorScheme(.dark)
