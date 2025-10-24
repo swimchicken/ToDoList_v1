@@ -85,6 +85,7 @@
 		8DF757FB2E3FEC5600F1CDA9 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */; };
 		EB050D002EA216CC00A38567 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB050CFF2EA216CC00A38567 /* Release.xcconfig */; };
 		EB050D012EA216CC00A38567 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB050CFF2EA216CC00A38567 /* Release.xcconfig */; };
+		EB050D0E2EABA08E00A38567 /* ProfileSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */; };
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
 		EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB967F8C2E95506C00F4D066 /* SettlementView02.swift */; };
@@ -209,6 +210,7 @@
 		8DF757F72E3FEB4B00F1CDA9 /* ToDoList_v1Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ToDoList_v1Release.entitlements; sourceTree = "<group>"; };
 		8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataManager.swift; sourceTree = "<group>"; };
 		EB050CFF2EA216CC00A38567 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSidebarView.swift; sourceTree = "<group>"; };
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
 		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
@@ -370,6 +372,7 @@
 		7911CE142D6AF4180034BEE6 /* screen */ = {
 			isa = PBXGroup;
 			children = (
+				EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */,
 				2862192D2E3BD073003C05D8 /* TestPage.swift */,
 				EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */,
 				79E0AD832D758EEF00DDDC8C /* Login.swift */,
@@ -606,6 +609,7 @@
 				790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */,
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
 				793451EE2DEAD9BD00898474 /* Sleep01.swift in Sources */,
+				EB050D0E2EABA08E00A38567 /* ProfileSidebarView.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				7914F98A2DEF21B900BD4801 /* PhysicsSceneWrapper.swift in Sources */,
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
