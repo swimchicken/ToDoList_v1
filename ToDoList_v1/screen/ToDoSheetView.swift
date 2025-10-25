@@ -11,6 +11,9 @@ struct ToDoSheetView: View {
     @Binding var toDoItems: [TodoItem]            // 使用 Binding 讓更新可以傳遞回父視圖
     let onDismiss: () -> Void                     // 用來從外部關閉此視圖
     var onAddButtonPressed: () -> Void = {}       // 回調函數，通知 Home 顯示 Add 視圖
+
+    // 新增：當前選擇的日期（從 Home 傳遞過來）
+    var selectedDate: Date = Date()
     
     // 創建一個內部可修改的副本
     @State private var mutableItems: [TodoItem]
@@ -18,10 +21,12 @@ struct ToDoSheetView: View {
     // 構造器，初始化可變副本
     init(toDoItems: Binding<[TodoItem]>,
          onDismiss: @escaping () -> Void,
-         onAddButtonPressed: @escaping () -> Void = {}) {
+         onAddButtonPressed: @escaping () -> Void = {},
+         selectedDate: Date = Date()) {
         self._toDoItems = toDoItems                 // 初始化繫結
         self.onDismiss = onDismiss
         self.onAddButtonPressed = onAddButtonPressed
+        self.selectedDate = selectedDate
         // 初始化內部副本
         _mutableItems = State(initialValue: toDoItems.wrappedValue)
     }
@@ -34,18 +39,18 @@ struct ToDoSheetView: View {
     private var filteredItems: [TodoItem] {
         switch selectedCategory {
         case .all:
-            // 全部項目 - 不過濾
-            return mutableItems
+            // 全部項目 - 包含備忘錄 + 未完成項目（排除已完成項目）
+            return mutableItems.filter { $0.status != .completed }
         case .memo:
-            // 備忘錄 - 篩選沒有時間的項目 (taskDate == nil)
-            return mutableItems.filter { $0.taskDate == nil }
+            // 備忘錄 - 篩選沒有時間且未完成的項目 (taskDate == nil && status != .completed)
+            return mutableItems.filter { $0.taskDate == nil && $0.status != .completed }
         case .incomplete:
             // 未完成 - 過去日期且狀態為未完成（不包含今天和未來）
             let today = Calendar.current.startOfDay(for: Date())
-            return mutableItems.filter { 
+            return mutableItems.filter {
                 guard let taskDate = $0.taskDate else { return false }
                 let taskDay = Calendar.current.startOfDay(for: taskDate)
-                return taskDay < today && 
+                return taskDay < today &&
                        ($0.status == .undone || $0.status == .toBeStarted)
             }
         }
@@ -116,12 +121,13 @@ struct ToDoSheetView: View {
                                         onAddToHome: { homeItem in
                                             // 更新本地項目
                                             toDoItems = mutableItems
-                                            
+
                                             // 關閉待辦事項佇列視窗
                                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                                 onDismiss()
                                             }
-                                        }
+                                        },
+                                        selectedDate: selectedDate
                                     )
                                     Divider()
                                         .background(Color.white.opacity(0.1))
@@ -241,7 +247,8 @@ struct ToDoSheetView_Previews: PreviewProvider {
             Color.black.edgesIgnoringSafeArea(.all)
             ToDoSheetView(
                 toDoItems: .constant(previewItems),
-                onDismiss: {}
+                onDismiss: {},
+                selectedDate: Date()
             )
         }
         .preferredColorScheme(.dark)

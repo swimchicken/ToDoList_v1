@@ -6,9 +6,12 @@ struct TodoSheetItemRow: View {
     @Binding var item: TodoItem
     private let doneColor = Color(red: 0, green: 0.72, blue: 0.41)
     private let iconSize: CGFloat = 16
-    
+
     // 新增：處理將項目添加到首頁的回調
     var onAddToHome: ((TodoItem) -> Void)? = nil
+
+    // 新增：當前選擇的日期（從 Home 傳遞過來）
+    var selectedDate: Date = Date()
     
     var body: some View {
         ZStack {
@@ -77,13 +80,13 @@ struct TodoSheetItemRow: View {
                     .padding(.trailing, 8)
                 }
                 
-                // 右側箭頭按鈕 - 添加到首頁並賦予當前時間
+                // 右側箭頭按鈕 - 添加到首頁並賦予選擇的日期
                 Button {
                     // 創建一個新的副本
                     var homeItem = item
-                    
-                    // 賦予當前時間
-                    homeItem.taskDate = Date()
+
+                    // 賦予選擇的日期而非當前時間
+                    homeItem.taskDate = selectedDate
                     
                     // 如果之前是備忘錄（待辦佇列），更改狀態為 toBeStarted
                     if homeItem.status == .toDoList {

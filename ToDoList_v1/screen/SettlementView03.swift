@@ -46,11 +46,13 @@ struct SettlementView03: View {
     // 接收從SettlementView02傳遞的任務信息
     let uncompletedTasks: [TodoItem]
     let moveTasksToTomorrow: Bool
+    let pendingOperations: [SettlementOperation]  // 新增：接收暫存操作
 
     // 默認初始化方法（用於preview或無任務情況）
-    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false) {
+    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false, pendingOperations: [SettlementOperation] = []) {
         self.uncompletedTasks = uncompletedTasks
         self.moveTasksToTomorrow = moveTasksToTomorrow
+        self.pendingOperations = pendingOperations
     }
 
     // 引用已完成日期數據管理器
@@ -280,14 +282,17 @@ struct SettlementView03: View {
             }.padding()
             Spacer()
             Button(action: {
+                // 首先執行暫存操作
+                executeAllPendingOperations()
+
                 // 標記今天為已完成
                 completeDayDataManager.markTodayAsCompleted()
                 print("已標記今天為已完成的一天")
-                
+
                 // 標記結算流程完成 - 這是整個結算流程的最後一步
                 delaySettlementManager.markSettlementCompleted()
                 print("已標記結算流程完成")
-                
+
                 // 保存鬧鐘設置
                 let hourToSave = selectedHour
                 let minuteToSave = selectedMinute
@@ -363,6 +368,57 @@ struct SettlementView03: View {
             .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
         }
         .padding(.bottom, 20)
+    }
+
+    // MARK: - Pending Operations Execution
+    /// 執行所有暫存操作
+    private func executeAllPendingOperations() {
+        print("SettlementView03: 開始執行 \(pendingOperations.count) 個暫存操作")
+
+        for operation in pendingOperations {
+            switch operation {
+            case .addItem(let item):
+                print("SettlementView03: 執行添加操作 - \(item.title)")
+                dataSyncManager.addTodoItem(item) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("SettlementView03: 成功執行添加操作 - \(item.title)")
+                        case .failure(let error):
+                            print("SettlementView03: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
+                        }
+                    }
+                }
+
+            case .deleteItem(let itemId):
+                print("SettlementView03: 執行刪除操作 - ID: \(itemId)")
+                dataSyncManager.deleteTodoItem(withID: itemId) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("SettlementView03: 成功執行刪除操作 - ID: \(itemId)")
+                        case .failure(let error):
+                            print("SettlementView03: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
+                        }
+                    }
+                }
+
+            case .updateItem(let item):
+                print("SettlementView03: 執行更新操作 - \(item.title)")
+                dataSyncManager.updateTodoItem(item) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("SettlementView03: 成功執行更新操作 - \(item.title)")
+                        case .failure(let error):
+                            print("SettlementView03: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        }
+
+        print("SettlementView03: 所有暫存操作已提交執行")
     }
 
     // MARK: - Task Movement Logic
