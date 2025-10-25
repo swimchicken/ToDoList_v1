@@ -490,7 +490,8 @@ struct Home: View {
                                     withAnimation(.easeInOut) {
                                         showAddTaskSheet = true
                                     }
-                                }
+                                },
+                                selectedDate: selectedDate
                             )
                             .frame(maxHeight: geometry.size.height - 180)
                             Spacer()
