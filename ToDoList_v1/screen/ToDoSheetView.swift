@@ -39,18 +39,18 @@ struct ToDoSheetView: View {
     private var filteredItems: [TodoItem] {
         switch selectedCategory {
         case .all:
-            // 全部項目 - 不過濾
-            return mutableItems
+            // 全部項目 - 包含備忘錄 + 未完成項目（排除已完成項目）
+            return mutableItems.filter { $0.status != .completed }
         case .memo:
-            // 備忘錄 - 篩選沒有時間的項目 (taskDate == nil)
-            return mutableItems.filter { $0.taskDate == nil }
+            // 備忘錄 - 篩選沒有時間且未完成的項目 (taskDate == nil && status != .completed)
+            return mutableItems.filter { $0.taskDate == nil && $0.status != .completed }
         case .incomplete:
             // 未完成 - 過去日期且狀態為未完成（不包含今天和未來）
             let today = Calendar.current.startOfDay(for: Date())
-            return mutableItems.filter { 
+            return mutableItems.filter {
                 guard let taskDate = $0.taskDate else { return false }
                 let taskDay = Calendar.current.startOfDay(for: taskDate)
-                return taskDay < today && 
+                return taskDay < today &&
                        ($0.status == .undone || $0.status == .toBeStarted)
             }
         }
