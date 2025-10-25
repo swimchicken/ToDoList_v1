@@ -525,7 +525,7 @@ struct SettlementView02: View {
 
             // 篩選要顯示在事件列表的任務：
             // 1. 當天的未完成任務（準備移動到明天的）
-            // 2. 明天的任務（但排除settlement開始時已存在的任務）
+            // 2. 明天的所有任務（包含原本就有的任務和settlement期間新增的任務）
             dailyTasks = allItems.filter { item in
                 guard let taskDate = item.taskDate else { return false }
                 let taskDay = calendar.startOfDay(for: taskDate)
@@ -533,12 +533,12 @@ struct SettlementView02: View {
                 // 當天的未完成任務
                 let isTodayUncompleted = (taskDay == today) && (item.status == .toBeStarted || item.status == .undone)
 
-                // 明天的任務，但排除settlement開始時已存在的任務
-                let isNewTomorrowTask = (taskDay == tomorrow) && !existingTomorrowTaskIDs.contains(item.id)
+                // 明天的所有任務（不再排除settlement開始時已存在的任務）
+                let isTomorrowTask = (taskDay == tomorrow)
 
-                return isTodayUncompleted || isNewTomorrowTask
+                return isTodayUncompleted || isTomorrowTask
             }
-            print("SettlementView02 - 重新載入事件列表任務: \(dailyTasks.count) 個（包含當天未完成和settlement期間新增的明天任務）")
+            print("SettlementView02 - 重新載入事件列表任務: \(dailyTasks.count) 個（包含當天未完成和明天所有任務）")
         } else {
             dailyTasks = []
             print("SettlementView02 - 清空任務列表")
