@@ -39,7 +39,7 @@ struct Login: View {
                     ZStack {
                         Rectangle()
                             .foregroundColor(.clear)
-                            .frame(width: 354, height: 240)
+                            .frame(width: 354, height: 160)
                             .background(Color.white.opacity(0.1))
                             .cornerRadius(36)
                         
@@ -92,28 +92,28 @@ struct Login: View {
                             }
                             
                             // Email 登入按鈕（示意）
-                            Button(action: {
-                                navigateTo = "email"
-                            }) {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "envelope.fill")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 20, height: 16)
-                                        .foregroundColor(.white)
-                                    
-                                    Text("Continue with Email")
-                                        .font(Font.custom("Inter", size: 16)
-                                                .weight(.semibold))
-                                        .foregroundColor(Color(red: 0.94, green: 0.94, blue: 0.94))
-                                }
-                                .padding(.leading, 19)
-                                .padding(.trailing, 127)
-                                .padding(.vertical, 17)
-                                .frame(width: 329, alignment: .topLeading)
-                                .background(Color.white.opacity(0.1))
-                                .cornerRadius(28)
-                            }
+//                            Button(action: {
+//                                navigateTo = "email"
+//                            }) {
+//                                HStack(spacing: 10) {
+//                                    Image(systemName: "envelope.fill")
+//                                        .resizable()
+//                                        .scaledToFit()
+//                                        .frame(width: 20, height: 16)
+//                                        .foregroundColor(.white)
+//                                    
+//                                    Text("Continue with Email")
+//                                        .font(Font.custom("Inter", size: 16)
+//                                                .weight(.semibold))
+//                                        .foregroundColor(Color(red: 0.94, green: 0.94, blue: 0.94))
+//                                }
+//                                .padding(.leading, 19)
+//                                .padding(.trailing, 127)
+//                                .padding(.vertical, 17)
+//                                .frame(width: 329, alignment: .topLeading)
+//                                .background(Color.white.opacity(0.1))
+//                                .cornerRadius(28)
+//                            }
                         }
                     }
                 }
