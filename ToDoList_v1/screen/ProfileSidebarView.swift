@@ -96,7 +96,7 @@ struct ProfileSidebarView: View {
                             self.newName = self.appUser?.name ?? ""
                             self.isShowingEditNameAlert = true
                         }) {
-                            Image(systemName: "pencil")
+                            Image("EditName")
                                 .font(.system(size: 14))
                                 .foregroundColor(.gray)
                         }
@@ -131,41 +131,15 @@ struct ProfileSidebarView: View {
     }
     
     private var upgradeCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Upgrade to")
-                .font(.custom("Inter", size: 22))
-                .foregroundColor(.white)
-                .italic()
-            
-            Text("PRO")
-                .font(.custom("Inter", size: 36).weight(.heavy))
-                .foregroundColor(.white)
-            
-            Spacer()
-            
-            HStack {
-                Spacer()
-                Button(action: { print("Upgrade to PRO tapped") }) {
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 48, height: 48)
-                        .background(Color.white.opacity(0.2))
-                        .clipShape(Circle())
-                }
-            }
+        Button(action: {
+            print("Upgrade to PRO tapped")
+            // Future action for upgrading to PRO
+        }) {
+            Image("Upgrade2PRO")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
         }
-        .padding(20)
-        .frame(height: 200)
-        .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color(hex: "1a4d2e"), Color(hex: "0d2818")]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(16)
         .padding(.horizontal, 20)
         .padding(.bottom, 40)
     }
