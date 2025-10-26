@@ -44,6 +44,7 @@ struct ScrollCalendarView: View {
                 }
                 .scrollTargetLayout()
             }
+            .contentMargins(.horizontal, (UIScreen.main.bounds.width - 329 + 16) / 2) // 讓每個 term 置中
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: scrollableID) // 雙向綁定 currentDisplayingIndex
             .onAppear {
