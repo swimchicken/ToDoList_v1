@@ -19,6 +19,7 @@
 		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
 		5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */; };
 		5F9268CF2EA5171E00E54B02 /* AlarmAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */; };
+		5F9269342EAE631200E54B02 /* UserInfoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9269332EAE631200E54B02 /* UserInfoManager.swift */; };
 		5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */; };
 		5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
@@ -141,6 +142,7 @@
 		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
 		5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmAudioManager.swift; sourceTree = "<group>"; };
+		5F9269332EAE631200E54B02 /* UserInfoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoManager.swift; sourceTree = "<group>"; };
 		5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = alarm_sound.mp3; sourceTree = "<group>"; };
 		5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = alarm_sound.caf; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
@@ -340,6 +342,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				5F9269332EAE631200E54B02 /* UserInfoManager.swift */,
 				5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */,
 				5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */,
 				28E117002E58B43800DE2142 /* GeminiService.swift */,
@@ -650,6 +653,7 @@
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				79161FA52DFF30B60020B67F /* DeleteItemView.swift in Sources */,
+				5F9269342EAE631200E54B02 /* UserInfoManager.swift in Sources */,
 				28E117052E58B57100DE2142 /* ErrorToastView.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
 				79F7C2612D97E8C000B2E19E /* Event.swift in Sources */,

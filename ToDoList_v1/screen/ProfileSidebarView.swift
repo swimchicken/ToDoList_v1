@@ -4,8 +4,8 @@ import CloudKit
 struct ProfileSidebarView: View {
     @Binding var isPresented: Bool
     @State private var dragOffset: CGFloat = 0
-    @State private var appUser: AppUser?
-    
+    @StateObject private var userInfoManager = UserInfoManager.shared
+
     // For editing name
     @State private var isShowingEditNameAlert = false
     @State private var newName = ""
@@ -74,7 +74,10 @@ struct ProfileSidebarView: View {
             }
         }
         .transition(.move(edge: .leading))
-        .onAppear(perform: fetchCurrentUser)
+        .onAppear {
+            // 當側邊欄出現時，刷新用戶信息
+            userInfoManager.refreshUserInfo()
+        }
     }
     
     private var userInfoView: some View {
@@ -88,12 +91,12 @@ struct ProfileSidebarView: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text(appUser?.name ?? "Loading...")
+                        Text(userInfoManager.userInfo.name)
                             .font(.custom("Inter", size: 20).weight(.bold))
                             .foregroundColor(.white)
-                        
+
                         Button(action: {
-                            self.newName = self.appUser?.name ?? ""
+                            self.newName = userInfoManager.userInfo.name
                             self.isShowingEditNameAlert = true
                         }) {
                             Image("EditName")
@@ -101,8 +104,8 @@ struct ProfileSidebarView: View {
                                 .foregroundColor(.gray)
                         }
                     }
-                    
-                    Text(appUser?.email ?? "...")
+
+                    Text(userInfoManager.userInfo.email)
                         .font(.custom("Inter", size: 13))
                         .foregroundColor(.gray)
                     
@@ -144,61 +147,22 @@ struct ProfileSidebarView: View {
         .padding(.bottom, 40)
     }
     
-    private func fetchCurrentUser() {
-        let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId")
-        let googleUserID = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
-        
-        guard let userID = appleUserID ?? googleUserID else {
-            print("[ProfileSidebarView] Fetch User: User ID not found in UserDefaults.")
-            return
-        }
-        print("[ProfileSidebarView] Fetch User: Found User ID \(userID)")
-
-        // Corrected predicate to use "userID" to match the CloudKitManager
-        let predicate = NSPredicate(format: "userID == %@", userID)
-        let query = CKQuery(recordType: "ApiUser", predicate: predicate)
-        
-        let privateDatabase = CKContainer(identifier: "iCloud.com.fcu.ToDolist1").privateCloudDatabase
-        privateDatabase.perform(query, inZoneWith: nil) { records, error in
-            if let error = error {
-                print("[ProfileSidebarView] Fetch User: Error fetching user data: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let record = records?.first else {
-                print("[ProfileSidebarView] Fetch User: No record found for user ID with 'userID' field.")
-                return
-            }
-            
-            print("[ProfileSidebarView] Fetch User: Successfully fetched record: \(record)")
-            let name = record["name"] as? String ?? "No Name"
-            let email = record["email"] as? String ?? "No Email"
-            
-            DispatchQueue.main.async {
-                print("[ProfileSidebarView] Fetch User: Updating UI with Name: \(name), Email: \(email)")
-                self.appUser = AppUser(name: name, email: email)
-            }
-        }
-    }
     
     private func updateUserName() {
-        guard let userID = (UserDefaults.standard.string(forKey: "appleAuthorizedUserId") ?? UserDefaults.standard.string(forKey: "googleAuthorizedUserId")) else {
-            print("[ProfileSidebarView] Update Name: User ID not found.")
+        guard !newName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            print("[ProfileSidebarView] Update Name: Name cannot be empty.")
             return
         }
-        
-        let dataToUpdate = ["name": newName] as [String: CKRecordValue]
-        print("[ProfileSidebarView] Update Name: Attempting to save new name '\(newName)' for user ID \(userID)")
 
-        CloudKitManager.shared.saveOrUpdateUserData(recordType: "ApiUser", userID: userID, data: dataToUpdate) { success, error in
-            if success {
-                print("[ProfileSidebarView] Update Name: Successfully updated name in CloudKit.")
-                DispatchQueue.main.async {
-                    self.appUser?.name = self.newName
-                    print("[ProfileSidebarView] Update Name: UI updated with new name.")
+        print("[ProfileSidebarView] Update Name: Attempting to save new name '\(newName)'")
+
+        userInfoManager.updateUserName(newName) { success in
+            DispatchQueue.main.async {
+                if success {
+                    print("[ProfileSidebarView] Update Name: Successfully updated name.")
+                } else {
+                    print("[ProfileSidebarView] Update Name: Failed to update name.")
                 }
-            } else {
-                print("[ProfileSidebarView] Update Name: Failed to update name: \(error?.localizedDescription ?? "Unknown error")")
             }
         }
     }
