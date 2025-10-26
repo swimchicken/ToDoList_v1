@@ -19,6 +19,7 @@
 		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
 		5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */; };
 		5F9268CF2EA5171E00E54B02 /* AlarmAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */; };
+		5F9269342EAE631200E54B02 /* UserInfoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9269332EAE631200E54B02 /* UserInfoManager.swift */; };
 		5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */; };
 		5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */ = {isa = PBXBuildFile; fileRef = 5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */; };
 		7906564D2DB158EC00EB90AC /* PhysicsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7906564C2DB158EC00EB90AC /* PhysicsScene.swift */; };
@@ -85,6 +86,7 @@
 		8DF757FB2E3FEC5600F1CDA9 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */; };
 		EB050D002EA216CC00A38567 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB050CFF2EA216CC00A38567 /* Release.xcconfig */; };
 		EB050D012EA216CC00A38567 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EB050CFF2EA216CC00A38567 /* Release.xcconfig */; };
+		EB050D0E2EABA08E00A38567 /* ProfileSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */; };
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
 		EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB967F8C2E95506C00F4D066 /* SettlementView02.swift */; };
@@ -140,6 +142,7 @@
 		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
 		5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmAudioManager.swift; sourceTree = "<group>"; };
+		5F9269332EAE631200E54B02 /* UserInfoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoManager.swift; sourceTree = "<group>"; };
 		5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = alarm_sound.mp3; sourceTree = "<group>"; };
 		5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = alarm_sound.caf; sourceTree = "<group>"; };
 		7906564C2DB158EC00EB90AC /* PhysicsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicsScene.swift; sourceTree = "<group>"; };
@@ -209,6 +212,7 @@
 		8DF757F72E3FEB4B00F1CDA9 /* ToDoList_v1Release.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ToDoList_v1Release.entitlements; sourceTree = "<group>"; };
 		8DF757FA2E3FEC5600F1CDA9 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataManager.swift; sourceTree = "<group>"; };
 		EB050CFF2EA216CC00A38567 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSidebarView.swift; sourceTree = "<group>"; };
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
 		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
@@ -338,6 +342,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				5F9269332EAE631200E54B02 /* UserInfoManager.swift */,
 				5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */,
 				5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */,
 				28E117002E58B43800DE2142 /* GeminiService.swift */,
@@ -370,6 +375,7 @@
 		7911CE142D6AF4180034BEE6 /* screen */ = {
 			isa = PBXGroup;
 			children = (
+				EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */,
 				2862192D2E3BD073003C05D8 /* TestPage.swift */,
 				EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */,
 				79E0AD832D758EEF00DDDC8C /* Login.swift */,
@@ -606,6 +612,7 @@
 				790DD13A2DBA5B1800FDFC6D /* ScrollCalendarView.swift in Sources */,
 				79F7C2632D97FB0D00B2E19E /* UserInfoView.swift in Sources */,
 				793451EE2DEAD9BD00898474 /* Sleep01.swift in Sources */,
+				EB050D0E2EABA08E00A38567 /* ProfileSidebarView.swift in Sources */,
 				79F7C24D2D940B9600B2E19E /* guide4.swift in Sources */,
 				7914F98A2DEF21B900BD4801 /* PhysicsSceneWrapper.swift in Sources */,
 				EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */,
@@ -646,6 +653,7 @@
 				79F7C2652D99507100B2E19E /* SaveLast.swift in Sources */,
 				793C4AA82DA2872400C76125 /* EmailAccountManager.swift in Sources */,
 				79161FA52DFF30B60020B67F /* DeleteItemView.swift in Sources */,
+				5F9269342EAE631200E54B02 /* UserInfoManager.swift in Sources */,
 				28E117052E58B57100DE2142 /* ErrorToastView.swift in Sources */,
 				7911CE222D6B02E00034BEE6 /* UserRecord.swift in Sources */,
 				79F7C2612D97E8C000B2E19E /* Event.swift in Sources */,
