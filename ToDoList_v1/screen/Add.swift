@@ -308,30 +308,32 @@ struct Add: View {
                     // 根據模式和來源設定初始選擇的日期
                     ScrollCalendarView(currentDisplayingIndex: $currentBlockIndex)
                         .padding(.top, 9)
-                        .padding(.leading, 16)
+                        .padding(.horizontal, -16)
+                    /*
                         // 添加手勢識別器來捕獲滑匡的變化
-//                      .gesture(
-//                          DragGesture()
-//                              .onEnded { value in
-//                                  // 根據滑動方向判斷是向左還是向右滑動
-//                                  let threshold: CGFloat = 50
-//                                  if value.translation.width < -threshold {
-//                                      // 向左滑動（增加索引）
-//                                      if currentBlockIndex < totalDays {
-//                                          currentBlockIndex += 1
-//                                          print(currentBlockIndex)
-//                                          updateDateFromBlockIndex()
-//                                      }
-//                                  } else if value.translation.width > threshold {
-//                                      // 向右滑動（減少索引）
-//                                      if currentBlockIndex > 0 {
-//                                          currentBlockIndex -= 1
-//                                          print(currentBlockIndex)
-//                                          updateDateFromBlockIndex()
-//                                      }
-//                                  }
-//                              }
-//                      )
+                        .gesture(
+                          DragGesture()
+                              .onEnded { value in
+                                  // 根據滑動方向判斷是向左還是向右滑動
+                                  let threshold: CGFloat = 50
+                                  if value.translation.width < -threshold {
+                                      // 向左滑動（增加索引）
+                                      if currentBlockIndex < totalDays {
+                                          currentBlockIndex += 1
+                                          print(currentBlockIndex)
+                                          updateDateFromBlockIndex()
+                                      }
+                                  } else if value.translation.width > threshold {
+                                      // 向右滑動（減少索引）
+                                      if currentBlockIndex > 0 {
+                                          currentBlockIndex -= 1
+                                          print(currentBlockIndex)
+                                          updateDateFromBlockIndex()
+                                      }
+                                  }
+                              }
+                        )
+                    */
                     
                     Image("Vector 81")
                         .resizable()

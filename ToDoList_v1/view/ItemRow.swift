@@ -63,13 +63,23 @@ struct ItemRow: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                // 2. 標題：設定最大寬度為無限大，使其填滿可用空間，並靠左對齊
-                Text(item.title)
-                    .font(.body)
-                    .lineLimit(1)             // 最多顯示一行
-                    .truncationMode(.tail)    // 過長時結尾顯示 ...
-                    .foregroundColor(item.status == .completed ? doneColor : .white)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // 2. 標題和筆記：設定最大寬度為無限大，使其填滿可用空間，並靠左對齊
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title)
+                        .font(.body)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundColor(item.status == .completed ? doneColor : .white)
+                    
+                    if !item.note.isEmpty {
+                        Text(item.note)
+                            .font(.system(size: 10))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .foregroundColor(item.status == .completed ? doneColor : .white)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // 3. 置頂圖標或星星：嚴格控制位置和大小
                 HStack(spacing: 0) {
