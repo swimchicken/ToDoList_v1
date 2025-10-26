@@ -51,7 +51,8 @@ struct Home: View {
     
     // 沒有事件提示彈窗狀態
     @State private var showNoEventsAlert: Bool = false
-
+    @State private var showProfileSidebar: Bool = false
+    
     // === 修改點：新增 State ===
     // 將 TaskSelectionOverlay 的狀態從 HomeBottomView 提升至此處
     @State private var showTaskSelectionOverlay: Bool = false
@@ -259,7 +260,9 @@ struct Home: View {
                             temperatureText: "26°C",
                             showCalendarView: $showCalendarView,
                             onAvatarTapped: {
-                                navigateToTestPage = true
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    showProfileSidebar = true
+                                }
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: 0)
@@ -441,7 +444,7 @@ struct Home: View {
                 }
                 
             }
-            .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil || showNoEventsAlert ? 13.5 : 0)
+            .blur(radius: showAddTaskSheet || showingDeleteView || showTaskSelectionOverlay || taskToEdit != nil || showNoEventsAlert || showProfileSidebar ? 13.5 : 0)
 
             //錯誤訊息
             if showToast {
@@ -787,6 +790,11 @@ struct Home: View {
                 }
                 .animation(.easeInOut(duration: 0.3), value: showNoEventsAlert)
                 .zIndex(600)
+            }
+            // 🆕 側邊欄 - 添加在這裡
+            if showProfileSidebar {
+                ProfileSidebarView(isPresented: $showProfileSidebar)
+                    .zIndex(1000)
             }
         }
         .toolbar(.hidden, for: .navigationBar)

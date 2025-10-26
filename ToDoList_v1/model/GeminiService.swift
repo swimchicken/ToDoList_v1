@@ -139,28 +139,37 @@ class GeminiService: ObservableObject {
         let currentDateString = formatter.string(from: Date())
         
         let prompt = """
-        Analyze the following text which contains one or more tasks. Today's date is \(currentDateString).
-        Extract the title, notes, date, and time for each task.
-        The "title" should only be the core action (e.g., "開會", "買東西").
-        Information about "with whom" or "where" should be included in the "notes".
-        The date should be in "YYYY-MM-DD" format.
-        The time should be in "HH:mm" format (24-hour).
-        If any field is not mentioned, return it as null.
-        
-        Your response MUST be a valid JSON object that only contains a key "tasks" which is an array of task objects. Do not include any other text or markdown formatting.
-        
-        Example 1:
-        Text: "提醒我明天下午三點跟John在會議室開會，然後下週五要去工學院C317交報告"
-        Response:
-        {
-          "tasks": [
-            { "title": "開會", "notes": "跟John在會議室", "date": "2025-08-15", "time": "15:00" },
-            { "title": "交報告", "notes": "去工學院C317", "date": "2025-08-22", "time": null }
-          ]
-        }
-        
-        Now, analyze this text: "\(text)"
-        """
+                Analyze the following text which contains one or more tasks. Today's date is \(currentDateString).
+                Extract the title, notes, date, and time for each task.
+                The "title" should be the main task or event, including the action and its direct object (e.g., "開會", "買東西", "做好卡片").
+                Only secondary contextual information, like "with whom" or "where", should be included in the "notes". If the text only contains the main task, "notes" should be null.
+                The date should be in "YYYY-MM-DD" format.
+                The time should be in "HH:mm" format (24-hour).
+                If any field is not mentioned, return it as null.
+                
+                Your response MUST be a valid JSON object that only contains a key "tasks" which is an array of task objects. Do not include any other text or markdown formatting.
+                
+                Example 1:
+                Text: "提醒我明天下午三點跟John在會議室開會，然後下週五要去工學院C317交報告"
+                Response:
+                {
+                  "tasks": [
+                    { "title": "開會", "notes": "跟John在會議室", "date": "2025-08-15", "time": "15:00" },
+                    { "title": "交報告", "notes": "去工學院C317", "date": "2025-08-22", "time": null }
+                  ]
+                }
+                
+                Example 2:
+                Text: "記得做好卡片"
+                Response:
+                {
+                  "tasks": [
+                    { "title": "做好卡片", "notes": null, "date": null, "time": null }
+                  ]
+                }
+                
+                Now, analyze this text: "\(text)"
+                """
         
         let requestBody: [String: Any] = [
             "contents": [["parts": [["text": prompt]]]],
