@@ -97,6 +97,7 @@ struct SettlementView02: View {
     @State private var selectedFilterInSettlement = "全部"
     @State private var showTodoQueue: Bool = false
     @State private var navigateToSettlementView03: Bool = false
+    @State private var navigateToHome: Bool = false  // 新增：導航回 Home
 
     // 記錄settlement開始時明天已有的任務ID，用於過濾
     @State private var existingTomorrowTaskIDs: Set<UUID> = []
@@ -230,12 +231,26 @@ struct SettlementView02: View {
                 }
             }
             .background(
-                NavigationLink(destination: SettlementView03(
-                    uncompletedTasks: uncompletedTasks,
-                    moveTasksToTomorrow: moveTasksToTomorrow,
-                    pendingOperations: pendingOperations  // 傳遞暫存操作
-                ), isActive: $navigateToSettlementView03) {
-                    EmptyView()
+                Group {
+                    NavigationLink(destination: SettlementView03(
+                        uncompletedTasks: uncompletedTasks,
+                        moveTasksToTomorrow: moveTasksToTomorrow,
+                        pendingOperations: pendingOperations  // 傳遞暫存操作
+                    ), isActive: $navigateToSettlementView03) {
+                        EmptyView()
+                    }
+
+                    // 新增：延期結算完成後導航回 Home
+                    NavigationLink(
+                        destination: Home()
+                            .navigationBarHidden(true)
+                            .navigationBarBackButtonHidden(true)
+                            .toolbar(.hidden, for: .navigationBar),
+                        isActive: $navigateToHome
+                    ) {
+                        EmptyView()
+                    }
+                    .isDetailLink(false) // 重置導航堆疊
                 }
             )
         }
@@ -474,12 +489,21 @@ struct SettlementView02: View {
                      .padding(.leading)
                      Spacer()
                      Button(action: {
-                         // 標記結算已開始，但任務移動邏輯將在SettlementView03完成時執行
+                         // 🔧 修復：根據結算類型決定後續流程
+                         let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: UserDefaults.standard.bool(forKey: "isActiveEndDay"))
 
-                         delaySettlementManager.markSettlementCompleted()
-                         navigateToSettlementView03 = true
+                         if isSameDaySettlement {
+                             // 主動結算：跳轉到 SettlementView03 設置鬧鐘
+                             print("SettlementView02: 主動結算，跳轉到 SettlementView03")
+                             navigateToSettlementView03 = true
+                         } else {
+                             // 延期結算：直接完成結算流程，不需要鬧鐘設置
+                             print("SettlementView02: 延期結算，直接完成結算流程")
+                             executeDelayedSettlement()
+                         }
                      }) {
-                         Text("Next")
+                         let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: UserDefaults.standard.bool(forKey: "isActiveEndDay"))
+                         Text(isSameDaySettlement ? "Next" : "完成結算")
                              .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                              .foregroundColor(.black)
                              .frame(maxWidth: .infinity)
@@ -567,22 +591,28 @@ struct SettlementView02: View {
             let today = calendar.startOfDay(for: Date())
             let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
 
-            // 篩選要顯示在事件列表的任務：
-            // 1. 當天的未完成任務（準備移動到明天的）
-            // 2. 明天的所有任務（包含原本就有的任務和settlement期間新增的任務）
+            // 🔧 修復：根據結算類型決定要顯示的任務
+            let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: UserDefaults.standard.bool(forKey: "isActiveEndDay"))
+
             dailyTasks = processedItems.filter { item in
                 guard let taskDate = item.taskDate else { return false }
                 let taskDay = calendar.startOfDay(for: taskDate)
 
-                // 當天的未完成任務
+                // 當天的未完成任務（所有結算類型都需要）
                 let isTodayUncompleted = (taskDay == today) && (item.status == .toBeStarted || item.status == .undone)
 
-                // 明天的所有任務（不再排除settlement開始時已存在的任務）
-                let isTomorrowTask = (taskDay == tomorrow)
-
-                return isTodayUncompleted || isTomorrowTask
+                if isSameDaySettlement {
+                    // 🎯 主動結算：顯示當天未完成 + 明天所有任務 + 新增任務
+                    let isTomorrowTask = (taskDay == tomorrow)
+                    return isTodayUncompleted || isTomorrowTask
+                } else {
+                    // 🎯 延期結算：只顯示當天未完成任務 + settlement期間新增的任務
+                    // 排除settlement開始時明天已存在的任務
+                    let isTomorrowNewTask = (taskDay == tomorrow) && !existingTomorrowTaskIDs.contains(item.id)
+                    return isTodayUncompleted || isTomorrowNewTask
+                }
             }
-            print("SettlementView02 - 重新載入事件列表任務: \(dailyTasks.count) 個（包含當天未完成和明天所有任務，已處理暫存操作）")
+            print("SettlementView02 - 重新載入事件列表任務: \(dailyTasks.count) 個（結算類型：\(isSameDaySettlement ? "主動" : "延期")，已處理暫存操作）")
         } else {
             dailyTasks = []
             print("SettlementView02 - 清空任務列表")
@@ -2117,5 +2147,88 @@ extension SettlementView02 {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             NotificationCenter.default.post(name: Notification.Name("TodoItemStatusChanged"), object: nil)
         }
+    }
+
+    // MARK: - 延期結算專用函數
+    /// 執行延期結算流程（不包含鬧鐘設置）
+    private func executeDelayedSettlement() {
+        print("SettlementView02: 開始執行延期結算流程")
+
+        // 1. 執行所有暫存操作
+        executeAllPendingOperations()
+
+        // 2. 標記今天為已完成
+        let completeDayDataManager = CompleteDayDataManager.shared
+        completeDayDataManager.markTodayAsCompleted()
+        print("延期結算: 已標記今天為已完成的一天")
+
+        // 3. 標記結算流程完成
+        delaySettlementManager.markSettlementCompleted()
+        print("延期結算: 已標記結算流程完成")
+
+        // 4. 如果需要移動任務到明天，執行移動
+        if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
+            moveUncompletedTasksToTomorrowData()
+            print("延期結算: 已移動 \(uncompletedTasks.count) 個未完成任務到明天")
+        }
+
+        // 5. 清除主動結算標記（因為這是延期結算）
+        UserDefaults.standard.set(false, forKey: "isActiveEndDay")
+
+        // 6. 延遲一下再導航回 Home，確保所有操作都完成
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            print("延期結算: 完成所有操作，導航回 Home")
+            self.navigateToHome = true
+        }
+    }
+
+    /// 執行所有暫存操作（從 SettlementView03 複製過來）
+    private func executeAllPendingOperations() {
+        print("SettlementView02: 開始執行 \(pendingOperations.count) 個暫存操作")
+
+        for operation in pendingOperations {
+            switch operation {
+            case .addItem(let item):
+                print("SettlementView02: 執行添加操作 - \(item.title)")
+                dataSyncManager.addTodoItem(item) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("SettlementView02: 成功執行添加操作 - \(item.title)")
+                        case .failure(let error):
+                            print("SettlementView02: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
+                        }
+                    }
+                }
+
+            case .deleteItem(let itemId):
+                print("SettlementView02: 執行刪除操作 - ID: \(itemId)")
+                dataSyncManager.deleteTodoItem(withID: itemId) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("SettlementView02: 成功執行刪除操作 - ID: \(itemId)")
+                        case .failure(let error):
+                            print("SettlementView02: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
+                        }
+                    }
+                }
+
+            case .updateItem(let item):
+                print("SettlementView02: 執行更新操作 - \(item.title)")
+                dataSyncManager.updateTodoItem(item) { result in
+                    DispatchQueue.main.async {
+                        switch result {
+                        case .success:
+                            print("SettlementView02: 成功執行更新操作 - \(item.title)")
+                        case .failure(let error):
+                            print("SettlementView02: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        }
+
+        print("SettlementView02: 所有暫存操作已提交執行")
     }
 }
