@@ -124,11 +124,40 @@ struct ProfileSidebarView: View {
     
     private var menuItemsView: some View {
         VStack(spacing: 0) {
-            MenuItemView(icon: "rectangle.stack", title: "History", action: { print("History tapped") })
+            
+            NavigationLink(destination: SettingView()) {
+                // 我們仍然使用 MenuItemView 來保持外觀
+                MenuItemView(icon: "rectangle.stack", title: "History")
+            }
+            .simultaneousGesture(TapGesture().onEnded {
+                // 點擊時關閉側邊欄
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isPresented = false
+                }
+            })
             Divider().background(Color.white.opacity(0.1)).padding(.horizontal, 20)
-            MenuItemView(icon: "gearshape", title: "Setting", action: { print("Setting tapped") })
+            NavigationLink(destination: SettingView()) {
+                // 我們仍然使用 MenuItemView 來保持外觀
+                MenuItemView(icon: "gearshape", title: "Setting")
+            }
+            .simultaneousGesture(TapGesture().onEnded {
+                // 點擊時關閉側邊欄
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isPresented = false
+                }
+            })
             Divider().background(Color.white.opacity(0.1)).padding(.horizontal, 20)
-            MenuItemView(icon: "info.circle", title: "About & Help", action: { print("About & Help tapped") })
+            NavigationLink(destination: SettingView()) {
+                // 我們仍然使用 MenuItemView 來保持外觀
+                MenuItemView(icon: "info.circle", title: "About & Help")
+            }
+            .simultaneousGesture(TapGesture().onEnded {
+                // 點擊時關閉側邊欄
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isPresented = false
+                }
+            })
+            
         }
         .padding(.top, 12)
     }
@@ -171,27 +200,25 @@ struct ProfileSidebarView: View {
 struct MenuItemView: View {
     let icon: String
     let title: String
-    let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(.gray)
-                    .frame(width: 24)
-                
-                Text(title)
-                    .font(.custom("Inter", size: 16))
-                    .foregroundColor(.white)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(.gray)
+                .frame(width: 24)
+            
+            Text(title)
+                .font(.custom("Inter", size: 16))
+                .foregroundColor(.white)
+            
+            Spacer()
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .contentShape(Rectangle())
     }
+    
 }
 
 #if DEBUG
