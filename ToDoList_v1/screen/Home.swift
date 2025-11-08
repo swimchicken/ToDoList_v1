@@ -805,6 +805,10 @@ struct Home: View {
                 }
                 .onDisappear {
                     print("🔥 SettlementView onDisappear 被觸發")
+                    // 結算完成返回時，重新載入數據以反映所有變更
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        loadTodoItems()
+                    }
                 }
         }
         .navigationDestination(isPresented: $navigateToSleep01View) {
@@ -814,8 +818,12 @@ struct Home: View {
                 }
                 .onDisappear {
                     print("Sleep01View disappeared")
-                    // 當從 Sleep01 返回時，重置導航狀態
+                    // 當從 Sleep01 返回時，重置導航狀態並重新載入數據
                     navigateToSleep01View = false
+                    // 重新載入事件數據，反映結算時的所有變更
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        loadTodoItems()
+                    }
                 }
         }
         .navigationDestination(isPresented: $navigateToTestPage) {
@@ -890,9 +898,10 @@ struct Home: View {
                     }
                     .onDisappear {
                         print("🔥 SettlementView onDisappear 被觸發")
-                        // 當 SettlementView 消失時，重置導航狀態
+                        // 當 SettlementView 消失時，重置導航狀態並重新載入數據
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             navigateToSettlementView = false
+                            loadTodoItems()
                         }
                     }
                 , isActive: $navigateToSettlementView) {
