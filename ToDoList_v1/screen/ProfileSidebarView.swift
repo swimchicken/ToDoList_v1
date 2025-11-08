@@ -147,7 +147,7 @@ struct ProfileSidebarView: View {
                 }
             })
             Divider().background(Color.white.opacity(0.1)).padding(.horizontal, 20)
-            NavigationLink(destination: SettingView()) {
+            NavigationLink(destination: AboutUsView()) {
                 // 我們仍然使用 MenuItemView 來保持外觀
                 MenuItemView(icon: "info.circle", title: "About & Help")
             }
