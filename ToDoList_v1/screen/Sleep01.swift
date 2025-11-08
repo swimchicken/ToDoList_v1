@@ -833,6 +833,9 @@ struct Sleep01View: View {
         alarmStateManager.endSleepMode()
         alarmStateManager.resetAlarmState()
 
+        // 重置 DelaySettlementManager 的狀態，避免延期結算邏輯被誤觸發
+        DelaySettlementManager.shared.clearSettlementState()
+
         // 重置本地 UI 狀態
         withAnimation(.easeInOut(duration: 0.3)) {
             showTopUI = true
