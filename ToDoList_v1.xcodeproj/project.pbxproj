@@ -91,6 +91,7 @@
 		EBD425272EBDCB6B00FC68CC /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */; };
 		EBD425282EBDCB6B00FC68CC /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */; };
 		EBD4252A2EBDD6A900FC68CC /* SettingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD425292EBDD66400FC68CC /* SettingView.swift */; };
+		EBD4252C2EBF2D2900FC68CC /* AboutUsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -218,6 +219,7 @@
 		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
 		EBD425262EBDCB6B00FC68CC /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		EBD425292EBDD66400FC68CC /* SettingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingView.swift; sourceTree = "<group>"; };
+		EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutUsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -377,6 +379,7 @@
 		7911CE142D6AF4180034BEE6 /* screen */ = {
 			isa = PBXGroup;
 			children = (
+				EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */,
 				EBD425292EBDD66400FC68CC /* SettingView.swift */,
 				EB050D0D2EABA07900A38567 /* ProfileSidebarView.swift */,
 				2862192D2E3BD073003C05D8 /* TestPage.swift */,
@@ -646,6 +649,7 @@
 				7911CDE82D633BAD0034BEE6 /* Item.swift in Sources */,
 				79C66A332DB40B7300BF8703 /* Add.swift in Sources */,
 				7911CE202D6B02650034BEE6 /* AppUser.swift in Sources */,
+				EBD4252C2EBF2D2900FC68CC /* AboutUsView.swift in Sources */,
 				790BFDCA2DCF841200AFD044 /* DataSyncManager.swift in Sources */,
 				EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */,
 				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
