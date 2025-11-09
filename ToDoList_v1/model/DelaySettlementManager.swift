@@ -11,11 +11,11 @@ import Foundation
 class DelaySettlementManager {
     // 單例模式
     static let shared = DelaySettlementManager()
-    
+
     // UserDefaults 鍵值
     private let lastSettlementDateKey = "lastSettlementDate"
     private let shouldShowSettlementKey = "shouldShowSettlement"
-    
+
     private init() {}
     
     /// 保存最後一次結算日期
@@ -129,13 +129,20 @@ class DelaySettlementManager {
         if isActiveEndDay {
             return true
         }
-        
+
         // 否則檢查上次結算日期是否為今天
         guard let lastDate = getLastSettlementDate() else {
             return false // 沒有上次結算日期，肯定不是當天
         }
-        
+
         let calendar = Calendar.current
         return calendar.isDateInToday(lastDate)
+    }
+
+    /// 清除結算狀態 - 用於取消sleep mode時重置狀態
+    /// 當用戶取消睡眠模式時調用，避免延期結算邏輯被誤觸發
+    func clearSettlementState() {
+        UserDefaults.standard.set(false, forKey: shouldShowSettlementKey)
+        print("DelaySettlementManager: 已清除結算狀態，shouldShowSettlement = false")
     }
 }

@@ -428,16 +428,16 @@ struct SettlementView03: View {
         let calendar = Calendar.current
         let now = Date()
 
-        // 檢查是否在凌晨0:00-5:00時間段
+        // 檢查是否在凌晨0:00-6:00時間段
         let currentHour = calendar.component(.hour, from: now)
-        let isEarlyMorning = currentHour >= 0 && currentHour < 5
+        let isEarlyMorning = currentHour >= 0 && currentHour < 6
 
         // 根據時間段決定移動邏輯
         let sourceDay: Date
         let targetDay: Date
 
         if isEarlyMorning {
-            // 凌晨0:00-5:00：昨天的任務移到今天
+            // 凌晨0:00-6:00：昨天的任務移到今天
             let today = calendar.startOfDay(for: now)
             let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
             sourceDay = yesterday
