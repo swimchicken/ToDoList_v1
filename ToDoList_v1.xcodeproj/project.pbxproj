@@ -88,8 +88,8 @@
 		EB4188FF2E3797B600F69B82 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4188FE2E3797A600F69B82 /* SpeechManager.swift */; };
 		EB522CF52DBDDBB500D4B591 /* CalenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */; };
 		EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB967F8C2E95506C00F4D066 /* SettlementView02.swift */; };
-		EBD425272EBDCB6B00FC68CC /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */; };
-		EBD425282EBDCB6B00FC68CC /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */; };
+		EBD1A1092EC75E53007B3665 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD1A1082EC75E53007B3665 /* Release.xcconfig */; };
+		EBD1A10A2EC75E53007B3665 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = EBD1A1082EC75E53007B3665 /* Release.xcconfig */; };
 		EBD4252A2EBDD6A900FC68CC /* SettingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD425292EBDD66400FC68CC /* SettingView.swift */; };
 		EBD4252C2EBF2D2900FC68CC /* AboutUsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */; };
 /* End PBXBuildFile section */
@@ -217,7 +217,7 @@
 		EB4188FE2E3797A600F69B82 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
 		EB522CF42DBDDBAC00D4B591 /* CalenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalenderView.swift; sourceTree = "<group>"; };
 		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
-		EBD425262EBDCB6B00FC68CC /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		EBD1A1082EC75E53007B3665 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		EBD425292EBDD66400FC68CC /* SettingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingView.swift; sourceTree = "<group>"; };
 		EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutUsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -283,7 +283,7 @@
 				8DF757E62E3FEB1900F1CDA9 /* ToDoListWidget */,
 				8DF757E12E3FEB1900F1CDA9 /* Frameworks */,
 				7911CDE12D633BAD0034BEE6 /* Products */,
-				EBD425262EBDCB6B00FC68CC /* Release.xcconfig */,
+				EBD1A1082EC75E53007B3665 /* Release.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -579,7 +579,7 @@
 			files = (
 				7911CDED2D633BB60034BEE6 /* Preview Assets.xcassets in Resources */,
 				79F7C2472D926DD500B2E19E /* MyProject.entitlements in Resources */,
-				EBD425282EBDCB6B00FC68CC /* Release.xcconfig in Resources */,
+				EBD1A10A2EC75E53007B3665 /* Release.xcconfig in Resources */,
 				5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */,
 				7911CDEA2D633BB60034BEE6 /* Assets.xcassets in Resources */,
 				5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */,
@@ -604,7 +604,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EBD425272EBDCB6B00FC68CC /* Release.xcconfig in Resources */,
+				EBD1A1092EC75E53007B3665 /* Release.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -735,7 +735,7 @@
 /* Begin XCBuildConfiguration section */
 		7911CE042D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */;
+			baseConfigurationReference = EBD1A1082EC75E53007B3665 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -799,7 +799,7 @@
 		};
 		7911CE052D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */;
+			baseConfigurationReference = EBD1A1082EC75E53007B3665 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -856,7 +856,7 @@
 		};
 		7911CE072D633BB60034BEE6 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */;
+			baseConfigurationReference = EBD1A1082EC75E53007B3665 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -894,7 +894,7 @@
 		};
 		7911CE082D633BB60034BEE6 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EBD425262EBDCB6B00FC68CC /* Release.xcconfig */;
+			baseConfigurationReference = EBD1A1082EC75E53007B3665 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
