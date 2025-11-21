@@ -127,15 +127,8 @@ struct Login: View {
                     }
                 }
                 .onAppear {
-                    // 進入 Login 頁面時，檢查最近登入狀態，若已登入則直接進入 Home
-                    LoginStatusChecker.shared.checkLoginStatus { destination in
-                        switch destination {
-                        case .home:
-                            navigateTo = "home"
-                        case .login:
-                            navigateTo = nil
-                        }
-                    }
+                    // 移除重複的登入狀態檢查，由 ContentView 統一處理
+                    print("Login 頁面已顯示")
                 }
             }
             

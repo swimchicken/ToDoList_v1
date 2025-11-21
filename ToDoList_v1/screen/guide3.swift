@@ -1,8 +1,8 @@
 import SwiftUI
-import CloudKit
 
 struct guide3: View {
     @State private var userName: String = "SHIRO"
+    private let apiDataManager = APIDataManager.shared
     
     var body: some View {
         ZStack {
@@ -89,66 +89,33 @@ struct guide3: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 60)
             .onDisappear {
-                saveUserNameToCloudKit(userName: userName)
-                updateApiUserName(userName: userName)
+                updateUserName(userName: userName)
             }
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }
-    
-    // 儲存用戶名稱到 CloudKit 的 PersonalData 資料表 (public)
-    private func saveUserNameToCloudKit(userName: String) {
-        guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
-            print("沒有找到 Apple 用戶 ID")
+
+    // 使用API更新用戶名稱
+    private func updateUserName(userName: String) {
+        guard !userName.isEmpty else {
+            print("guide3: 用戶名稱為空，跳過更新")
             return
         }
-        
-        let data: [String: CKRecordValue] = [
-            "name": userName as CKRecordValue
-        ]
-        
-        CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
-            if success {
-                print("PersonalData: User name saved/updated successfully!")
-            } else if let error = error {
-                print("PersonalData: Error saving user name: \(error.localizedDescription)")
-            }
-        }
-        
-        updateApiUserName(userName: userName)
-    }
-    
-    // 更新 apiUser (private) 資料表中的 name 欄位 (僅針對 API 登入的使用者)
-    private func updateApiUserName(userName: String) {
-        guard let userId = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
-            return
-        }
-        
-        let container = CKContainer(identifier: "iCloud.com.fcu.ToDolist1")
-        let privateDatabase = container.privateCloudDatabase
-        let zoneID = CKRecordZone.default().zoneID
-        let predicate = NSPredicate(format: "providerUserID == %@ AND provider == %@", userId, "Apple")
-        let query = CKQuery(recordType: "ApiUser", predicate: predicate)
-        
-        privateDatabase.fetch(withQuery: query, inZoneWith: zoneID, desiredKeys: nil, resultsLimit: 1) { result in
-            switch result {
-            case .success(let queryResult):
-                guard let record = queryResult.matchResults.compactMap({ try? $0.1.get() }).first else {
-                    print("No apiUser record found to update name.")
-                    return
+
+        print("guide3: 開始更新用戶名稱: \(userName)")
+
+        Task {
+            do {
+                let updatedUser = try await apiDataManager.updateUserProfile(name: userName)
+                await MainActor.run {
+                    print("guide3: 成功更新用戶名稱: \(updatedUser.name ?? "Unknown")")
                 }
-                record["name"] = userName as CKRecordValue
-                privateDatabase.save(record) { savedRecord, error in
-                    if let error = error {
-                        print("Error updating apiUser name: \(error.localizedDescription)")
-                    } else {
-                        print("apiUser name updated successfully.")
-                    }
+            } catch {
+                await MainActor.run {
+                    print("guide3: 更新用戶名稱失敗: \(error.localizedDescription)")
                 }
-            case .failure(let error):
-                print("Error fetching apiUser record: \(error.localizedDescription)")
             }
         }
     }

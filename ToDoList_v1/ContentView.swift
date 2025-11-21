@@ -1,5 +1,10 @@
 import SwiftUI
 
+// 引用登入通知
+extension Notification.Name {
+    static let didLogin = Notification.Name("didLogin")
+}
+
 struct ContentView: View {
     // 綠色光暈參數
     private let greenStages: [(width: CGFloat, height: CGFloat)] = [
@@ -131,31 +136,110 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            // 首先檢查登入狀態
-            LoginStatusChecker.shared.checkLoginStatus { destination in
-                DispatchQueue.main.async {
-                    isCheckingLogin = false
-                    
-                    switch destination {
-                    case .home:
-                        // 已登入：直接進入Home頁面，跳過動畫
-                        shouldShowHome = true
-                        shouldShowAnimation = false
-                        withAnimation(.easeInOut(duration: 1.0)) {
-                            homeOpacity = 1.0
-                        }
-                        
-                    case .login:
-                        // 未登入：顯示啟動動畫
-                        shouldShowAnimation = true
-                        showSplash = true
-                        startSplashAnimation()
+            // 只在首次載入或明確需要檢查時執行登入檢查
+            if !shouldShowHome && isCheckingLogin {
+                checkLoginAndNavigate()
+            }
+            setupLogoutObserver()
+        }
+    }
+    
+    // 檢查登入狀態並導航
+    private func checkLoginAndNavigate() {
+        LoginStatusChecker.shared.checkLoginStatus { destination in
+            DispatchQueue.main.async {
+                isCheckingLogin = false
+
+                switch destination {
+                case .home:
+                    // 已登入：直接進入Home頁面，跳過動畫
+                    shouldShowHome = true
+                    shouldShowAnimation = false
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        homeOpacity = 1.0
+                        loginOpacity = 0.0
                     }
+
+                case .login:
+                    // 未登入：顯示啟動動畫
+                    shouldShowAnimation = true
+                    showSplash = true
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        shouldShowHome = false
+                        homeOpacity = 0.0
+                    }
+                    startSplashAnimation()
                 }
             }
         }
     }
-    
+
+    // 設置登出通知監聽
+    private func setupLogoutObserver() {
+        // 監聽登出通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("UserLoggedOut"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("收到登出通知，重新導向到登入頁面")
+            // 重置所有狀態
+            self.shouldShowHome = false
+            self.shouldShowAnimation = true
+            self.showSplash = true
+            self.currentStageIndex = 0
+
+            withAnimation(.easeInOut(duration: 1.0)) {
+                self.homeOpacity = 0.0
+                self.splashOpacity = 1.0
+            }
+
+            // 延遲開始動畫以確保狀態重置完成
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.startSplashAnimation()
+            }
+        }
+
+        // 監聽登入成功通知
+        NotificationCenter.default.addObserver(
+            forName: .didLogin,
+            object: nil,
+            queue: .main
+        ) { notification in
+            print("ContentView: 收到登入成功通知")
+
+            // 檢查當前登入狀態
+            let apiDataManager = APIDataManager.shared
+            let hasToken = apiDataManager.isLoggedIn()
+            let savedToken = UserDefaults.standard.string(forKey: "api_auth_token")
+            print("ContentView: 登入通知時的狀態 - hasToken: \(hasToken), savedToken: \(savedToken ?? "nil")")
+
+            if let userInfo = notification.userInfo,
+               let destination = userInfo["destination"] as? String {
+
+                switch destination {
+                case "home":
+                    print("ContentView: 導向到 Home")
+                    self.shouldShowHome = true
+                    self.shouldShowAnimation = false
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        self.homeOpacity = 1.0
+                        self.loginOpacity = 0.0
+                    }
+
+                case "onboarding":
+                    print("ContentView: 導向到引導頁面，保持在 Login 視圖")
+                    // 新用戶進入引導，保持 Login 視圖顯示
+                    // Login 頁面的 NavigationLink 會處理到 guide3 的導航
+                    break
+
+                default:
+                    print("ContentView: 未知導向目標: \(destination)")
+                }
+            }
+        }
+    }
+
     // 啟動動畫函數（分離原有邏輯）
     private func startSplashAnimation() {
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in

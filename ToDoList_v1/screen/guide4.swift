@@ -110,8 +110,11 @@ struct guide4: View {
     
     // 儲存用戶年齡到 CloudKit 的 PersonalData 資料表
     private func saveAgeToCloudKit(age: Int) {
-        guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
-            print("沒有找到 Apple 用戶 ID")
+        let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId")
+        let googleUserID = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
+
+        guard let userID = appleUserID ?? googleUserID else {
+            print("沒有找到 Apple 或 Google 用戶 ID")
             return
         }
         

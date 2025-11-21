@@ -12,7 +12,6 @@ struct Home: View {
     @State private var navigateToSettlementView: Bool = false // 導航到結算頁面
     @State private var navigateToSleep01View: Bool = false // 導航到Sleep01視圖
     @State private var navigateToTestPage: Bool = false // 導航到測試頁面
-    @State private var navigateToLogin: Bool = false // 導航回登入頁面
     @State private var navigationViewID = UUID()
     @State private var isSleepMode: Bool = false // 睡眠模式狀態
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
@@ -828,9 +827,6 @@ struct Home: View {
         }
         .navigationDestination(isPresented: $navigateToTestPage) {
             TestPage()
-        }
-        .navigationDestination(isPresented: $navigateToLogin) {
-            Login()
         }
 
         .animation(.easeOut, value: showToDoSheet)

@@ -5,7 +5,6 @@ struct guide5: View {
     @State private var hour = 8
     @State private var minute = 20
     @State private var ampm = 1  // 0 = AM, 1 = PM
-    @State private var navigateToHome = false
     @Environment(\.dismiss) private var dismiss  // 添加環境變數以支援返回功能
     
     var body: some View {
@@ -71,7 +70,7 @@ struct guide5: View {
                         
                         Button(action: {
                             saveSleepTimeToCloudKit(hour: hour, minute: minute, ampm: ampm)
-                            navigateToHome = true
+                            completeOnboarding()
                         }) {
                             Text("Start")
                                 .font(Font.custom("Inter", size: 16).weight(.semibold))
@@ -99,15 +98,24 @@ struct guide5: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 60)
             
-            NavigationLink(destination: Home().navigationBarBackButtonHidden(true), isActive: $navigateToHome) {
-                EmptyView()
-            }
         }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
     }
-    
+
+    // 完成引導流程
+    private func completeOnboarding() {
+        print("guide5: 引導流程完成，發送通知導向 Home")
+
+        // 發送引導完成通知
+        NotificationCenter.default.post(
+            name: .didLogin,
+            object: nil,
+            userInfo: ["destination": "home"]
+        )
+    }
+
     // 輔助函數：根據使用者選取的時間組件轉換為 Date
     private func dateFromTime(hour: Int, minute: Int, ampm: Int) -> Date? {
         let calendar = Calendar.current
@@ -134,8 +142,11 @@ struct guide5: View {
             print("Failed to create sleep date")
             return
         }
-        guard let userID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId") else {
-            print("沒有找到 Apple 用戶 ID")
+        let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId")
+        let googleUserID = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
+
+        guard let userID = appleUserID ?? googleUserID else {
+            print("沒有找到 Apple 或 Google 用戶 ID")
             return
         }
         

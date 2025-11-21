@@ -17,6 +17,9 @@
 		28E117052E58B57100DE2142 /* ErrorToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117042E58B57100DE2142 /* ErrorToastView.swift */; };
 		28E117072E58B59E00DE2142 /* TaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117062E58B59E00DE2142 /* TaskEditView.swift */; };
 		28E117092E58B5AB00DE2142 /* TaskSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */; };
+		5F2689CE2ECF9D48005137D3 /* APIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2689CC2ECF9D48005137D3 /* APIManager.swift */; };
+		5F2689CF2ECF9D48005137D3 /* APIDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2689CB2ECF9D48005137D3 /* APIDataManager.swift */; };
+		5F2689D12ECFA1FD005137D3 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2689D02ECFA1FD005137D3 /* APIModels.swift */; };
 		5F29EE172E6EA886001C2F1C /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */; };
 		5F9268CF2EA5171E00E54B02 /* AlarmAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */; };
 		5F9269342EAE631200E54B02 /* UserInfoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9269332EAE631200E54B02 /* UserInfoManager.swift */; };
@@ -142,6 +145,9 @@
 		28E117042E58B57100DE2142 /* ErrorToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorToastView.swift; sourceTree = "<group>"; };
 		28E117062E58B59E00DE2142 /* TaskEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskEditView.swift; sourceTree = "<group>"; };
 		28E117082E58B5AB00DE2142 /* TaskSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSelectionOverlay.swift; sourceTree = "<group>"; };
+		5F2689CB2ECF9D48005137D3 /* APIDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIDataManager.swift; sourceTree = "<group>"; };
+		5F2689CC2ECF9D48005137D3 /* APIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIManager.swift; sourceTree = "<group>"; };
+		5F2689D02ECFA1FD005137D3 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
 		5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmAudioManager.swift; sourceTree = "<group>"; };
 		5F9269332EAE631200E54B02 /* UserInfoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInfoManager.swift; sourceTree = "<group>"; };
@@ -272,6 +278,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5F2689CD2ECF9D48005137D3 /* manager */ = {
+			isa = PBXGroup;
+			children = (
+				5F2689CB2ECF9D48005137D3 /* APIDataManager.swift */,
+				5F2689CC2ECF9D48005137D3 /* APIManager.swift */,
+			);
+			path = manager;
+			sourceTree = "<group>";
+		};
 		7911CDD72D633BAD0034BEE6 = {
 			isa = PBXGroup;
 			children = (
@@ -301,6 +316,7 @@
 		7911CDE22D633BAD0034BEE6 /* ToDoList_v1 */ = {
 			isa = PBXGroup;
 			children = (
+				5F2689CD2ECF9D48005137D3 /* manager */,
 				5FA625AE2E7AA4E70060D6C2 /* alarm_sound.caf */,
 				5FA625AC2E7A99740060D6C2 /* alarm_sound.mp3 */,
 				8DF757F72E3FEB4B00F1CDA9 /* ToDoList_v1Release.entitlements */,
@@ -346,6 +362,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				5F2689D02ECFA1FD005137D3 /* APIModels.swift */,
 				5F9269332EAE631200E54B02 /* UserInfoManager.swift */,
 				5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */,
 				5F29EE162E6EA886001C2F1C /* NotificationDelegate.swift */,
@@ -655,6 +672,8 @@
 				7908C2912D9C25E700A97C11 /* LoginStatusChecker.swift in Sources */,
 				7911CDE42D633BAD0034BEE6 /* ToDoList_v1App.swift in Sources */,
 				792C41742DC9051D005CCE92 /* AddNote.swift in Sources */,
+				5F2689CE2ECF9D48005137D3 /* APIManager.swift in Sources */,
+				5F2689CF2ECF9D48005137D3 /* APIDataManager.swift in Sources */,
 				791FECA32D6E0E59003716DE /* EmailLogin.swift in Sources */,
 				793D1B442DAE881D00E0B653 /* CloudKitHelper.swift in Sources */,
 				7914F98C2DEF22C600BD4801 /* HomeBottomView.swift in Sources */,
@@ -677,6 +696,7 @@
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
 				793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */,
 				790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */,
+				5F2689D12ECFA1FD005137D3 /* APIModels.swift in Sources */,
 				7914F9882DEDD62D00BD4801 /* DelaySettlementManager.swift in Sources */,
 				28C15EE52E3667D0008942E8 /* AlarmStateManager.swift in Sources */,
 				7922971F2DAD45BC00E1A97B /* VisualEffectBlur.swift in Sources */,

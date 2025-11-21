@@ -4,6 +4,9 @@ import SwiftUI
 
 struct SettingView: View {
     @Environment(\.dismiss) var dismiss // 用於關閉本頁面
+
+    // 添加登出後返回根視圖的處理
+    @State private var shouldNavigateToRoot: Bool = false
     
     // 基礎設定
     @State private var selectedLanguage: String = "繁體中文"
@@ -157,6 +160,7 @@ struct SettingView: View {
             Button(action: {
                 print("使用者登出")
                 // 執行登出操作
+                performLogout()
             }) {
                 Text("Log out")
                     .font(.system(size: 16).weight(.regular))
@@ -170,6 +174,20 @@ struct SettingView: View {
         .background(Color(hex: "2C2C2E")) // 區塊背景色
         .cornerRadius(10) // 圓角
         .padding(.horizontal, 20) // 左右邊距
+    }
+
+    // MARK: - 登出功能
+    private func performLogout() {
+        // 使用 LoginStatusChecker 清除登入狀態
+        LoginStatusChecker.shared.clearPersistedLogin()
+
+        // 發送通知讓 ContentView 重新檢查登入狀態
+        NotificationCenter.default.post(
+            name: Notification.Name("UserLoggedOut"),
+            object: nil
+        )
+
+        print("用戶已登出，已清除所有登入狀態")
     }
 }
 
