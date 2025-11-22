@@ -34,7 +34,7 @@ class DataSyncManager {
     
     // MARK: - 初始化
     private init() {
-        print("DEBUG: 初始化 DataSyncManager")
+        // print("DEBUG: 初始化 DataSyncManager") // 已廢棄，使用 API
         
         // 設置監聽用戶帳號變化
         setupAccountChangeObserver()

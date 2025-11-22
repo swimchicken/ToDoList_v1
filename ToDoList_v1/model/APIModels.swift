@@ -60,7 +60,7 @@ struct UpdateUserRequest: Codable {
 
 struct APITodoItem: Codable, Identifiable {
     let id: UUID
-    let userId: UUID
+    let userId: UUID?
     let title: String
     let note: String
     let priority: Int
@@ -214,7 +214,7 @@ extension APITodoItem {
     func toTodoItem() -> TodoItem {
         return TodoItem(
             id: id,
-            userID: userId.uuidString,
+            userID: userId?.uuidString ?? "unknown_user",
             title: title,
             priority: priority,
             isPinned: isPinned,

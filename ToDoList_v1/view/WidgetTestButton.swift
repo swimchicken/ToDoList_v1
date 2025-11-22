@@ -36,12 +36,19 @@ struct WidgetTestButton: View {
             correspondingImageID: "star"
         )
         
-        // 添加到本地存儲
-        LocalDataManager.shared.addTodoItem(testTask)
-        
-        // 手動觸發 Widget 數據更新
-        let allTasks = LocalDataManager.shared.getAllTodoItems()
-        WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
+        // 添加到 API
+        Task {
+            do {
+                let addedTask = try await APIDataManager.shared.addTodoItem(testTask)
+                print("WidgetTestButton - 成功添加測試任務")
+
+                // 手動觸發 Widget 數據更新
+                let allTasks = try await APIDataManager.shared.getAllTodoItems()
+                WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
+            } catch {
+                print("WidgetTestButton - 添加測試任務失敗: \(error.localizedDescription)")
+            }
+        }
         
         // 驗證 App Group
         if let sharedDefaults = UserDefaults(suiteName: "group.com.fcu.ToDolist") {

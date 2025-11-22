@@ -609,7 +609,19 @@ struct Sleep01View: View {
 
     /// 載入今天的待辦事項
     private func loadTodayTodoItems() {
-        let allItems = LocalDataManager.shared.getAllTodoItems()
+        Task {
+            do {
+                let allItems = try await APIDataManager.shared.getAllTodoItems()
+                await MainActor.run {
+                    self.processTodoItems(allItems)
+                }
+            } catch {
+                print("Sleep01 - 載入待辦事項失敗: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func processTodoItems(_ allItems: [TodoItem]) {
         let currentTime = Date()
 
         // 計算鬧鐘當天（使用與 AlarmStateManager 相同的邏輯）

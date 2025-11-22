@@ -62,38 +62,27 @@ struct CalendarView: View {
     }
     
     // 從本地數據加載待辦事項，並過濾掉已刪除的項目
-    private func loadFromLocalDataManager() {
+    private func loadFromAPI() {
         isLoading = true
         loadingError = nil
-        
-        // 從UserDefaults獲取最近刪除的項目ID
-        var recentlyDeletedItemIDs: Set<UUID> = []
-        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
-           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
-            recentlyDeletedItemIDs = Set(decodedIDs)
-            print("CalendarView - 獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
-        }
-        
-        // 獲取本地數據
-        var localItems = LocalDataManager.shared.getAllTodoItems()
-        
-        // 過濾掉已刪除的項目
-        if !recentlyDeletedItemIDs.isEmpty {
-            let originalCount = localItems.count
-            localItems = localItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
-            let filteredCount = originalCount - localItems.count
-            print("CalendarView - 過濾掉 \(filteredCount) 個已刪除項目")
-        }
-        
-        // 更新狀態
-        DispatchQueue.main.async {
-            if !localItems.isEmpty {
-                self.toDoItems = localItems
-                print("從本地數據載入了 \(localItems.count) 個待辦事項")
-            } else {
-                print("本地數據為空")
+
+        Task {
+            do {
+                // 獲取 API 數據
+                let apiItems = try await APIDataManager.shared.getAllTodoItems()
+
+                await MainActor.run {
+                    self.toDoItems = apiItems
+                    print("從 API 載入了 \(apiItems.count) 個待辦事項")
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.loadingError = error.localizedDescription
+                    print("CalendarView - 從 API 加載失敗: \(error.localizedDescription)")
+                    self.isLoading = false
+                }
             }
-            self.isLoading = false
         }
     }
     
@@ -705,7 +694,7 @@ struct CalendarView: View {
             
             // 如果傳入的toDoItems為空，則從本地數據加載
             if toDoItems.isEmpty {
-                loadFromLocalDataManager()
+                loadFromAPI()
             }
             
             // 監聽已完成日期數據變更通知
@@ -728,7 +717,7 @@ struct CalendarView: View {
                 // 檢查是否有項目刪除並刷新數據
                 print("CalendarView 收到數據刷新通知，重新加載數據")
                 if toDoItems.isEmpty {
-                    self.loadFromLocalDataManager()
+                    self.loadFromAPI()
                 }
             }
         }

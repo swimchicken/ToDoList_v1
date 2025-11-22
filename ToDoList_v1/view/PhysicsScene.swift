@@ -211,8 +211,8 @@ class PhysicsScene: SKScene {
             
             addChild(node)
             
-            // 打印調試信息
-            print("創建球體 \(i): ID=\(todoItem.id), 直徑=\(diameter), 位置=(\(node.position.x), \(node.position.y))")
+            // 減少視覺效果日誌輸出
+            // print("創建球體 \(i): ID=\(todoItem.id), 直徑=\(diameter), 位置=(\(node.position.x), \(node.position.y))")
         }
     }
 }

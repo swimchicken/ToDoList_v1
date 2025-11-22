@@ -30,11 +30,11 @@ class CloudKitService {
     // MARK: - Initialization
     private init() {
         // 初始化 CloudKit 容器
-        print("DEBUG: 正在初始化 CloudKitService")
+        // print("DEBUG: 正在初始化 CloudKitService") // 已移轉到 API
         self.container = CKContainer(identifier: "iCloud.com.fcu.ToDolist1")
         self.publicDatabase = container.publicCloudDatabase
         self.privateDatabase = container.privateCloudDatabase
-        print("DEBUG: CloudKit container 已初始化 - ID: \(container.containerIdentifier ?? "未知")")
+        // print("DEBUG: CloudKit container 已初始化 - ID: \(container.containerIdentifier ?? "未知")") // 已移轉到 API
         
         // 設置帳號變化通知觀察者
         setupAccountChangeObserver()
@@ -224,19 +224,20 @@ class CloudKitService {
 
                         // 延遲3秒後觸發同步，確保認證狀態完全穩定
                         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                            DataSyncManager.shared.performSync { result in
-                                switch result {
-                                case .success(let count):
-                                    print("CloudKit認證後成功同步 \(count) 個待辦事項")
-                                    // 發送資料更新通知
-                                    NotificationCenter.default.post(
-                                        name: Notification.Name("TodoItemsDataRefreshed"),
-                                        object: nil
-                                    )
-                                case .failure(let error):
-                                    print("CloudKit認證後同步失敗: \(error.localizedDescription)")
-                                }
-                            }
+                            // TODO: Replace with API sync when needed
+                            // DataSyncManager.shared.performSync { result in
+                            //     switch result {
+                            //     case .success(let count):
+                            //         print("CloudKit認證後成功同步 \(count) 個待辦事項")
+                            //         // 發送資料更新通知
+                            //         NotificationCenter.default.post(
+                            //             name: Notification.Name("TodoItemsDataRefreshed"),
+                            //             object: nil
+                            //         )
+                            //     case .failure(let error):
+                            //         print("CloudKit認證後同步失敗: \(error.localizedDescription)")
+                            //     }
+                            // }
                         }
                     }
 

@@ -72,7 +72,58 @@ class APIManager {
         }
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+
+            // 嘗試多種日期格式
+            let formatters = [
+                // ISO8601 with fractional seconds (微秒)
+                {
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                    return formatter
+                }(),
+                // ISO8601 with Z (standard)
+                ISO8601DateFormatter(),
+                // ISO8601 without Z
+                {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+                    formatter.timeZone = TimeZone.current
+                    return formatter
+                }(),
+                // Without T separator
+                {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                    formatter.timeZone = TimeZone.current
+                    return formatter
+                }(),
+                // Date only
+                {
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    formatter.timeZone = TimeZone.current
+                    return formatter
+                }()
+            ]
+
+            for formatter in formatters {
+                if let isoFormatter = formatter as? ISO8601DateFormatter {
+                    if let date = isoFormatter.date(from: dateString) {
+                        return date
+                    }
+                } else if let dateFormatter = formatter as? DateFormatter {
+                    if let date = dateFormatter.date(from: dateString) {
+                        return date
+                    }
+                }
+            }
+
+            print("❌ 無法解析日期格式: \(dateString)")
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "無法解析日期: \(dateString)")
+        }
 
         do {
             let result = try decoder.decode(responseType, from: data)
@@ -148,7 +199,16 @@ class APIManager {
 
     func createTodo(_ todo: CreateTodoRequest) async throws -> APITodoItem {
         let url = URL(string: "\(baseURL)/todos")!
-        let requestData = try JSONEncoder().encode(todo)
+
+        // Debug: 印出要發送的數據
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let requestData = try encoder.encode(todo)
+
+        if let jsonString = String(data: requestData, encoding: .utf8) {
+            print("🚀 發送到 API 的數據: \(jsonString)")
+        }
+
         let request = createRequest(url: url, method: .POST, body: requestData)
 
         return try await performRequest(request, responseType: APITodoItem.self)
@@ -156,7 +216,9 @@ class APIManager {
 
     func updateTodo(id: UUID, _ todo: UpdateTodoRequest) async throws -> APITodoItem {
         let url = URL(string: "\(baseURL)/todos/\(id.uuidString)")!
-        let requestData = try JSONEncoder().encode(todo)
+        let updateEncoder = JSONEncoder()
+        updateEncoder.dateEncodingStrategy = .iso8601
+        let requestData = try updateEncoder.encode(todo)
         let request = createRequest(url: url, method: .PUT, body: requestData)
 
         return try await performRequest(request, responseType: APITodoItem.self)

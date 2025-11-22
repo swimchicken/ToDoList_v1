@@ -63,16 +63,18 @@ struct Add: View {
     
     // 處理關閉此視圖的事件
     var onClose: (() -> Void)?
+    var onOptimisticAdd: ((TodoItem) -> Void)?
     
     // 區塊標題列表，模擬多個區塊
     let blockTitles = ["備忘錄", "重要事項", "會議記錄"]
     
     // MARK: - MODIFIED: 修改 init 方法以接收 initialDate
-    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, initialDate: Date, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil) {
-        print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 初始日期 = \(initialDate), 來自待辦事項佇列 = \(fromTodoSheet)")
+    init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, initialDate: Date, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil, onOptimisticAdd: ((TodoItem) -> Void)? = nil) {
+        // print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 初始日期 = \(initialDate), 來自待辦事項佇列 = \(fromTodoSheet)")
 
         self._toDoItems = toDoItems
         self.onClose = onClose
+        self.onOptimisticAdd = onOptimisticAdd
         self.isFromTodoSheet = fromTodoSheet
         
         // --- 新增邏輯：從傳入的 initialDate 反向計算 dateOffset ---
@@ -145,7 +147,7 @@ struct Add: View {
             print("🔄 編輯模式：預填項目資料 - 標題: \(editingItem.title), 優先級: \(editingItem.priority)")
         }
 
-        print("Add.swift 初始化完成. 初始 currentBlockIndex = \(startIndex)")
+        // print("Add.swift 初始化完成. 初始 currentBlockIndex = \(startIndex)")
     }
     
     // 設置初始狀態的方法 - 抽取為函數以便重複使用
@@ -187,7 +189,7 @@ struct Add: View {
     
     // 根據當前的 blockIndex 更新日期選擇
     func updateDateFromBlockIndex() {
-        print("根據塊索引更新日期，當前索引: \(currentBlockIndex)")
+        // print("根據塊索引更新日期，當前索引: \(currentBlockIndex)")
         
         // 根據 currentBlockIndex 更新日期和時間狀態
         if currentBlockIndex == 0 {
@@ -648,14 +650,14 @@ struct Add: View {
         }
         // Add.swift
         .onAppear {
-            print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 初始currentBlockIndex: \(currentBlockIndex)")
+            // print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 初始currentBlockIndex: \(currentBlockIndex)")
             // 不再呼叫 setupInitialState()
 
             // 確保日期/時間狀態與初始索引同步
             // 使用 DispatchQueue.main.async 確保在視圖佈局後執行
             DispatchQueue.main.async {
                 updateDateFromBlockIndex()
-                print("🔄 onAppear 後， currentBlockIndex = \(currentBlockIndex)")
+                // print("🔄 onAppear 後， currentBlockIndex = \(currentBlockIndex)")
             }
         }
         // Move the fullScreenCover for AddNote outside the main view structure
@@ -687,26 +689,32 @@ struct Add: View {
         let now = Date()
 
         // 多重防重複檢查
-        // 1. 檢查是否正在保存
+        // 1. 檢查標題是否為空
+        guard !displayText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("標題為空，無法保存")
+            return
+        }
+
+        // 2. 檢查是否正在保存
         guard !isSaving else {
             print("正在保存中，忽略重複點擊 - isSaving檢查")
             return
         }
 
-        // 2. 檢查時間間隔防護
+        // 3. 檢查時間間隔防護
         guard now.timeIntervalSince(lastSubmissionTime) >= minimumSubmissionInterval else {
             print("提交間隔太短，忽略點擊 - 距離上次提交: \(now.timeIntervalSince(lastSubmissionTime))秒")
             return
         }
 
-        // 3. 生成唯一任務ID並檢查是否有重複任務正在處理
+        // 4. 生成唯一任務ID並檢查是否有重複任務正在處理
         let taskId = "\(displayText)_\(Int(now.timeIntervalSince1970))"
         guard currentTaskId != taskId else {
             print("檢測到重複任務ID，忽略點擊")
             return
         }
 
-        // 4. 使用原子操作設置狀態
+        // 5. 使用原子操作設置狀態
         DispatchQueue.main.async {
             // 再次檢查，確保在異步執行時狀態沒有改變
             guard !self.isSaving else {
@@ -774,10 +782,15 @@ struct Add: View {
         let itemId = editingItem?.id ?? UUID()
         let createdAt = editingItem?.createdAt ?? Date()
 
+        // 獲取當前用戶ID
+        let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId")
+        let googleUserID = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
+        let currentUserID = appleUserID ?? googleUserID ?? "unknown_user"
+
         // 創建或更新 TodoItem
         let taskToSave = TodoItem(
             id: itemId,  // ✅ 編輯時使用原 ID，新增時創建新 ID
-            userID: editingItem?.userID ?? "user123",
+            userID: editingItem?.userID ?? currentUserID,
             title: displayText,
             priority: priority,
             isPinned: isPinned,
@@ -786,85 +799,51 @@ struct Add: View {
             status: taskStatus,
             createdAt: createdAt,  // ✅ 編輯時保持原創建時間
             updatedAt: Date(),     // 更新時間總是當前時間
-            correspondingImageID: editingItem?.correspondingImageID ?? "new_task"
+            correspondingImageID: editingItem?.correspondingImageID ?? ""
         )
         
-        // 使用 DataSyncManager 保存（先本地，後雲端）
-        print("嘗試\(editingItem == nil ? "新增" : "更新")待辦事項 - ItemID: \(itemId)")
+        // 使用 API 伺服器保存待辦事項
+        print("嘗試\(editingItem == nil ? "新增" : "更新")待辦事項 - ItemID: \(itemId), UserID: \(currentUserID)")
+        print("Task data: title='\(taskToSave.title)', note='\(taskToSave.note)', userID='\(taskToSave.userID)', status=\(taskToSave.status), priority=\(taskToSave.priority), isPinned=\(taskToSave.isPinned), taskDate=\(taskToSave.taskDate?.description ?? "nil"), correspondingImageID='\(taskToSave.correspondingImageID)'")
         
         if let _ = editingItem {
-            DataSyncManager.shared.updateTodoItem(taskToSave) { result in
-                // 回到主線程處理結果
-                DispatchQueue.main.async {
-                    // 確保還是同一個任務才重置狀態
-                    guard self.currentTaskId == taskId else {
-                        print("任務ID已變更，不重置狀態")
-                        return
+            Task {
+                do {
+                    let updatedItem = try await APIDataManager.shared.updateTodoItem(taskToSave)
+                    await MainActor.run {
+                        // 確保還是同一個任務才重置狀態
+                        guard self.currentTaskId == taskId else {
+                            print("任務ID已變更，不重置狀態")
+                            return
+                        }
+
+                        // 重置保存狀態
+                        self.isSaving = false
+                        self.currentTaskId = nil
+
+                        print("成功更新待辦事項! ID: \(updatedItem.id), TaskID: \(taskId)")
+
+                        // 關閉視圖，讓父視圖重新載入數據
+                        if let onClose = self.onClose {
+                            onClose()
+                        }
                     }
-                    
-                    // 重置保存狀態
-                    self.isSaving = false
-                    self.currentTaskId = nil
-                    
-                    switch result {
-                    case .success(let savedItem):
-                        print("成功\(self.editingItem == nil ? "保存" : "更新")待辦事項到本地! ID: \(savedItem.id), TaskID: \(taskId)")
-                        print("正在後台同步到雲端...")
-                        
-                        // ✅ 根據模式決定是添加還是更新
-                        if let editingItem = self.editingItem {
-                            // 編輯模式：更新現有項目
-                            if let index = self.toDoItems.firstIndex(where: { $0.id == editingItem.id }) {
-                                self.toDoItems[index] = savedItem
-                                print("已更新列表中的項目，索引: \(index)")
-                            }
-                        } else {
-                            // 新增模式：添加新項目
-                            self.toDoItems.append(savedItem)
-                            print("已添加新項目到列表")
+                } catch {
+                    await MainActor.run {
+                        // 確保還是同一個任務才重置狀態
+                        guard self.currentTaskId == taskId else {
+                            print("任務ID已變更，不重置狀態")
+                            return
                         }
-                        
-                        // 短暫延遲確保 UI 更新
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            if let onClose = self.onClose {
-                                onClose()
-                            }
-                        }
-                        
-                    case .failure(let error):
-                        // 保存失敗時才顯示錯誤警告
-                        let nsError = error as NSError
-                        print("保存失敗: \(error.localizedDescription), TaskID: \(taskId)")
-                        
-                        if nsError.domain == CKErrorDomain {
-                            switch nsError.code {
-                            case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                                self.saveError = "網絡連接問題，但項目已保存到本地"
-                            case CKError.notAuthenticated.rawValue:
-                                self.saveError = "未登入 iCloud，項目已保存到本地"
-                            case CKError.quotaExceeded.rawValue:
-                                self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
-                            case CKError.serverRejectedRequest.rawValue:
-                                self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
-                            default:
-                                self.saveError = "iCloud 錯誤，項目已保存到本地"
-                            }
-                        } else {
-                            self.saveError = "保存錯誤: \(error.localizedDescription)"
-                        }
-                        
-                        // 顯示錯誤警告
+
+                        // 重置保存狀態
+                        self.isSaving = false
+                        self.currentTaskId = nil
+
+                        print("更新失敗: \(error.localizedDescription), TaskID: \(taskId)")
+                        self.saveError = "更新失敗: \(error.localizedDescription)"
                         self.showSaveAlert = true
-                        
-                        // 嘗試只保存到本地
-                        print("發生錯誤，嘗試只保存到本地")
-                        LocalDataManager.shared.updateTodoItem(taskToSave)  // ✅ 使用 taskToSave 和 updateTodoItem
-                        if let editingItem = self.editingItem {
-                            if let index = self.toDoItems.firstIndex(where: { $0.id == editingItem.id }) {
-                                self.toDoItems[index] = taskToSave  // ✅ 更新而不是添加
-                            }
-                        }
-                        
+
                         // 短暫延遲關閉視圖
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                             if let onClose = self.onClose {
@@ -875,72 +854,42 @@ struct Add: View {
                 }
             }
         } else {
-            // ✅ 新增模式：添加新項目
-            DataSyncManager.shared.addTodoItem(taskToSave) { result in
-                // 回到主線程處理結果
-                DispatchQueue.main.async {
-                    // 確保還是同一個任務才重置狀態
-                    guard self.currentTaskId == taskId else {
-                        print("任務ID已變更，不重置狀態")
-                        return
+            // ✅ 新增模式：添加新項目 - 樂觀更新
+
+            // 1. 立即關閉視圖並通知父視圖樂觀新增
+            self.isSaving = false
+            self.currentTaskId = nil
+
+            if let onOptimisticAdd = self.onOptimisticAdd {
+                onOptimisticAdd(taskToSave)  // 傳遞新建的任務讓 Home 立即顯示
+            } else if let onClose = self.onClose {
+                onClose()  // 備用方案
+            }
+
+            // 2. 在背景發送 API 請求
+            Task {
+                do {
+                    let newItem = try await APIDataManager.shared.addTodoItem(taskToSave)
+                    print("✅ 成功新增待辦事項到 API! ID: \(newItem.id), TaskID: \(taskId)")
+
+                    // 3. 通知 Home 更新實際的 API 數據
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("TodoItemApiSyncCompleted"),
+                            object: nil,
+                            userInfo: ["item": newItem, "operation": "add"]
+                        )
                     }
-                    
-                    // 重置保存狀態
-                    self.isSaving = false
-                    self.currentTaskId = nil
-                    
-                    switch result {
-                    case .success(let savedItem):
-                        print("成功保存待辦事項到本地! ID: \(savedItem.id), TaskID: \(taskId)")
-                        print("正在後台同步到雲端...")
-                        
-                        // 添加新項目
-                        self.toDoItems.append(savedItem)
-                        print("已添加新項目到列表")
-                        
-                        // 短暫延遲確保 UI 更新
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            if let onClose = self.onClose {
-                                onClose()
-                            }
-                        }
-                        
-                    case .failure(let error):
-                        // 保存失敗時才顯示錯誤警告
-                        let nsError = error as NSError
-                        print("保存失敗: \(error.localizedDescription), TaskID: \(taskId)")
-                        
-                        if nsError.domain == CKErrorDomain {
-                            switch nsError.code {
-                            case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                                self.saveError = "網絡連接問題，但項目已保存到本地"
-                            case CKError.notAuthenticated.rawValue:
-                                self.saveError = "未登入 iCloud，項目已保存到本地"
-                            case CKError.quotaExceeded.rawValue:
-                                self.saveError = "已超出 iCloud 儲存配額，項目已保存到本地"
-                            case CKError.serverRejectedRequest.rawValue:
-                                self.saveError = "iCloud 伺服器拒絕請求，項目已保存到本地"
-                            default:
-                                self.saveError = "iCloud 錯誤，項目已保存到本地"
-                            }
-                        } else {
-                            self.saveError = "保存錯誤: \(error.localizedDescription)"
-                        }
-                        
-                        // 顯示錯誤警告
-                        self.showSaveAlert = true
-                        
-                        // 嘗試只保存到本地
-                        print("發生錯誤，嘗試只保存到本地")
-                        LocalDataManager.shared.addTodoItem(taskToSave)
-                        self.toDoItems.append(taskToSave)
-                        
-                        // 短暫延遲關閉視圖
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            if let onClose = self.onClose {
-                                onClose()
-                            }
-                        }
+                } catch {
+                    print("❌ API 新增失敗: \(error.localizedDescription)")
+
+                    // 4. 如果 API 失敗，通知 Home 撤回樂觀更新
+                    await MainActor.run {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("TodoItemOptimisticUpdateFailed"),
+                            object: nil,
+                            userInfo: ["tempId": taskToSave.id, "operation": "add", "error": error.localizedDescription]
+                        )
                     }
                 }
             }

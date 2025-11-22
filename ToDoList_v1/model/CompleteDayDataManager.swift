@@ -16,7 +16,7 @@ class CompleteDayDataManager {
     // MARK: - 常量
     private let completedDaysKey = "completedDays"
     private let cloudKitService = CloudKitService.shared
-    private let localDataManager = LocalDataManager.shared
+    private let apiDataManager = APIDataManager.shared
     
     // MARK: - Properties
     // 使用日期字符串作為標識（格式：yyyy-MM-dd）
@@ -78,7 +78,7 @@ class CompleteDayDataManager {
     private func loadCompletedDaysFromLocal() {
         if let savedDays = UserDefaults.standard.stringArray(forKey: completedDaysKey) {
             completedDays = savedDays
-            print("DEBUG: 從本地加載 \(completedDays.count) 個已完成日期")
+            // print("DEBUG: 從本地加載 \(completedDays.count) 個已完成日期")
         } else {
             completedDays = []
             print("DEBUG: 本地無已完成日期數據")

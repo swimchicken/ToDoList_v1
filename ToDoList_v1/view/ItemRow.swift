@@ -37,12 +37,12 @@ struct ItemRow: View {
                         // 更新狀態
                         item.status = (item.status == .completed ? .toBeStarted : .completed)
                         
-                        // 使用 DataSyncManager 更新項目 - 它會先更新本地然後同步到雲端
-                        DataSyncManager.shared.updateTodoItem(item) { result in
-                            switch result {
-                            case .success(_):
-                                print("ItemRow - 成功更新待辦事項到本地和雲端")
-                            case .failure(let error):
+                        // 使用 API 更新項目
+                        Task {
+                            do {
+                                try await APIDataManager.shared.updateTodoItem(item)
+                                print("ItemRow - 成功更新待辦事項到 API")
+                            } catch {
                                 print("ItemRow - 更新待辦事項失敗: \(error.localizedDescription)")
                             }
                         }

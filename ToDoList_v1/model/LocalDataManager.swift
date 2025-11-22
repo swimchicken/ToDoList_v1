@@ -20,7 +20,7 @@ class LocalDataManager {
     
     // MARK: - 初始化
     private init() {
-        print("DEBUG: 初始化 LocalDataManager")
+        // print("DEBUG: 初始化 LocalDataManager") // 已廢棄，使用 API
     }
     
     // MARK: - 同步狀態

@@ -57,15 +57,6 @@ struct Home: View {
     @State private var showTaskSelectionOverlay: Bool = false
     @State private var pendingTasks: [TodoItem] = []
     
-    // 跟踪已删除项目ID的集合，防止它们重新出现
-    // 使用UserDefaults持久化存储，确保应用重启后仍然有效
-    @State private var recentlyDeletedItemIDs: Set<UUID> = {
-        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
-           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
-            return Set(decodedIDs)
-        }
-        return []
-    }()
     
     // 添加水平滑動狀態
     @State private var currentDateOffset: Int = 0 // 日期偏移量
@@ -92,8 +83,8 @@ struct Home: View {
         )
     }
     
-    // 數據同步管理器 - 處理本地存儲和雲端同步
-    private let dataSyncManager = DataSyncManager.shared
+    // API 數據管理器 - 處理 API 伺服器調用
+    private let apiDataManager = APIDataManager.shared
     
     // 已完成日期數據管理器 - 追蹤已完成的日期
     private let completeDayDataManager = CompleteDayDataManager.shared
@@ -217,12 +208,12 @@ struct Home: View {
                 if let index = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
                     self.toDoItems[index] = newValue
                     
-                    // 使用 DataSyncManager 更新項目 - 它會先更新本地然後同步到雲端
-                    self.dataSyncManager.updateTodoItem(newValue) { result in
-                        switch result {
-                        case .success(_):
+                    // 使用 API 伺服器更新項目
+                    Task {
+                        do {
+                            let _ = try await self.apiDataManager.updateTodoItem(newValue)
                             print("成功更新待辦事項")
-                        case .failure(let error):
+                        } catch {
                             print("更新待辦事項失敗: \(error.localizedDescription)")
                         }
                     }
@@ -316,61 +307,52 @@ struct Home: View {
                                 let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
                                 print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
                                 UserDefaults.standard.set(true, forKey: "isActiveEndDay")
-                                LocalDataManager.shared.saveAllChanges()
+                                // API 數據管理器不需要手動保存，所有操作都是即時的
                                 NotificationCenter.default.post(
                                     name: Notification.Name("TodoItemsDataRefreshed"),
                                     object: nil
                                 )
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    let allItems = LocalDataManager.shared.getAllTodoItems()
-                                    print("🔥 所有項目數量: \(allItems.count)")
+                                Task {
+                                    do {
+                                        let allItems = try await apiDataManager.getAllTodoItems()
+                                        await MainActor.run {
+                                            print("🔥 所有項目數量: \(allItems.count)")
 
-                                    // 修正邏輯：應該只檢查今天的項目，而不是所有項目
-                                    let today = Date()
-                                    let calendar = Calendar.current
-                                    let startOfToday = calendar.startOfDay(for: today)
-                                    let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+                                            // 修正邏輯：應該只檢查今天的項目，而不是所有項目
+                                            let today = Date()
+                                            let calendar = Calendar.current
+                                            let startOfToday = calendar.startOfDay(for: today)
+                                            let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
-                                    // 過濾今天的項目（有日期且在今天範圍內）
-                                    let todayItems = allItems.filter { item in
-                                        // 過濾已刪除的項目
-                                        guard !self.recentlyDeletedItemIDs.contains(item.id) else {
-                                            print("🔥 跳過已刪除項目: \(item.title)")
-                                            return false
+                                            // 過濾今天的項目（有日期且在今天範圍內）
+                                            let todayItems = allItems.filter { item in
+                                                // 只包含有日期且在今天的項目
+                                                guard let taskDate = item.taskDate else {
+                                                    print("🔥 跳過沒有日期的項目（備忘錄）: \(item.title)")
+                                                    return false
+                                                }
+
+                                                let isToday = taskDate >= startOfToday && taskDate < endOfToday
+                                                print("🔥 項目 '\(item.title)' 是否為今天: \(isToday)")
+                                                return isToday
+                                            }
+
+                                            print("🔥 今天的項目數量: \(todayItems.count)")
+
+                                            // 檢查今天是否有事件
+                                            if todayItems.isEmpty {
+                                                print("🔥 今天沒有任何事件，顯示提示彈窗")
+                                                showNoEventsAlert = true
+                                            } else {
+                                                // 【修改點】直接設置為 true 即可，不再需要延遲或重置
+                                                print("🔥 今天有 \(todayItems.count) 個事件，準備跳轉到結算頁面")
+                                                self.navigateToSettlementView = true
+                                            }
                                         }
-
-                                        // 只包含有日期且在今天的項目
-                                        guard let taskDate = item.taskDate else {
-                                            print("🔥 跳過沒有日期的項目（備忘錄）: \(item.title)")
-                                            return false
+                                    } catch {
+                                        await MainActor.run {
+                                            print("🔥 載入項目失敗: \(error.localizedDescription)")
                                         }
-
-                                        let isToday = taskDate >= startOfToday && taskDate < endOfToday
-                                        print("🔥 項目 '\(item.title)' 是否為今天: \(isToday)")
-                                        return isToday
-                                    }
-
-                                    print("🔥 今天的項目數量: \(todayItems.count)")
-
-                                    if allItems.count != (allItems.count - self.recentlyDeletedItemIDs.count) {
-                                        print("結算前過濾了 \(self.recentlyDeletedItemIDs.count) 個已刪除項目")
-                                        let deletedButStillExistIDs = allItems
-                                            .filter { self.recentlyDeletedItemIDs.contains($0.id) }
-                                            .map { $0.id }
-                                        for id in deletedButStillExistIDs {
-                                            LocalDataManager.shared.deleteTodoItem(withID: id)
-                                            print("結算前強制刪除項目 ID: \(id)")
-                                        }
-                                    }
-
-                                    // 檢查今天是否有事件
-                                    if todayItems.isEmpty {
-                                        print("🔥 今天沒有任何事件，顯示提示彈窗")
-                                        showNoEventsAlert = true
-                                    } else {
-                                        // 【修改點】直接設置為 true 即可，不再需要延遲或重置
-                                        print("🔥 今天有 \(todayItems.count) 個事件，準備跳轉到結算頁面")
-                                        self.navigateToSettlementView = true
                                     }
                                 }
                             } else {
@@ -526,6 +508,16 @@ struct Home: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                             loadTodoItems()
                         }
+                    },
+                        onOptimisticAdd: { newItem in
+                        // 樂觀更新：立即顯示新任務
+                        showAddTaskSheet = false
+                        addTaskMode = .today
+                        isFromTodoSheet = false
+                        editingItem = nil
+
+                        // 立即添加到本地列表
+                        toDoItems.append(newItem)
                     })
                     .transition(.move(edge: .bottom))
                 }
@@ -593,21 +585,21 @@ struct Home: View {
                                     showingDeleteView = false
                                     selectedItem = nil
                                 }
-                                if let index = toDoItems.firstIndex(where: { $0.id == itemToDelete.id }) {
-                                    toDoItems.remove(at: index)
-                                }
                                 let deletedItemID = itemToDelete.id
-                                recentlyDeletedItemIDs.insert(deletedItemID)
-                                
-                                // 保存更新後的已刪除項目ID到UserDefaults
-                                if let encodedData = try? JSONEncoder().encode(Array(recentlyDeletedItemIDs)) {
-                                    UserDefaults.standard.set(encodedData, forKey: "recentlyDeletedItemIDs")
-                                }
-                                
-                                LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
-                                DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { _ in }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    self.dataRefreshToken = UUID()
+
+                                Task {
+                                    do {
+                                        try await apiDataManager.deleteTodoItem(withID: deletedItemID)
+                                        print("成功刪除項目: \(deletedItemID)")
+
+                                        await MainActor.run {
+                                            self.loadTodoItems()
+                                        }
+                                    } catch {
+                                        await MainActor.run {
+                                            print("刪除失敗: \(error.localizedDescription)")
+                                        }
+                                    }
                                 }
                             } else {
                                 withAnimation(.easeInOut) {
@@ -638,38 +630,28 @@ struct Home: View {
                                     correspondingImageID: itemToMove.correspondingImageID
                                 )
                                 
-                                // 保存新項目
-                                dataSyncManager.addTodoItem(queueItem) { result in
-                                    DispatchQueue.main.async {
-                                        switch result {
-                                        case .success:
-                                            print("成功放入代辦佇列: \(queueItem.title)")
-                                            // 立即更新本地數據並重新載入
-                                            self.toDoItems.append(queueItem)
+                                // 先新增到佇列，再刪除原項目
+                                let deletedItemID = itemToMove.id
+
+                                Task {
+                                    do {
+                                        // 1. 先新增佇列項目
+                                        let newQueueItem = try await apiDataManager.addTodoItem(queueItem)
+                                        print("成功放入代辦佇列: \(newQueueItem.title)")
+
+                                        // 2. 再刪除原項目
+                                        try await apiDataManager.deleteTodoItem(withID: deletedItemID)
+                                        print("成功刪除原項目: \(deletedItemID)")
+
+                                        // 3. 最後重新載入數據
+                                        await MainActor.run {
                                             self.loadTodoItems()
-                                        case .failure(let error):
-                                            print("放入代辦佇列失敗: \(error.localizedDescription)")
+                                        }
+                                    } catch {
+                                        await MainActor.run {
+                                            print("移動到佇列失敗: \(error.localizedDescription)")
                                         }
                                     }
-                                }
-                                
-                                // 刪除原項目
-                                if let index = toDoItems.firstIndex(where: { $0.id == itemToMove.id }) {
-                                    toDoItems.remove(at: index)
-                                }
-                                let deletedItemID = itemToMove.id
-                                recentlyDeletedItemIDs.insert(deletedItemID)
-                                
-                                // 保存更新後的已刪除項目ID到UserDefaults
-                                if let encodedData = try? JSONEncoder().encode(Array(recentlyDeletedItemIDs)) {
-                                    UserDefaults.standard.set(encodedData, forKey: "recentlyDeletedItemIDs")
-                                }
-                                
-                                LocalDataManager.shared.deleteTodoItem(withID: deletedItemID)
-                                DataSyncManager.shared.deleteTodoItem(withID: deletedItemID) { _ in }
-                                
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                    self.dataRefreshToken = UUID()
                                 }
                             } else {
                                 withAnimation(.easeInOut) {
@@ -711,12 +693,12 @@ struct Home: View {
                         }
                     },
                     onAdd: { itemsToAdd in
-                        for item in itemsToAdd {
-                            self.dataSyncManager.addTodoItem(item) { result in
-                                switch result {
-                                case .success:
+                        Task {
+                            for item in itemsToAdd {
+                                do {
+                                    let _ = try await self.apiDataManager.addTodoItem(item)
                                     print("成功保存任務: \(item.title)")
-                                case .failure(let error):
+                                } catch {
                                     print("保存任務失敗: \(error.localizedDescription)")
                                 }
                             }
@@ -845,20 +827,23 @@ struct Home: View {
             loadTodoItems()
         }
         if delaySettlementManager.shouldShowSettlement() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                let allItems = LocalDataManager.shared.getAllTodoItems()
-                let filteredItems = allItems.filter { !self.recentlyDeletedItemIDs.contains($0.id) }
-                if allItems.count != filteredItems.count {
-                    let deletedButStillExistIDs = allItems.filter { self.recentlyDeletedItemIDs.contains($0.id) }.map { $0.id }
-                    for id in deletedButStillExistIDs { LocalDataManager.shared.deleteTodoItem(withID: id) }
-                    self.toDoItems = filteredItems
-                }
-                
-                // 檢查是否有事件，沒有則跳過自動結算
-                if !filteredItems.isEmpty {
-                    navigateToSettlementView = true
-                } else {
-                    print("自動結算檢測但沒有任何事件，跳過結算流程")
+            Task {
+                do {
+                    let allItems = try await apiDataManager.getAllTodoItems()
+                    await MainActor.run {
+                        self.toDoItems = allItems
+
+                        // 檢查是否有事件，沒有則跳過自動結算
+                        if !allItems.isEmpty {
+                            navigateToSettlementView = true
+                        } else {
+                            print("自動結算檢測但沒有任何事件，跳過結算流程")
+                        }
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("自動結算載入項目失敗: \(error.localizedDescription)")
+                    }
                 }
             }
         }
@@ -1040,8 +1025,6 @@ struct Home: View {
         
         // 篩選當天的項目（只包含有時間的項目）
         let filteredItems = toDoItems.filter { item in
-            // 過濾掉已刪除的項目
-            guard !recentlyDeletedItemIDs.contains(item.id) else { return false }
             
             // 先過濾有任務日期的項目，再進行日期比較
             guard let taskDate = item.taskDate else {
@@ -1178,6 +1161,41 @@ struct Home: View {
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemsDataRefreshed"), object: nil, queue: .main) { _ in
             loadTodoItems()
         }
+
+        // 監聽 API 同步完成
+        NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemApiSyncCompleted"), object: nil, queue: .main) { notification in
+            if let userInfo = notification.userInfo,
+               let item = userInfo["item"] as? TodoItem,
+               let operation = userInfo["operation"] as? String {
+
+                if operation == "add" {
+                    // 找到樂觀更新的項目並更新為實際 API 返回的數據
+                    if let index = toDoItems.firstIndex(where: { $0.id == item.id }) {
+                        toDoItems[index] = item
+                        print("✅ 樂觀更新完成，更新為 API 數據")
+                    }
+                }
+            }
+        }
+
+        // 監聽樂觀更新失敗
+        NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemOptimisticUpdateFailed"), object: nil, queue: .main) { notification in
+            if let userInfo = notification.userInfo,
+               let tempId = userInfo["tempId"] as? UUID,
+               let operation = userInfo["operation"] as? String,
+               let error = userInfo["error"] as? String {
+
+                if operation == "add" {
+                    // 移除失敗的樂觀更新項目
+                    toDoItems.removeAll { $0.id == tempId }
+                    print("❌ 樂觀更新失敗，已撤回: \(error)")
+
+                    // 顯示錯誤提示
+                    toastMessage = "保存失敗: \(error)"
+                    showToast = true
+                }
+            }
+        }
         NotificationCenter.default.addObserver(forName: Notification.Name("CompletedDaysDataChanged"), object: nil, queue: .main) { _ in
             dataRefreshToken = UUID()
         }
@@ -1210,14 +1228,18 @@ struct Home: View {
     private func performManualSync() {
         guard !isSyncing else { return }
         isSyncing = true
-        dataSyncManager.performSync { result in
-            DispatchQueue.main.async {
-                isSyncing = false
-                switch result {
-                case .success(let syncCount):
-                    print("手動同步完成! 同步了 \(syncCount) 個項目")
-                    loadTodoItems()
-                case .failure(let error):
+
+        Task {
+            do {
+                let items = try await apiDataManager.getAllTodoItems()
+                await MainActor.run {
+                    isSyncing = false
+                    print("手動同步完成! 載入了 \(items.count) 個項目")
+                    self.toDoItems = items
+                }
+            } catch {
+                await MainActor.run {
+                    isSyncing = false
                     print("手動同步失敗: \(error.localizedDescription)")
                     loadingError = "同步失敗: \(error.localizedDescription)"
                     loadTodoItems()
@@ -1229,18 +1251,19 @@ struct Home: View {
     private func loadTodoItems() {
         isLoading = true
         loadingError = nil
-        dataSyncManager.fetchTodoItems { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let items):
+
+        Task {
+            do {
+                let items = try await apiDataManager.getAllTodoItems()
+                await MainActor.run {
                     self.isLoading = false
-                    let filteredItems = items.filter { !self.recentlyDeletedItemIDs.contains($0.id) }
-                    self.toDoItems = filteredItems
-                case .failure(let error):
+                    self.toDoItems = items
+                }
+            } catch {
+                await MainActor.run {
                     self.isLoading = false
                     self.loadingError = "載入失敗: \(error.localizedDescription)"
-                    let localItems = LocalDataManager.shared.getAllTodoItems()
-                    self.toDoItems = localItems.filter { !self.recentlyDeletedItemIDs.contains($0.id) }
+                    self.toDoItems = []
                 }
             }
         }

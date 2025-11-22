@@ -16,9 +16,12 @@ struct ToDoList_v1App: App {
     @StateObject private var alarmStateManager = AlarmStateManager()
     
     init() {
+        // 設定語言偏好，避免 AFPreferences 警告
+        setupLanguagePreferences()
+
         // 應用啟動時更新 Widget 數據
         updateWidgetData()
-        
+
         // 設定通知代理
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
     }
@@ -67,14 +70,17 @@ struct ToDoList_v1App: App {
         print("=== App 啟動：開始更新 Widget 數據 ===")
         
         // 獲取所有任務並更新 Widget
-        let allTasks = LocalDataManager.shared.getAllTodoItems()
-        print("從本地獲取到 \(allTasks.count) 個任務")
-        
-        // 使用 UserDefaults 保存
-        WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
-        
-        // 使用文件系統保存，確保Widget可以找到數據文件
-        WidgetFileManager.shared.saveTodayTasksToFile(allTasks)
+        Task {
+            do {
+                let allTasks = try await APIDataManager.shared.getAllTodoItems()
+                print("從 API 獲取到 \(allTasks.count) 個任務")
+
+                // 使用 UserDefaults 保存
+                WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
+            } catch {
+                print("更新 Widget 數據失敗: \(error.localizedDescription)")
+            }
+        }
         
         print("=== App 啟動：Widget 數據更新完成 ===")
         print()
@@ -126,7 +132,26 @@ struct ToDoList_v1App: App {
             print("  1. 主應用和 Widget Extension 都已添加 App Groups capability")
             print("  2. 兩個 targets 都使用相同的 App Group ID: group.com.fcu.ToDolist")
         }
-        
+
         print("=== 測試結束 ===\n")
+    }
+
+    /// 設定語言偏好，避免 AFPreferences 警告
+    private func setupLanguagePreferences() {
+        // 設定系統語言偏好
+        let preferredLanguages = Locale.preferredLanguages
+        if !preferredLanguages.isEmpty {
+            // 確保有語言代碼設定
+            UserDefaults.standard.set(preferredLanguages, forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize()
+        }
+
+        // 如果是中文環境，明確設定語言
+        if Locale.current.languageCode == "zh" {
+            UserDefaults.standard.set(["zh-Hant-TW"], forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.set(["en-US"], forKey: "AppleLanguages")
+        }
+        UserDefaults.standard.synchronize()
     }
 }

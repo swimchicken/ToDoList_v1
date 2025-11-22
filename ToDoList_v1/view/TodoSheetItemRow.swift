@@ -31,12 +31,12 @@ struct TodoSheetItemRow: View {
                         item.status = (item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)
                     }
                     
-                    // 使用 DataSyncManager 更新項目 - 它會先更新本地然後同步到雲端
-                    DataSyncManager.shared.updateTodoItem(item) { result in
-                        switch result {
-                        case .success(_):
-                            print("TodoSheetItemRow - 成功更新待辦事項到本地和雲端")
-                        case .failure(let error):
+                    // 使用 API 更新項目
+                    Task {
+                        do {
+                            try await APIDataManager.shared.updateTodoItem(item)
+                            print("TodoSheetItemRow - 成功更新待辦事項到 API")
+                        } catch {
                             print("TodoSheetItemRow - 更新待辦事項失敗: \(error.localizedDescription)")
                         }
                     }
@@ -93,22 +93,23 @@ struct TodoSheetItemRow: View {
                         homeItem.status = .toBeStarted
                     }
                     
-                    // 使用數據同步管理器添加到首頁事件
-                    DataSyncManager.shared.addTodoItem(homeItem) { result in
-                        switch result {
-                        case .success(_):
-                            // 發送通知以刷新首頁
-                            NotificationCenter.default.post(
-                                name: Notification.Name("TodoItemsDataRefreshed"),
-                                object: nil
-                            )
-                            
-                            // 如果有回調，傳遞新項目
-                            if let onAddToHome = onAddToHome {
-                                onAddToHome(homeItem)
+                    // 使用 API 添加到首頁事件
+                    Task {
+                        do {
+                            let addedItem = try await APIDataManager.shared.addTodoItem(homeItem)
+                            await MainActor.run {
+                                // 發送通知以刷新首頁
+                                NotificationCenter.default.post(
+                                    name: Notification.Name("TodoItemsDataRefreshed"),
+                                    object: nil
+                                )
+
+                                // 如果有回調，傳遞新項目
+                                if let onAddToHome = onAddToHome {
+                                    onAddToHome(homeItem)
+                                }
                             }
-                            
-                        case .failure(let error):
+                        } catch {
                             // 錯誤記錄到控制台
                             print("添加失敗: \(error.localizedDescription)")
                         }

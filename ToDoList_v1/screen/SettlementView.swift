@@ -329,11 +329,12 @@ struct SettlementView: View {
             }
         }
         
-        // 打印所有本地項目的狀態進行調試
-        print("SettlementView - 本地數據庫中的項目(過濾後): \(localItems.count) 個")
-        for (index, item) in localItems.enumerated() {
-            print("  項目\(index): ID=\(item.id), 標題=\(item.title), 狀態=\(item.status.rawValue), 有日期=\(item.taskDate != nil)")
-        }
+        // 簡化日誌輸出
+        print("SettlementView - 本地數據庫中的項目: \(localItems.count) 個")
+        // 詳細項目列表已註釋以減少日誌雜訊
+        // for (index, item) in localItems.enumerated() {
+        //     print("  項目\(index): ID=\(item.id), 標題=\(item.title), 狀態=\(item.status.rawValue), 有日期=\(item.taskDate != nil)")
+        // }
 
         // 從本地項目中過濾已完成和未完成的項目
         // 首先按日期篩選當天的任務，再按狀態篩選
