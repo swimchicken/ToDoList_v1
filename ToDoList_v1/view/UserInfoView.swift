@@ -49,11 +49,6 @@ struct UserInfoView: View {
                         Image(systemName: "eyes.inverse")
                                     .foregroundColor(.white)
                         
-                        // 狀態 + 溫度
-//                        Text("\(statusText) • \(temperatureText)")
-//                            .font(.subheadline)
-//                            .foregroundColor(.white.opacity(0.7))
-                        
                         Text(statusText)
                             .font(Font.custom("Inter", size: 11.7))
                             .foregroundStyle(.white)
