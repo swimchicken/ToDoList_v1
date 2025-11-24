@@ -237,11 +237,11 @@ struct Add: View {
         // Date part
         var dateText = ""
         if calendar.isDate(selectedDay, inSameDayAs: today) {
-            dateText = "Today"
+            dateText = "今天"     // "Today"
         } else if calendar.isDate(selectedDay, inSameDayAs: tomorrow) {
-            dateText = "Tomorrow"
+            dateText = "明天"     // "Tomorrow"
         } else if calendar.isDate(selectedDay, inSameDayAs: yesterday) {
-            dateText = "Yesterday"
+            dateText = "昨天"     // "Yesterday"
         } else {
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "MMM d"
@@ -286,7 +286,7 @@ struct Add: View {
                 // 主要內容區域
                 VStack(alignment: .leading, spacing: 0) { // spacing: 20
 
-                    Text("Add task to")
+                    Text("新增任務到")   // "Add task to"
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                         .padding(.top, 16)
@@ -501,7 +501,7 @@ struct Add: View {
                                     onClose()
                                 }
                             }) {
-                                Text("Back")
+                                Text("返回") // "Back"
                                     .font(.system(size: 18, weight: .medium))
                                     .foregroundColor(.white)
                                     .frame(width: 80, height: 46)
@@ -526,7 +526,7 @@ struct Add: View {
                                         .background(Color.white)
                                         .cornerRadius(25)
                                 } else {
-                                    Text("ADD")
+                                    Text("新增") // "ADD"
                                         .font(.system(size: 18, weight: .bold))
                                         .foregroundColor(.black)
                                         .frame(width: 250, height: 46)

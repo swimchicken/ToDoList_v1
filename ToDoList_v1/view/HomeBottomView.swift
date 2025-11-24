@@ -133,7 +133,7 @@ struct HomeBottomView: View {
                                 HStack { Text("同步中..."); ProgressView() }
                                     .frame(maxWidth: .infinity)
                             } else {
-                                Text("end today").frame(maxWidth: .infinity)
+                                Text("結束今天").frame(maxWidth: .infinity)     // "end today"
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -257,7 +257,7 @@ struct HomeBottomView: View {
                                 HStack { Text("同步中..."); ProgressView() }
                                     .frame(maxWidth: .infinity)
                             } else {
-                                Text("return to today").frame(maxWidth: .infinity)
+                                Text("回到今天").frame(maxWidth: .infinity)     // "return to today"
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -372,7 +372,7 @@ struct HomeBottomView: View {
             
             HStack(spacing: 10) {
                 Button(action: onSleepButtonTapped) {
-                    Text("back to sleep mode")
+                    Text("回到睡眠模式")      // "back to sleep mode"
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
