@@ -100,7 +100,7 @@ struct SettlementView02: View {
     let moveTasksToTomorrow: Bool
 
     // 數據同步管理器
-    private let dataSyncManager = DataSyncManager.shared
+    private let apiDataManager = APIDataManager.shared
     
     // 本地狀態
     @State private var dailyTasks: [TodoItem] = []
@@ -136,8 +136,8 @@ struct SettlementView02: View {
             let today = calendar.startOfDay(for: Date())
             let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
 
-            // 從 LocalDataManager 獲取所有任務
-            let allItems = LocalDataManager.shared.getAllTodoItems()
+            // 先使用空陣列，將在onAppear中加載
+            let allItems: [TodoItem] = []
 
             // 記錄settlement開始時明天已有的任務ID，這些不應該顯示在事件列表中
             let existingTomorrowTasks = allItems.filter { task in
@@ -165,7 +165,8 @@ struct SettlementView02: View {
         if moveTasksToTomorrow {
             let calendar = Calendar.current
             let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
-            let allItems = LocalDataManager.shared.getAllTodoItems()
+            // 將在onAppear中加載數據
+            let allItems: [TodoItem] = []
             let existingTomorrowTaskIDs: Set<UUID> = Set(allItems.compactMap { task -> UUID? in
                 guard let taskDate = task.taskDate else { return nil }
                 let taskDay = calendar.startOfDay(for: taskDate)
@@ -244,6 +245,8 @@ struct SettlementView02: View {
                     print("Re-entering SettlementView02, keeping temp state")
                 }
 
+                // 加載初始數據
+                loadInitialData()
                 loadTasksFromDataManager()
             }
             .fullScreenCover(isPresented: $showAddTimeView) {
@@ -581,7 +584,13 @@ struct SettlementView02: View {
                         if item.taskDate == nil || item.taskDate! < targetDate {
                             item.taskDate = targetDate
                         }
-                        DataSyncManager.shared.addTodoItem(item) { _ in }
+                        Task {
+                            do {
+                                let _ = try await apiDataManager.addTodoItem(item)
+                            } catch {
+                                print("SettlementView02 - 添加任務失敗: \(error.localizedDescription)")
+                            }
+                        }
                     }
                     withAnimation { self.showTaskSelectionOverlay = false }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -625,7 +634,8 @@ struct SettlementView02: View {
     
     /// 從 DataManager 重新載入任務列表（包含暫存操作的處理）
     private func loadTasksFromDataManager() {
-        let originalItems = LocalDataManager.shared.getAllTodoItems()
+        // 使用當前已加載的數據
+        let originalItems = allTodoItems
 
         // 處理暫存操作：過濾掉暫時刪除的項目，添加暫時新增的項目（但排除被暫存刪除的）
         var processedItems = originalItems.filter { !tempDeletedItemIDs.contains($0.id) }
@@ -775,6 +785,59 @@ struct SettlementView02: View {
             }
         }
     }
+
+    // 加載初始數據
+    private func loadInitialData() {
+        Task {
+            do {
+                let allItems = try await apiDataManager.getAllTodoItems()
+                await MainActor.run {
+                    processInitialData(allItems)
+                }
+            } catch {
+                await MainActor.run {
+                    print("SettlementView02 - 加載初始數據失敗: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // 處理初始數據
+    private func processInitialData(_ allItems: [TodoItem]) {
+        if moveTasksToTomorrow {
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let tomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+
+            // 記錄settlement開始時明天已有的任務ID
+            let existingTomorrowTaskIDs: Set<UUID> = Set(allItems.compactMap { task -> UUID? in
+                guard let taskDate = task.taskDate else { return nil }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                return taskDay == tomorrow ? task.id : nil
+            })
+
+            print("🔧 SettlementView02 初始化：記錄明天已存在的任務ID數量：\(existingTomorrowTaskIDs.count)")
+            for id in existingTomorrowTaskIDs {
+                if let task = allItems.first(where: { $0.id == id }) {
+                    print("  - 明天已存在任務：\(task.title) (ID: \(id))")
+                }
+            }
+
+            // 篩選要顯示在事件列表的任務：只顯示當天的未完成任務
+            let todayTasks = allItems.filter { task in
+                guard let taskDate = task.taskDate else { return false }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                // 只顯示當天的未完成任務（準備移動到明天的）
+                return (taskDay == today) && (task.status == .toBeStarted || task.status == .undone)
+            }
+
+            self.dailyTasks = todayTasks
+            self.existingTomorrowTaskIDs = existingTomorrowTaskIDs
+        }
+
+        self.allTodoItems = allItems
+    }
+
     // 取消 API 請求
     private func cancelAPIRequest() {
         geminiService.cancelRequest()
@@ -2288,12 +2351,12 @@ extension SettlementView02 {
                 correspondingImageID: task.correspondingImageID
             )
 
-            // 使用 DataSyncManager 更新任務
-            dataSyncManager.updateTodoItem(updatedTask) { result in
-                switch result {
-                case .success:
+            // 使用API更新任務
+            Task {
+                do {
+                    let _ = try await apiDataManager.updateTodoItem(updatedTask)
                     print("結算完成時成功將任務 '\(task.title)' 移至明日")
-                case .failure(let error):
+                } catch {
                     print("結算完成時移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
                 }
             }
@@ -2347,50 +2410,51 @@ extension SettlementView02 {
     private func executeAllPendingOperations() {
         print("SettlementView02: 開始執行 \(pendingOperations.count) 個暫存操作")
 
-        for operation in pendingOperations {
-            switch operation {
-            case .addItem(let item):
-                print("SettlementView02: 執行添加操作 - \(item.title)")
-                dataSyncManager.addTodoItem(item) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView02: 成功執行添加操作 - \(item.title)")
-                        case .failure(let error):
-                            print("SettlementView02: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
-                        }
-                    }
-                }
+        Task {
+            var hasErrors = false
 
-            case .deleteItem(let itemId):
-                print("SettlementView02: 執行刪除操作 - ID: \(itemId)")
-                dataSyncManager.deleteTodoItem(withID: itemId) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView02: 成功執行刪除操作 - ID: \(itemId)")
-                        case .failure(let error):
-                            print("SettlementView02: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
-                        }
+            for operation in pendingOperations {
+                switch operation {
+                case .addItem(let item):
+                    print("SettlementView02: 執行添加操作 - \(item.title)")
+                    do {
+                        let _ = try await apiDataManager.addTodoItem(item)
+                        print("SettlementView02: 成功執行添加操作 - \(item.title)")
+                    } catch {
+                        print("SettlementView02: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
+                        hasErrors = true
                     }
-                }
 
-            case .updateItem(let item):
-                print("SettlementView02: 執行更新操作 - \(item.title)")
-                dataSyncManager.updateTodoItem(item) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView02: 成功執行更新操作 - \(item.title)")
-                        case .failure(let error):
-                            print("SettlementView02: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
-                        }
+                case .deleteItem(let itemId):
+                    print("SettlementView02: 執行刪除操作 - ID: \(itemId)")
+                    do {
+                        try await apiDataManager.deleteTodoItem(withID: itemId)
+                        print("SettlementView02: 成功執行刪除操作 - ID: \(itemId)")
+                    } catch {
+                        print("SettlementView02: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
+                        hasErrors = true
+                    }
+
+                case .updateItem(let item):
+                    print("SettlementView02: 執行更新操作 - \(item.title)")
+                    do {
+                        let _ = try await apiDataManager.updateTodoItem(item)
+                        print("SettlementView02: 成功執行更新操作 - \(item.title)")
+                    } catch {
+                        print("SettlementView02: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
+                        hasErrors = true
                     }
                 }
             }
-        }
 
-        print("SettlementView02: 所有暫存操作已提交執行")
+            await MainActor.run {
+                if hasErrors {
+                    print("SettlementView02: 暫存操作執行完成，但有錯誤發生")
+                } else {
+                    print("SettlementView02: 所有暫存操作執行成功完成")
+                }
+            }
+        }
     }
 
     /// 執行所有暫存操作並在完成時調用回調
@@ -2405,67 +2469,51 @@ extension SettlementView02 {
             return
         }
 
-        let group = DispatchGroup()
-        var hasErrors = false
+        Task {
+            var hasErrors = false
 
-        for operation in pendingOperations {
-            group.enter()
-
-            switch operation {
-            case .addItem(let item):
-                print("SettlementView02: 執行添加操作 - \(item.title)")
-                dataSyncManager.addTodoItem(item) { result in
-                    defer { group.leave() }
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView02: 成功執行添加操作 - \(item.title)")
-                        case .failure(let error):
-                            print("SettlementView02: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
-                            hasErrors = true
-                        }
+            for operation in pendingOperations {
+                switch operation {
+                case .addItem(let item):
+                    print("SettlementView02: 執行添加操作 - \(item.title)")
+                    do {
+                        let _ = try await apiDataManager.addTodoItem(item)
+                        print("SettlementView02: 成功執行添加操作 - \(item.title)")
+                    } catch {
+                        print("SettlementView02: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
+                        hasErrors = true
                     }
-                }
 
-            case .deleteItem(let itemId):
-                print("SettlementView02: 執行刪除操作 - ID: \(itemId)")
-                dataSyncManager.deleteTodoItem(withID: itemId) { result in
-                    defer { group.leave() }
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView02: 成功執行刪除操作 - ID: \(itemId)")
-                        case .failure(let error):
-                            print("SettlementView02: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
-                            hasErrors = true
-                        }
+                case .deleteItem(let itemId):
+                    print("SettlementView02: 執行刪除操作 - ID: \(itemId)")
+                    do {
+                        try await apiDataManager.deleteTodoItem(withID: itemId)
+                        print("SettlementView02: 成功執行刪除操作 - ID: \(itemId)")
+                    } catch {
+                        print("SettlementView02: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
+                        hasErrors = true
                     }
-                }
 
-            case .updateItem(let item):
-                print("SettlementView02: 執行更新操作 - \(item.title)")
-                dataSyncManager.updateTodoItem(item) { result in
-                    defer { group.leave() }
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView02: 成功執行更新操作 - \(item.title)")
-                        case .failure(let error):
-                            print("SettlementView02: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
-                            hasErrors = true
-                        }
+                case .updateItem(let item):
+                    print("SettlementView02: 執行更新操作 - \(item.title)")
+                    do {
+                        let _ = try await apiDataManager.updateTodoItem(item)
+                        print("SettlementView02: 成功執行更新操作 - \(item.title)")
+                    } catch {
+                        print("SettlementView02: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
+                        hasErrors = true
                     }
                 }
             }
-        }
 
-        group.notify(queue: .main) {
-            if hasErrors {
-                print("SettlementView02: 暫存操作執行完成，但有錯誤發生")
-            } else {
-                print("SettlementView02: 所有暫存操作執行成功完成")
+            await MainActor.run {
+                if hasErrors {
+                    print("SettlementView02: 暫存操作執行完成，但有錯誤發生")
+                } else {
+                    print("SettlementView02: 所有暫存操作執行成功完成")
+                }
+                completion()
             }
-            completion()
         }
     }
 }

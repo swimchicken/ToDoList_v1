@@ -38,25 +38,43 @@ class APIDataManager: ObservableObject {
     func addTodoItem(_ item: TodoItem) async throws -> TodoItem {
         let createRequest = item.toCreateRequest()
         let apiItem = try await apiManager.createTodo(createRequest)
-        return apiItem.toTodoItem()
+        let newItem = apiItem.toTodoItem()
+
+        // 更新Widget數據
+        await updateWidgetData()
+
+        return newItem
     }
 
     /// 更新TodoItem
     func updateTodoItem(_ item: TodoItem) async throws -> TodoItem {
         let updateRequest = item.toUpdateRequest()
         let apiItem = try await apiManager.updateTodo(id: item.id, updateRequest)
-        return apiItem.toTodoItem()
+        let updatedItem = apiItem.toTodoItem()
+
+        // 更新Widget數據
+        await updateWidgetData()
+
+        return updatedItem
     }
 
     /// 刪除TodoItem
     func deleteTodoItem(withID id: UUID) async throws {
         try await apiManager.deleteTodo(id: id)
+
+        // 更新Widget數據
+        await updateWidgetData()
     }
 
     /// 快速更新狀態
     func updateTodoStatus(id: UUID, status: TodoStatus) async throws -> TodoItem {
         let apiItem = try await apiManager.updateTodoStatus(id: id, status: status)
-        return apiItem.toTodoItem()
+        let updatedItem = apiItem.toTodoItem()
+
+        // 更新Widget數據
+        await updateWidgetData()
+
+        return updatedItem
     }
 
     // MARK: - 用戶管理
@@ -90,19 +108,32 @@ class APIDataManager: ObservableObject {
     func batchCreateTodoItems(_ items: [TodoItem]) async throws -> [TodoItem] {
         let createRequests = items.map { $0.toCreateRequest() }
         let apiItems = try await apiManager.batchCreateTodos(createRequests)
-        return apiItems.map { $0.toTodoItem() }
+        let newItems = apiItems.map { $0.toTodoItem() }
+
+        // 更新Widget數據
+        await updateWidgetData()
+
+        return newItems
     }
 
     /// 批量更新TodoItems（結算時移動任務到明天）
     func batchUpdateTodoItems(_ items: [TodoItem]) async throws -> [TodoItem] {
         let updateRequests = items.map { ($0.id, $0.toUpdateRequest()) }
         let apiItems = try await apiManager.batchUpdateTodos(updateRequests)
-        return apiItems.map { $0.toTodoItem() }
+        let updatedItems = apiItems.map { $0.toTodoItem() }
+
+        // 更新Widget數據
+        await updateWidgetData()
+
+        return updatedItems
     }
 
     /// 批量刪除TodoItems
     func batchDeleteTodoItems(ids: [UUID]) async throws {
         try await apiManager.batchDeleteTodos(ids)
+
+        // 更新Widget數據
+        await updateWidgetData()
     }
 
     // MARK: - 結算和統計功能
@@ -150,6 +181,18 @@ class APIDataManager: ObservableObject {
     /// 登出
     func logout() {
         apiManager.clearAuthToken()
+    }
+
+    // MARK: - Widget數據更新
+
+    /// 更新Widget數據
+    private func updateWidgetData() async {
+        do {
+            let allTasks = try await getAllTodoItems()
+            WidgetFileManager.shared.saveTodayTasksToFile(allTasks)
+        } catch {
+            print("❌ 更新Widget數據失敗: \(error.localizedDescription)")
+        }
     }
 }
 

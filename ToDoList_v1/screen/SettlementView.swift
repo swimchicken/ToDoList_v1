@@ -44,9 +44,9 @@ struct SettlementView: View {
     
     // 延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
-    
-    // 數據同步管理器
-    private let dataSyncManager = DataSyncManager.shared
+
+    // API 數據管理器
+    private let apiDataManager = APIDataManager.shared
     
     // 判斷是否為當天結算
     @State private var isSameDaySettlement: Bool = false
@@ -310,39 +310,33 @@ struct SettlementView: View {
             print("SettlementView - 獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
         }
         
-        // 先使用LocalDataManager直接從本地獲取最新數據
-        var localItems = LocalDataManager.shared.getAllTodoItems()
-        
-        // 過濾掉已刪除的項目
-        if !recentlyDeletedItemIDs.isEmpty {
-            let originalCount = localItems.count
-            localItems = localItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
-            let filteredCount = originalCount - localItems.count
-            print("SettlementView - 過濾掉 \(filteredCount) 個已刪除項目")
-            
-            // 如果發現有項目應該被刪除但仍存在，強制刪除它們
-            if filteredCount > 0 {
-                for id in recentlyDeletedItemIDs {
-                    LocalDataManager.shared.deleteTodoItem(withID: id)
-                    print("SettlementView - 強制刪除項目 ID: \(id)")
+        // 使用API獲取任務數據
+        Task {
+            do {
+                let apiItems = try await apiDataManager.getAllTodoItems()
+                await MainActor.run {
+                    self.processTasksData(apiItems)
+                    self.isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    print("SettlementView - 從API加載任務失敗: \(error.localizedDescription)")
+                    self.isLoading = false
                 }
             }
         }
         
-        // 簡化日誌輸出
-        print("SettlementView - 本地數據庫中的項目: \(localItems.count) 個")
-        // 詳細項目列表已註釋以減少日誌雜訊
-        // for (index, item) in localItems.enumerated() {
-        //     print("  項目\(index): ID=\(item.id), 標題=\(item.title), 狀態=\(item.status.rawValue), 有日期=\(item.taskDate != nil)")
-        // }
+    }
 
-        // 從本地項目中過濾已完成和未完成的項目
-        // 首先按日期篩選當天的任務，再按狀態篩選
+    // 處理任務數據的共用方法
+    private func processTasksData(_ items: [TodoItem]) {
+        print("SettlementView - 處理API數據: 總共 \(items.count) 個任務")
+
+        // 篩選當天的任務（排除沒有日期的備忘錄任務）
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
-        // 篩選當天的任務（排除沒有日期的備忘錄任務）
-        let todayTasks = localItems.filter { task in
+        let todayTasks = items.filter { task in
             guard let taskDate = task.taskDate else {
                 // 沒有日期的任務（備忘錄）不納入結算範圍
                 return false
@@ -356,62 +350,9 @@ struct SettlementView: View {
         self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
 
         print("SettlementView - 當天任務篩選結果: 總共 \(todayTasks.count) 個當天任務（排除備忘錄）")
-        
-        print("SettlementView - 從本地加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
-        
-        // 如果本地已有數據，可以先將 isLoading 設為 false 以提高用戶體驗
-        if !localItems.isEmpty {
-            isLoading = false
-        }
-        
-        // 然後使用DataSyncManager獲取並同步雲端數據
-        dataSyncManager.fetchTodoItems { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let items):
-                    // 首先過濾掉已刪除的項目
-                    var filteredItems = items
-                    if !recentlyDeletedItemIDs.isEmpty {
-                        let originalCount = filteredItems.count
-                        filteredItems = filteredItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
-                        let filteredCount = originalCount - filteredItems.count
-                        print("SettlementView - 從雲端數據中過濾掉 \(filteredCount) 個已刪除項目")
-                    }
-                    
-                    // 根據任務狀態進行分類
-                    // 首先按日期篩選當天的任務，再按狀態篩選
-                    let calendar = Calendar.current
-                    let today = calendar.startOfDay(for: Date())
-
-                    // 篩選當天的任務（排除沒有日期的備忘錄任務）
-                    let todayTasks = filteredItems.filter { task in
-                        guard let taskDate = task.taskDate else {
-                            // 沒有日期的任務（備忘錄）不納入結算範圍
-                            return false
-                        }
-                        let taskDay = calendar.startOfDay(for: taskDate)
-                        return taskDay == today
-                    }
-
-                    // 從當天任務中分類已完成和未完成的項目
-                    self.completedTasks = todayTasks.filter { $0.status == .completed }
-                    self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
-                    
-                    print("SettlementView - 成功從雲端加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
-                    for (index, item) in self.completedTasks.enumerated() {
-                        print("  已完成項目\(index): ID=\(item.id), 標題=\(item.title)")
-                    }
-                    
-                case .failure(let error):
-                    print("SettlementView - 從雲端加載任務失敗: \(error.localizedDescription)")
-                    // 加載失敗時保留本地數據，已經在之前設置過了
-                }
-                
-                self.isLoading = false
-            }
-        }
+        print("SettlementView - 從API加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
     }
-    
+
     // Mock data loading function has been removed
     
     // 設置監聽數據變化的觀察者
@@ -441,55 +382,20 @@ struct SettlementView: View {
     private func handleDataRefreshed() {
         print("SettlementView - 收到數據刷新通知，重新加載任務")
         dataRefreshToken = UUID() // 更新令牌以強制視圖刷新
-        
-        // 從UserDefaults獲取最近刪除的項目ID
-        var recentlyDeletedItemIDs: Set<UUID> = []
-        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
-           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
-            recentlyDeletedItemIDs = Set(decodedIDs)
-            print("SettlementView - 刷新時獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
-        }
-        
-        // 優化任務刷新過程，避免顯示加載指示器
-        // 直接從本地數據庫獲取最新數據
-        var localItems = LocalDataManager.shared.getAllTodoItems()
-        
-        // 過濾掉已刪除的項目
-        if !recentlyDeletedItemIDs.isEmpty {
-            let originalCount = localItems.count
-            localItems = localItems.filter { !recentlyDeletedItemIDs.contains($0.id) }
-            let filteredCount = originalCount - localItems.count
-            print("SettlementView - 刷新時過濾掉 \(filteredCount) 個已刪除項目")
-            
-            // 如果發現有項目應該被刪除但仍存在，強制刪除它們
-            if filteredCount > 0 {
-                for id in recentlyDeletedItemIDs {
-                    LocalDataManager.shared.deleteTodoItem(withID: id)
-                    print("SettlementView - 刷新時強制刪除項目 ID: \(id)")
+
+        // 使用API重新獲取數據
+        Task {
+            do {
+                let apiItems = try await apiDataManager.getAllTodoItems()
+                await MainActor.run {
+                    self.processTasksData(apiItems)
+                }
+            } catch {
+                await MainActor.run {
+                    print("SettlementView - 刷新時從API加載任務失敗: \(error.localizedDescription)")
                 }
             }
         }
-        
-        // 從本地項目中過濾已完成和未完成的項目
-        // 首先按日期篩選當天的任務，再按狀態篩選
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        // 篩選當天的任務（排除沒有日期的備忘錄任務）
-        let todayTasks = localItems.filter { task in
-            guard let taskDate = task.taskDate else {
-                // 沒有日期的任務（備忘錄）不納入結算範圍
-                return false
-            }
-            let taskDay = calendar.startOfDay(for: taskDate)
-            return taskDay == today
-        }
-
-        // 從當天任務中分類已完成和未完成的項目
-        self.completedTasks = todayTasks.filter { $0.status == .completed }
-        self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
-
-        print("SettlementView - 數據刷新通知後直接更新: 當天任務 \(todayTasks.count) 個, 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個（排除備忘錄）")
     }
 }
 
@@ -549,8 +455,8 @@ struct TaskRow: View {
     // 使用 @State 來追蹤是否已完成，初始值從 task.status 獲取
     @State private var isCompleted: Bool
     
-    // 引用數據同步管理器以更新任務狀態
-    private let dataSyncManager = DataSyncManager.shared
+    // 引用API數據管理器以更新任務狀態
+    private let apiDataManager = APIDataManager.shared
     
     // 綠色和灰色
     private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
@@ -597,27 +503,27 @@ struct TaskRow: View {
     private func toggleTaskStatus() {
         // 切換本地狀態
         isCompleted.toggle()
-        
+
         // 創建更新後的任務
         var updatedTask = task
         updatedTask.status = isCompleted ? .completed : .undone
-        
-        // 更新數據庫中的任務
-        dataSyncManager.updateTodoItem(updatedTask) { result in
-            switch result {
-            case .success:
-                // 發送通知以刷新 UI
-                DispatchQueue.main.async {
+
+        // 使用API更新任務
+        Task {
+            do {
+                let _ = try await apiDataManager.updateTodoItem(updatedTask)
+                await MainActor.run {
+                    // 發送通知以刷新 UI
                     NotificationCenter.default.post(
                         name: Notification.Name("TodoItemStatusChanged"),
                         object: nil
                     )
+                    print("成功更新任務狀態: \(updatedTask.id) 為 \(updatedTask.status.rawValue)")
                 }
-                print("成功更新任務狀態: \(updatedTask.id) 為 \(updatedTask.status.rawValue)")
-            case .failure(let error):
-                print("更新任務狀態失敗: \(error.localizedDescription)")
-                // 如果更新失敗，恢復本地狀態
-                DispatchQueue.main.async {
+            } catch {
+                await MainActor.run {
+                    print("更新任務狀態失敗: \(error.localizedDescription)")
+                    // 如果更新失敗，恢復本地狀態
                     self.isCompleted = !self.isCompleted
                 }
             }
@@ -636,8 +542,8 @@ struct BottomControlsView: View {
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
     
-    // 數據同步管理器
-    private let dataSyncManager = DataSyncManager.shared
+    // API數據管理器
+    private let apiDataManager = APIDataManager.shared
     
     // 是否為當天結算 - 使用正確的參數
     private var isSameDaySettlement: Bool {
@@ -743,12 +649,12 @@ struct BottomControlsView: View {
                 correspondingImageID: task.correspondingImageID
             )
             
-            // 使用 DataSyncManager 更新任務
-            dataSyncManager.updateTodoItem(updatedTask) { result in
-                switch result {
-                case .success:
+            // 使用API更新任務
+            Task {
+                do {
+                    let _ = try await apiDataManager.updateTodoItem(updatedTask)
                     print("成功將任務 '\(task.title)' 移至明日")
-                case .failure(let error):
+                } catch {
                     print("移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
                 }
             }

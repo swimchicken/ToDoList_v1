@@ -1258,6 +1258,8 @@ struct Home: View {
                 await MainActor.run {
                     self.isLoading = false
                     self.toDoItems = items
+                    // 更新Widget數據
+                    WidgetFileManager.shared.saveTodayTasksToFile(items)
                 }
             } catch {
                 await MainActor.run {
