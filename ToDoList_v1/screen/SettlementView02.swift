@@ -241,6 +241,10 @@ struct SettlementView02: View {
                     tempAddedItems.removeAll()
                     hasAppearedOnce = true
                     print("First time entering SettlementView02, resetting temp state")
+
+                    // 樂觀更新：立即使用傳入的任務資料顯示
+                    self.dailyTasks = uncompletedTasks
+                    print("SettlementView02 - 樂觀更新：立即顯示 \(uncompletedTasks.count) 個傳入任務")
                 } else {
                     print("Re-entering SettlementView02, keeping temp state")
                 }

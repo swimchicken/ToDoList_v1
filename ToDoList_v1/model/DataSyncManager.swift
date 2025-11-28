@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CloudKit
 import Combine
 
 /// 數據同步管理器 - 協調 CloudKit 和本地存儲之間的同步
@@ -15,7 +14,7 @@ class DataSyncManager {
     static let shared = DataSyncManager()
     
     // MARK: - 屬性
-    private let cloudKitService = CloudKitService.shared
+    // CloudKit已移除，改為純API架構
     private let localDataManager = LocalDataManager.shared
     
     // 用於發佈同步狀態變化的主題
@@ -85,33 +84,17 @@ class DataSyncManager {
         // 發送同步狀態變化通知
         syncStatusSubject.send(.syncing)
         
-        // 嘗試從 CloudKit 獲取新用戶的數據
-        cloudKitService.fetchAllTodoItems { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let items):
-                print("INFO: 成功從 CloudKit 獲取新用戶的數據: \(items.count) 項")
-                
-                // 保存到本地
-                self.localDataManager.saveAllTodoItems(items)
-                
-                // 發送完成通知
-                self.syncStatusSubject.send(.completed(items.count))
-                
-                // 發布數據變化通知
-                NotificationCenter.default.post(
-                    name: Notification.Name("TodoItemsDataRefreshed"),
-                    object: nil
-                )
-                
-            case .failure(let error):
-                print("ERROR: 無法獲取新用戶的數據: \(error.localizedDescription)")
-                
-                // 發送失敗通知
-                self.syncStatusSubject.send(.failed(error))
-            }
-        }
+        // CloudKit已移除，改為純API架構
+        print("INFO: DataSyncManager - 用戶變更處理（已改為API架構）")
+
+        // 發送完成通知
+        syncStatusSubject.send(.completed(0))
+
+        // 發布數據變化通知
+        NotificationCenter.default.post(
+            name: Notification.Name("TodoItemsDataRefreshed"),
+            object: nil
+        )
     }
     
     /// 清除本地數據
@@ -256,20 +239,8 @@ class DataSyncManager {
             // 返回成功結果，不等待 CloudKit 同步完成
             completion(.success(()))
             
-            // 在後台嘗試從 CloudKit 刪除
-            DispatchQueue.global(qos: .background).async {
-                self.cloudKitService.deleteTodoItem(withID: id) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("INFO: 成功從 CloudKit 刪除待辦事項 - ID: \(id.uuidString)")
-                        case .failure(let error):
-                            print("WARNING: 從 CloudKit 刪除待辦事項失敗 - ID: \(id.uuidString), 錯誤: \(error.localizedDescription)")
-                            // 可以考慮在這裡加入重試邏輯或者恢復本地數據
-                        }
-                    }
-                }
-            }
+            // CloudKit已移除，改為純API架構
+            print("INFO: DataSyncManager - 項目刪除完成（已改為API架構）- ID: \(id.uuidString)")
         }
     }
     
@@ -352,73 +323,16 @@ class DataSyncManager {
     
     /// 將單個項目同步到 CloudKit
     private func syncItemToCloudKit(_ item: TodoItem, completion: @escaping (Result<TodoItem, Error>) -> Void) {
-        cloudKitService.saveTodoItem(item, completion: completion)
+        // CloudKit已移除，改為純API架構
+        print("INFO: DataSyncManager - 項目同步完成（已改為API架構）- \(item.title)")
+        completion(.success(item))
     }
     
     /// 從 CloudKit 獲取數據並與本地合併
     private func syncFromCloudKit(completion: @escaping (Result<[TodoItem], Error>) -> Void) {
-        print("DEBUG: syncFromCloudKit - 開始從 CloudKit 獲取資料")
-        cloudKitService.fetchAllTodoItems { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let cloudItems):
-                print("DEBUG: syncFromCloudKit - 成功從 CloudKit 獲取 \(cloudItems.count) 個項目")
-                
-                // 獲取本地項目
-                let localItems = self.localDataManager.getAllTodoItems()
-                print("DEBUG: syncFromCloudKit - 本地現有 \(localItems.count) 個項目")
-                
-                var mergedItems = localItems
-                var updatedItems = [TodoItem]()
-                
-                // 合併雲端數據，採用更智慧的衝突解決策略
-                for cloudItem in cloudItems {
-                    if let index = mergedItems.firstIndex(where: { $0.id == cloudItem.id }) {
-                        let localItem = mergedItems[index]
-                        let syncStatus = self.localDataManager.getSyncStatus(for: localItem.id)
-                        
-                        // 衝突解決策略：比較 updatedAt 時間戳
-                        if let syncStatus = syncStatus, !syncStatus.isSynced {
-                            // 本地有未同步的修改，比較時間戳決定使用哪個版本
-                            if cloudItem.updatedAt > localItem.updatedAt {
-                                // 雲端版本更新，使用雲端版本但標記需要重新同步本地修改
-                                print("INFO: 檢測到衝突，雲端版本較新 - ID: \(cloudItem.id.uuidString)")
-                                mergedItems[index] = cloudItem
-                                updatedItems.append(cloudItem)
-                                // 重置同步狀態，讓未來的同步處理衝突
-                                self.localDataManager.updateSyncStatus(for: cloudItem.id, isSynced: false)
-                            } else {
-                                // 本地版本較新或相同，保持本地版本
-                                print("INFO: 本地版本較新，保持本地修改 - ID: \(localItem.id.uuidString)")
-                            }
-                        } else {
-                            // 本地已同步或無同步狀態，使用雲端版本
-                            if cloudItem.updatedAt != localItem.updatedAt {
-                                mergedItems[index] = cloudItem
-                                updatedItems.append(cloudItem)
-                                print("INFO: 更新本地項目為雲端版本 - ID: \(cloudItem.id.uuidString)")
-                            }
-                        }
-                    } else {
-                        // 雲端有新數據，添加到本地
-                        mergedItems.append(cloudItem)
-                        updatedItems.append(cloudItem)
-                        print("INFO: 新增雲端項目到本地 - ID: \(cloudItem.id.uuidString)")
-                    }
-                }
-                
-                // 保存合併後的數據到本地
-                if !updatedItems.isEmpty {
-                    self.localDataManager.saveAllTodoItems(mergedItems)
-                    print("INFO: 從 CloudKit 同步了 \(updatedItems.count) 個項目")
-                }
-                
-                completion(.success(mergedItems))
-                
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        print("INFO: DataSyncManager - CloudKit同步已移除，改為純API架構")
+        // 直接返回本地數據
+        let localItems = localDataManager.getAllTodoItems()
+        completion(.success(localItems))
     }
 }
