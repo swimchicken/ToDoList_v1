@@ -41,6 +41,7 @@ struct ContentView: View {
     @State private var isCheckingLogin = true
     @State private var shouldShowAnimation = false
     @State private var shouldShowHome = false
+    @State private var shouldShowSettlement = false
     
     var body: some View {
         ZStack {
@@ -127,8 +128,18 @@ struct ContentView: View {
                     .transition(.opacity)
             }
             
-            // Home 頁面層 (已登入用戶直接顯示)
-            if shouldShowHome {
+            // Settlement 頁面層 (需要延遲結算時顯示)
+            if shouldShowSettlement {
+                NavigationView {
+                    SettlementView()
+                }
+                .navigationViewStyle(StackNavigationViewStyle()) // 確保在iPad上也使用stack導航
+                .opacity(homeOpacity)
+                .zIndex(2)
+                .transition(.opacity)
+            }
+            // Home 頁面層 (已登入且不需要結算的用戶顯示)
+            else if shouldShowHome {
                 Home()
                     .opacity(homeOpacity)
                     .zIndex(2)
@@ -143,7 +154,32 @@ struct ContentView: View {
             setupLogoutObserver()
         }
     }
-    
+
+    // 檢查延遲結算狀態並導航
+    private func checkSettlementAndNavigate() {
+        let delaySettlementManager = DelaySettlementManager.shared
+
+        if delaySettlementManager.shouldShowSettlement() {
+            print("ContentView: 檢測到需要延遲結算，直接導向 SettlementView")
+            shouldShowSettlement = true
+            shouldShowHome = false
+            shouldShowAnimation = false
+            withAnimation(.easeInOut(duration: 1.0)) {
+                homeOpacity = 1.0
+                loginOpacity = 0.0
+            }
+        } else {
+            print("ContentView: 不需要結算，導向 Home")
+            shouldShowHome = true
+            shouldShowSettlement = false
+            shouldShowAnimation = false
+            withAnimation(.easeInOut(duration: 1.0)) {
+                homeOpacity = 1.0
+                loginOpacity = 0.0
+            }
+        }
+    }
+
     // 檢查登入狀態並導航
     private func checkLoginAndNavigate() {
         LoginStatusChecker.shared.checkLoginStatus { destination in
@@ -152,13 +188,8 @@ struct ContentView: View {
 
                 switch destination {
                 case .home:
-                    // 已登入：直接進入Home頁面，跳過動畫
-                    shouldShowHome = true
-                    shouldShowAnimation = false
-                    withAnimation(.easeInOut(duration: 1.0)) {
-                        homeOpacity = 1.0
-                        loginOpacity = 0.0
-                    }
+                    // 已登入：檢查是否需要延遲結算
+                    checkSettlementAndNavigate()
 
                 case .login:
                     // 未登入：顯示啟動動畫
@@ -219,13 +250,8 @@ struct ContentView: View {
 
                 switch destination {
                 case "home":
-                    print("ContentView: 導向到 Home")
-                    self.shouldShowHome = true
-                    self.shouldShowAnimation = false
-                    withAnimation(.easeInOut(duration: 1.0)) {
-                        self.homeOpacity = 1.0
-                        self.loginOpacity = 0.0
-                    }
+                    print("ContentView: 導向到 Home，檢查結算狀態")
+                    self.checkSettlementAndNavigate()
 
                 case "onboarding":
                     print("ContentView: 導向到引導頁面，保持在 Login 視圖")
@@ -237,6 +263,17 @@ struct ContentView: View {
                     print("ContentView: 未知導向目標: \(destination)")
                 }
             }
+        }
+
+        // 監聽結算完成通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("SettlementCompleted"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("ContentView: 收到結算完成通知，導向 Home")
+            self.shouldShowSettlement = false
+            self.shouldShowHome = true
         }
     }
 

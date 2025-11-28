@@ -56,30 +56,45 @@ struct SettlementView: View {
     
     // 數據刷新令牌 - 用於強制視圖刷新
     @State private var dataRefreshToken: UUID = UUID()
+
+    // 防止重複樂觀更新
+    @State private var recentlyUpdatedTasks: Set<UUID> = []
     
     // 日期相關
     private var currentDate: Date {
         return Date()
     }
     
-    // 右側日期 - 顯示當前日期
+    // 右側日期 - 根據結算類型顯示適當的日期
     private var rightDisplayDate: Date {
-        return currentDate
+        if isSameDaySettlement {
+            // 當天結算：顯示今天
+            return currentDate
+        } else {
+            // 延遲結算：顯示昨天（結算範圍的結束日期）
+            let calendar = Calendar.current
+            return calendar.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+        }
     }
     
     // 左側日期 - 顯示上次結算日期（或適當的默認值）
     private var leftDisplayDate: Date {
-        // 嘗試獲取上次結算日期
-        if let lastSettlementDate = delaySettlementManager.getLastSettlementDate() {
-            // 使用實際的上次結算日期
-            return lastSettlementDate
+        if isSameDaySettlement {
+            // 當天結算：只顯示一個日期，返回今天即可
+            return currentDate
         } else {
-            // 首次使用時沒有上次結算日期
-            // 首次使用或未有結算記錄時使用昨天作為默認顯示值
-            // 注意：這裡只是用於顯示，不代表實際的結算狀態
-            let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
-            print("首次使用應用或無結算記錄，顯示默認時間範圍（昨天到今天）")
-            return yesterday
+            // 延遲結算：顯示未結算期間的開始日期
+            if let lastSettlementDate = delaySettlementManager.getLastSettlementDate() {
+                // 顯示上次結算日期的下一天（未結算期間的開始）
+                let calendar = Calendar.current
+                return calendar.date(byAdding: .day, value: 1, to: lastSettlementDate) ?? lastSettlementDate
+            } else {
+                // 首次使用時沒有上次結算日期，顯示昨天作為默認開始日期
+                let calendar = Calendar.current
+                let yesterday = calendar.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+                print("首次使用應用或無結算記錄，顯示默認時間範圍（昨天）")
+                return yesterday
+            }
         }
     }
 
@@ -248,7 +263,8 @@ struct SettlementView: View {
                 BottomControlsView(
                     moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow,
                     navigateToSettlementView02: $navigateToSettlementView02,
-                    uncompletedTasks: uncompletedTasks
+                    uncompletedTasks: uncompletedTasks,
+                    isSameDaySettlement: isSameDaySettlement
                 )
             }
             .padding(.horizontal, 12)
@@ -283,6 +299,7 @@ struct SettlementView: View {
             NotificationCenter.default.removeObserver(self)
         }
         .navigationBarHidden(true)
+        .id(dataRefreshToken) // 使用數據刷新令牌強制視圖重新渲染
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .background(
@@ -290,11 +307,11 @@ struct SettlementView: View {
                 destination: SettlementView02(
                     uncompletedTasks: uncompletedTasks,
                     moveTasksToTomorrow: moveUncompletedTasksToTomorrow
-                ), 
-                isActive: $navigateToSettlementView02
-            ) {
-                EmptyView()
-            }
+                ),
+                isActive: $navigateToSettlementView02,
+                label: { EmptyView() }
+            )
+            .hidden()
         )
     }
 
@@ -330,33 +347,62 @@ struct SettlementView: View {
 
     // 處理任務數據的共用方法
     private func processTasksData(_ items: [TodoItem]) {
-        print("SettlementView - 處理API數據: 總共 \(items.count) 個任務")
-
-        // 篩選當天的任務（排除沒有日期的備忘錄任務）
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
 
-        let todayTasks = items.filter { task in
-            guard let taskDate = task.taskDate else {
-                // 沒有日期的任務（備忘錄）不納入結算範圍
-                return false
+        // 根據結算類型決定任務篩選範圍
+        let settlementTasks: [TodoItem]
+
+        if isSameDaySettlement {
+            // 當天結算：只看今天的任務
+            settlementTasks = items.filter { task in
+                guard let taskDate = task.taskDate else {
+                    return false // 排除備忘錄
+                }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                return taskDay == today
             }
-            let taskDay = calendar.startOfDay(for: taskDate)
-            return taskDay == today
+        } else {
+            // 延遲結算：篩選從上次結算日期到昨天的所有任務
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+            let lastSettlementDate = delaySettlementManager.getLastSettlementDate()
+
+            if let lastSettlement = lastSettlementDate {
+                let lastSettlementDay = calendar.startOfDay(for: lastSettlement)
+                let dayAfterLastSettlement = calendar.date(byAdding: .day, value: 1, to: lastSettlementDay) ?? lastSettlementDay
+
+                settlementTasks = items.filter { task in
+                    guard let taskDate = task.taskDate else {
+                        return false // 排除備忘錄
+                    }
+                    let taskDay = calendar.startOfDay(for: taskDate)
+                    // 包含上次結算日期之後到昨天的所有任務
+                    return taskDay >= dayAfterLastSettlement && taskDay <= yesterday
+                }
+            } else {
+                // 沒有上次結算記錄，只看昨天
+                settlementTasks = items.filter { task in
+                    guard let taskDate = task.taskDate else {
+                        return false // 排除備忘錄
+                    }
+                    let taskDay = calendar.startOfDay(for: taskDate)
+                    return taskDay == yesterday
+                }
+            }
         }
 
-        // 從當天任務中分類已完成和未完成的項目
-        self.completedTasks = todayTasks.filter { $0.status == .completed }
-        self.uncompletedTasks = todayTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
-
-        print("SettlementView - 當天任務篩選結果: 總共 \(todayTasks.count) 個當天任務（排除備忘錄）")
-        print("SettlementView - 從API加載任務: 已完成 \(self.completedTasks.count) 個, 未完成 \(self.uncompletedTasks.count) 個")
+        // 從篩選的任務中分類已完成和未完成的項目
+        self.completedTasks = settlementTasks.filter { $0.status == .completed }
+        self.uncompletedTasks = settlementTasks.filter { $0.status == .undone || $0.status == .toBeStarted }
     }
 
     // Mock data loading function has been removed
     
     // 設置監聽數據變化的觀察者
     private func setupDataChangeObservers() {
+        // 先移除可能已存在的監聽器，避免重複
+        NotificationCenter.default.removeObserver(self)
+
         // 監聽數據刷新通知 (從 DataSyncManager 發出)
         NotificationCenter.default.addObserver(
             forName: Notification.Name("TodoItemsDataRefreshed"),
@@ -374,16 +420,41 @@ struct SettlementView: View {
         ) { _ in
             self.handleDataRefreshed()
         }
+
+        // 監聽樂觀更新通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("OptimisticTaskStatusChanged"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let userInfo = notification.object as? [String: Any],
+               let taskId = userInfo["taskId"] as? UUID,
+               let newStatus = userInfo["newStatus"] as? TodoStatus {
+                self.handleOptimisticUpdate(taskId: taskId, newStatus: newStatus)
+            }
+        }
+
+        // 監聽樂觀更新失敗通知
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("OptimisticTaskStatusFailed"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            if let userInfo = notification.object as? [String: Any],
+               let taskId = userInfo["taskId"] as? UUID,
+               let originalStatus = userInfo["originalStatus"] as? TodoStatus {
+                self.handleOptimisticUpdateFailed(taskId: taskId, originalStatus: originalStatus)
+            }
+        }
+
         
-        print("SettlementView - 已設置數據變更監聽")
     }
     
     // 處理數據刷新通知
     private func handleDataRefreshed() {
-        print("SettlementView - 收到數據刷新通知，重新加載任務")
         dataRefreshToken = UUID() // 更新令牌以強制視圖刷新
 
-        // 使用API重新獲取數據
+        // 使用API重新獲取數據（靜默模式）
         Task {
             do {
                 let apiItems = try await apiDataManager.getAllTodoItems()
@@ -392,11 +463,71 @@ struct SettlementView: View {
                 }
             } catch {
                 await MainActor.run {
-                    print("SettlementView - 刷新時從API加載任務失敗: \(error.localizedDescription)")
+                    print("❌ SettlementView刷新失敗: \(error.localizedDescription)")
                 }
             }
         }
     }
+
+    // 處理樂觀更新
+    private func handleOptimisticUpdate(taskId: UUID, newStatus: TodoStatus) {
+        // 檢查是否在短時間內重複更新同一個任務
+        if recentlyUpdatedTasks.contains(taskId) {
+            return
+        }
+
+        // 記錄已更新的任務，0.5秒後清除
+        recentlyUpdatedTasks.insert(taskId)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.recentlyUpdatedTasks.remove(taskId)
+        }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            // 在已完成任務列表中查找
+            if let completedIndex = completedTasks.firstIndex(where: { $0.id == taskId }) {
+                var task = completedTasks.remove(at: completedIndex)
+                task.status = newStatus
+                if newStatus != .completed {
+                    uncompletedTasks.append(task)
+                }
+            }
+            // 在未完成任務列表中查找
+            else if let uncompletedIndex = uncompletedTasks.firstIndex(where: { $0.id == taskId }) {
+                var task = uncompletedTasks.remove(at: uncompletedIndex)
+                task.status = newStatus
+                if newStatus == .completed {
+                    completedTasks.append(task)
+                } else {
+                    // 如果新狀態也是未完成，重新添加到未完成列表
+                    uncompletedTasks.append(task)
+                }
+            }
+        }
+    }
+
+    // 處理樂觀更新失敗
+    private func handleOptimisticUpdateFailed(taskId: UUID, originalStatus: TodoStatus) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            // 回滾到原來的狀態
+            // 在已完成任務列表中查找
+            if let completedIndex = completedTasks.firstIndex(where: { $0.id == taskId }) {
+                var task = completedTasks.remove(at: completedIndex)
+                task.status = originalStatus
+                if originalStatus != .completed {
+                    uncompletedTasks.append(task)
+                }
+            }
+            // 在未完成任務列表中查找
+            else if let uncompletedIndex = uncompletedTasks.firstIndex(where: { $0.id == taskId }) {
+                var task = uncompletedTasks.remove(at: uncompletedIndex)
+                task.status = originalStatus
+                if originalStatus == .completed {
+                    completedTasks.append(task)
+                }
+            }
+        }
+    }
+
 }
 
 // MARK: - 子視圖 (Components)
@@ -451,21 +582,17 @@ struct DateDisplay: View {
 
 struct TaskRow: View {
     let task: TodoItem
-    
-    // 使用 @State 來追蹤是否已完成，初始值從 task.status 獲取
-    @State private var isCompleted: Bool
-    
+
     // 引用API數據管理器以更新任務狀態
     private let apiDataManager = APIDataManager.shared
-    
+
     // 綠色和灰色
     private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
     private let grayColor = Color(red: 0.52, green: 0.52, blue: 0.52)
-    
-    // 初始化時設置 isCompleted 的值
-    init(task: TodoItem) {
-        self.task = task
-        self._isCompleted = State(initialValue: task.status == .completed)
+
+    // 計算屬性：直接根據任務狀態判斷是否完成
+    private var isCompleted: Bool {
+        task.status == .completed
     }
 
     var body: some View {
@@ -501,30 +628,28 @@ struct TaskRow: View {
     
     // 切換任務狀態
     private func toggleTaskStatus() {
-        // 切換本地狀態
-        isCompleted.toggle()
-
         // 創建更新後的任務
         var updatedTask = task
-        updatedTask.status = isCompleted ? .completed : .undone
+        updatedTask.status = isCompleted ? .undone : .completed
 
-        // 使用API更新任務
+        // 樂觀更新：立即發送通知更新父視圖的任務列表
+        NotificationCenter.default.post(
+            name: Notification.Name("OptimisticTaskStatusChanged"),
+            object: ["taskId": task.id, "newStatus": updatedTask.status]
+        )
+
+        // 單個任務狀態切換：直接使用單一 API 更新
         Task {
             do {
                 let _ = try await apiDataManager.updateTodoItem(updatedTask)
-                await MainActor.run {
-                    // 發送通知以刷新 UI
-                    NotificationCenter.default.post(
-                        name: Notification.Name("TodoItemStatusChanged"),
-                        object: nil
-                    )
-                    print("成功更新任務狀態: \(updatedTask.id) 為 \(updatedTask.status.rawValue)")
-                }
             } catch {
                 await MainActor.run {
-                    print("更新任務狀態失敗: \(error.localizedDescription)")
-                    // 如果更新失敗，恢復本地狀態
-                    self.isCompleted = !self.isCompleted
+                    print("❌ TaskRow 更新失敗: \(error.localizedDescription)")
+                    // 發送樂觀更新失敗通知，回滾狀態
+                    NotificationCenter.default.post(
+                        name: Notification.Name("OptimisticTaskStatusFailed"),
+                        object: ["taskId": task.id, "originalStatus": task.status]
+                    )
                 }
             }
         }
@@ -537,19 +662,14 @@ struct BottomControlsView: View {
     @Binding var moveUncompletedTasksToTomorrow: Bool
     @Binding var navigateToSettlementView02: Bool  // 添加導航綁定
     let uncompletedTasks: [TodoItem]  // 添加未完成任務參數
+    let isSameDaySettlement: Bool  // 從父視圖傳入的結算狀態
     @Environment(\.presentationMode) var presentationMode
-    
+
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
-    
+
     // API數據管理器
     private let apiDataManager = APIDataManager.shared
-    
-    // 是否為當天結算 - 使用正確的參數
-    private var isSameDaySettlement: Bool {
-        // 從 Home 點擊 end today 進入的結算應該始終視為當天結算
-        return delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
-    }
     
     var body: some View {
         VStack(spacing: 20) {
@@ -571,8 +691,7 @@ struct BottomControlsView: View {
                 // 不在這裡執行移動邏輯，只傳遞設定到下一個視圖
                 // 移動邏輯將在結算流程完成時執行
                 navigateToSettlementView02 = true
-                print("繼續到 SettlementView02 設置計畫，移動設定: \(moveUncompletedTasksToTomorrow)")
-            }) {
+                }) {
                 // 根據模式選擇不同文字
                 Text(isSameDaySettlement ? "開始設定明日計畫" : "開始設定今天的計畫")
                     .font(.system(size: 17, weight: .semibold))
@@ -583,28 +702,30 @@ struct BottomControlsView: View {
                     .cornerRadius(25)
             }
             
-            // 返回按鈕
-            Button(action: {
-                // 返回上一頁
-                presentationMode.wrappedValue.dismiss()
-            }) {
-                Text("返回首頁")
-                    .font(.system(size: 15))
-                    .foregroundColor(.white.opacity(0.7))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+            // 返回按鈕 - 只在當天結算(主動結算)時顯示
+            if isSameDaySettlement {
+                Button(action: {
+                    // 發送結算完成通知
+                    NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
+                    // 返回上一頁
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("返回首頁")
+                        .font(.system(size: 15))
+                        .foregroundColor(.white.opacity(0.7))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
             }
         }
     }
     
     // 將未完成任務移至明日的數據處理
     func moveUncompletedTasksToTomorrowData() {
-        print("開始將 \(uncompletedTasks.count) 個未完成任務移至明日")
-        
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         let calendar = Calendar.current
         let tomorrowStart = calendar.startOfDay(for: tomorrow)
-        
+
         for task in uncompletedTasks {
             // 決定新的任務時間
             let newTaskDate: Date?
@@ -617,7 +738,6 @@ struct BottomControlsView: View {
                 if isTimeZero {
                     // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
                     newTaskDate = tomorrowStart
-                    print("任務 '\(task.title)' 原本是日期無時間，移至明天的 00:00:00")
                 } else {
                     // 原本有具體時間的事件，保留時間但改日期為明天
                     var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
@@ -626,12 +746,10 @@ struct BottomControlsView: View {
                     tomorrowComponents.second = timeComponents.second
 
                     newTaskDate = calendar.date(from: tomorrowComponents)
-                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至明天")
                 }
             } else {
                 // 原本就沒有時間（備忘錄），保持沒有時間
                 newTaskDate = nil
-                print("任務 '\(task.title)' 原本是備忘錄，移至明日後保持為備忘錄")
             }
 
             // 創建更新後的任務
@@ -641,26 +759,23 @@ struct BottomControlsView: View {
                 title: task.title,
                 priority: task.priority,
                 isPinned: task.isPinned,
-                taskDate: newTaskDate, // 使用新的邏輯決定的時間
+                taskDate: newTaskDate,
                 note: task.note,
                 status: task.status,
                 createdAt: task.createdAt,
-                updatedAt: Date(), // 更新修改時間
+                updatedAt: Date(),
                 correspondingImageID: task.correspondingImageID
             )
-            
+
             // 使用API更新任務
             Task {
                 do {
                     let _ = try await apiDataManager.updateTodoItem(updatedTask)
-                    print("成功將任務 '\(task.title)' 移至明日")
                 } catch {
-                    print("移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
+                    print("❌ 移動任務失敗: \(task.title) - \(error.localizedDescription)")
                 }
             }
         }
-        
-        print("完成未完成任務移至明日的處理")
     }
 }
 

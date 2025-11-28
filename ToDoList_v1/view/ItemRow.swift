@@ -33,29 +33,7 @@ struct ItemRow: View {
             HStack(spacing: 12) {
                 // 1. 圓圈按鈕：永遠靠左
                 Button {
-                    withAnimation {
-                        // 更新狀態
-                        item.status = (item.status == .completed ? .toBeStarted : .completed)
-                        
-                        // 使用 API 更新項目
-                        Task {
-                            do {
-                                try await APIDataManager.shared.updateTodoItem(item)
-                                print("ItemRow - 成功更新待辦事項到 API")
-                            } catch {
-                                print("ItemRow - 更新待辦事項失敗: \(error.localizedDescription)")
-                            }
-                        }
-                        
-                        // 發送狀態變更通知，附帶項目ID
-                        NotificationCenter.default.post(
-                            name: Notification.Name("TodoItemStatusChanged"),
-                            object: nil,
-                            userInfo: ["itemId": item.id.uuidString]
-                        )
-                        
-                        print("ItemRow - 項目狀態已變更: ID=\(item.id), 標題=\(item.title), 新狀態=\(item.status.rawValue)")
-                    }
+                    toggleTaskStatus()
                 } label: {
                     Circle()
                         .fill(item.status == .completed ? doneColor : Color.white.opacity(0.15))
@@ -143,6 +121,44 @@ struct ItemRow: View {
             )
         }
         .frame(height: 52) // 固定行高
+    }
+
+    // 切換任務狀態 - 在Home中使用直接API調用
+    private func toggleTaskStatus() {
+        let originalStatus = item.status
+        let newStatus: TodoStatus = (item.status == .completed ? .toBeStarted : .completed)
+
+        // 立即更新本地狀態提供即時反饋
+        withAnimation(.easeInOut(duration: 0.2)) {
+            item.status = newStatus
+        }
+
+        // 創建更新後的任務
+        var updatedTask = item
+        updatedTask.status = newStatus
+
+        // 直接調用API更新，不使用批次更新
+        Task {
+            do {
+                let _ = try await APIDataManager.shared.updateTodoItem(updatedTask)
+                print("✅ ItemRow - 任務狀態更新成功: \(item.title)")
+
+                // 發送狀態變更通知
+                NotificationCenter.default.post(
+                    name: Notification.Name("TodoItemStatusChanged"),
+                    object: nil,
+                    userInfo: ["itemId": item.id.uuidString]
+                )
+            } catch {
+                await MainActor.run {
+                    print("❌ ItemRow - 任務狀態更新失敗: \(error.localizedDescription)")
+                    // 回滾到原來的狀態
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        item.status = originalStatus
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -172,7 +172,7 @@ struct SettlementView02: View {
                 let taskDay = calendar.startOfDay(for: taskDate)
                 return taskDay == tomorrow ? task.id : nil
             })
-            print("🔧 SettlementView02 初始化：記錄明天已存在的任務ID數量：\(existingTomorrowTaskIDs.count)")
+            // 靜默日誌: print("🔧 SettlementView02 初始化：記錄明天已存在的任務ID數量：\(existingTomorrowTaskIDs.count)")
             for id in existingTomorrowTaskIDs {
                 if let task = allItems.first(where: { $0.id == id }) {
                     print("  - 明天已存在任務：\(task.title) (ID: \(id))")
@@ -659,7 +659,7 @@ struct SettlementView02: View {
 
             // 🔧 修復：根據結算類型決定要顯示的任務
             let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: UserDefaults.standard.bool(forKey: "isActiveEndDay"))
-            print("🔧 SettlementView02 - loadTasksFromDataManager: 結算類型判斷 = \(isSameDaySettlement ? "主動" : "延期")")
+            // 靜默日誌: print("🔧 SettlementView02 - loadTasksFromDataManager: 結算類型判斷 = \(isSameDaySettlement ? "主動" : "延期")")
             print("🔧 existingTomorrowTaskIDs 數量: \(existingTomorrowTaskIDs.count)")
 
             dailyTasks = processedItems.filter { item in
@@ -707,7 +707,7 @@ struct SettlementView02: View {
     
     /// 暫存刪除任務（不立即執行，等到 SettlementView03 完成時才執行）
     private func deleteTask(_ task: TodoItem) {
-        print("🔧 SettlementView02: 開始刪除任務 - \(task.title) (ID: \(task.id))")
+        // 靜默日誌: print("🔧 SettlementView02: 開始刪除任務 - \(task.title) (ID: \(task.id))")
         print("🔧 刪除前 tempDeletedItemIDs 數量: \(tempDeletedItemIDs.count)")
         print("🔧 刪除前 pendingOperations 數量: \(pendingOperations.count)")
 
@@ -724,7 +724,7 @@ struct SettlementView02: View {
         print("🔧 開始重新載入任務列表...")
         loadTasksFromDataManager()
 
-        print("🔧 SettlementView02: 任務已標記為暫存刪除，等待結算完成後才會真正刪除")
+        // 靜默日誌: print("🔧 SettlementView02: 任務已標記為暫存刪除，等待結算完成後才會真正刪除")
     }
     
     // MARK: - AI Button Logic
@@ -816,7 +816,7 @@ struct SettlementView02: View {
                 return taskDay == tomorrow ? task.id : nil
             })
 
-            print("🔧 SettlementView02 初始化：記錄明天已存在的任務ID數量：\(existingTomorrowTaskIDs.count)")
+            // 靜默日誌: print("🔧 SettlementView02 初始化：記錄明天已存在的任務ID數量：\(existingTomorrowTaskIDs.count)")
             for id in existingTomorrowTaskIDs {
                 if let task = allItems.first(where: { $0.id == id }) {
                     print("  - 明天已存在任務：\(task.title) (ID: \(id))")

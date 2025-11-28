@@ -84,7 +84,46 @@ class WidgetFileManager {
             print("   錯誤詳情: \(error.localizedDescription)")
         }
     }
-    
+
+    /// 靜默保存今日任務到文件（減少日誌輸出）
+    func saveTodayTasksToFileQuietly(_ allTasks: [TodoItem]) {
+        guard let fileURL = sharedFileURL else {
+            return
+        }
+
+        // 過濾出今天的任務
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        let todayTasks = allTasks.filter { task in
+            guard let taskDate = task.taskDate else { return false }
+            let taskStartOfDay = calendar.startOfDay(for: taskDate)
+            return taskStartOfDay == today
+        }
+
+        // 編碼並保存到文件
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(todayTasks)
+
+            // 確保目錄存在
+            let directory = fileURL.deletingLastPathComponent()
+            if !FileManager.default.fileExists(atPath: directory.path) {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: nil)
+            }
+
+            // 寫入文件
+            try data.write(to: fileURL, options: .atomic)
+
+            // 通知 Widget 更新（無日誌）
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            // 只在錯誤時才打印日誌
+            print("❌ 靜默保存Widget數據失敗: \(error)")
+        }
+    }
+
     /// 從文件載入今日任務
     func loadTodayTasksFromFile() -> [TodoItem] {
         guard let fileURL = sharedFileURL else {

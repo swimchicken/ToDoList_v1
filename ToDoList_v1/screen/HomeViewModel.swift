@@ -50,11 +50,16 @@ class HomeViewModel: ObservableObject {
     @Published var pendingTasks: [TodoItem] = []
     
     @Published var currentDateOffset: Int = 0
-    
+
     // For ScrollView
     @Published var scrollDateOffsets: [Int] = [-2, -1, 0, 1, 2]
     @Published var scrollPosition: Int? = 0
     @Published var isScrolling: Bool = false
+
+    // 批次更新相關
+    @Published var pendingUpdates: [UUID: TodoItem] = [:]
+    @Published var originalStatuses: [UUID: TodoStatus] = [:]
+    private let batchUpdateTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
     
     // Caching for sorted items
     private var cachedSortedItems: [Int: [TodoItem]] = [:]
@@ -153,7 +158,7 @@ class HomeViewModel: ObservableObject {
             self.loadTodoItems()
         }
         
-        checkAutoSettlement()
+        // 移除重複的結算檢查，由 ContentView 統一處理
         checkSleepMode()
         setupDataChangeObservers()
     }
@@ -502,6 +507,11 @@ class HomeViewModel: ObservableObject {
         
         nc.addObserver(self, selector: #selector(handleAlarmTriggered), name: Notification.Name("AlarmTriggered"), object: nil)
         nc.addObserver(self, selector: #selector(handleSleepModeChanged), name: Notification.Name("SleepModeStateChanged"), object: nil)
+
+        // 新增樂觀更新相關的觀察者
+        nc.addObserver(self, selector: #selector(handleOptimisticUpdate), name: Notification.Name("OptimisticTaskStatusChanged"), object: nil)
+        nc.addObserver(self, selector: #selector(handleOptimisticStatusUpdateFailed), name: Notification.Name("OptimisticTaskStatusFailed"), object: nil)
+        nc.addObserver(self, selector: #selector(handleQueueTaskForBatchUpdate), name: Notification.Name("QueueTaskForBatchUpdate"), object: nil)
     }
 
     @MainActor
@@ -610,5 +620,99 @@ class HomeViewModel: ObservableObject {
         }
         
         return nil
+    }
+
+    // MARK: - 樂觀更新和批次API方法
+
+    /// 處理樂觀更新通知
+    @objc private func handleOptimisticUpdate(notification: Notification) {
+        guard let userInfo = notification.object as? [String: Any],
+              let taskId = userInfo["taskId"] as? UUID,
+              let newStatus = userInfo["newStatus"] as? TodoStatus else { return }
+
+        // 在toDoItems中查找並更新任務狀態
+        if let index = toDoItems.firstIndex(where: { $0.id == taskId }) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                toDoItems[index].status = newStatus
+            }
+            // 清空緩存，因為狀態改變了
+            cachedSortedItems.removeAll()
+        }
+    }
+
+    /// 處理樂觀狀態更新失敗通知
+    @objc private func handleOptimisticStatusUpdateFailed(notification: Notification) {
+        guard let userInfo = notification.object as? [String: Any],
+              let taskId = userInfo["taskId"] as? UUID,
+              let originalStatus = userInfo["originalStatus"] as? TodoStatus else { return }
+
+        // 回滾到原來的狀態
+        if let index = toDoItems.firstIndex(where: { $0.id == taskId }) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                toDoItems[index].status = originalStatus
+            }
+            // 清空緩存，因為狀態改變了
+            cachedSortedItems.removeAll()
+        }
+    }
+
+    /// 將任務加入批次更新隊列
+    @objc private func handleQueueTaskForBatchUpdate(notification: Notification) {
+        guard let userInfo = notification.object as? [String: Any],
+              let task = userInfo["task"] as? TodoItem,
+              let originalStatus = userInfo["originalStatus"] as? TodoStatus else { return }
+
+        pendingUpdates[task.id] = task
+        originalStatuses[task.id] = originalStatus
+    }
+
+    /// 處理批次更新
+    func processBatchUpdates() {
+        guard !pendingUpdates.isEmpty else { return }
+
+        let tasksToUpdate = Array(pendingUpdates.values)
+        let originalStatusBackup = originalStatuses
+
+        // 清空隊列
+        pendingUpdates.removeAll()
+        originalStatuses.removeAll()
+
+        // 發送批次更新，如果失敗則回退到單個更新
+        Task {
+            do {
+                let _ = try await apiDataManager.batchUpdateTodoItems(tasksToUpdate)
+                // 批次更新成功，不需要額外操作
+                #if DEBUG
+                print("✅ HomeViewModel 批次更新成功: \(tasksToUpdate.count) 個任務")
+                #endif
+            } catch {
+                await MainActor.run {
+                    print("❌ HomeViewModel 批次更新失敗: \(error.localizedDescription)，回退到單個更新")
+
+                    // 回退到單個API更新
+                    for task in tasksToUpdate {
+                        Task {
+                            do {
+                                let _ = try await self.apiDataManager.updateTodoItem(task)
+                                #if DEBUG
+                                print("✅ HomeViewModel 單個更新成功: \(task.title)")
+                                #endif
+                            } catch {
+                                await MainActor.run {
+                                    print("❌ HomeViewModel 單個更新也失敗: \(task.title) - \(error.localizedDescription)")
+                                    // 單個更新也失敗，回滾樂觀更新
+                                    if let originalStatus = originalStatusBackup[task.id] {
+                                        NotificationCenter.default.post(
+                                            name: Notification.Name("OptimisticTaskStatusFailed"),
+                                            object: ["taskId": task.id, "originalStatus": originalStatus]
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

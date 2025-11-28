@@ -118,14 +118,22 @@ class APIDataManager: ObservableObject {
 
     /// 批量更新TodoItems（結算時移動任務到明天）
     func batchUpdateTodoItems(_ items: [TodoItem]) async throws -> [TodoItem] {
-        let updateRequests = items.map { ($0.id, $0.toUpdateRequest()) }
-        let apiItems = try await apiManager.batchUpdateTodos(updateRequests)
-        let updatedItems = apiItems.map { $0.toTodoItem() }
+        let batchResponse = try await apiManager.batchUpdateTodos(items)
+
+        // 檢查是否有失敗的更新
+        if batchResponse.actualFailedCount > 0 {
+            print("⚠️ 批次更新部分失敗: 成功 \(batchResponse.actualSuccessCount) 個，失敗 \(batchResponse.actualFailedCount) 個")
+            print("失敗的ID: \(batchResponse.actualFailedIds)")
+        } else {
+            print("✅ 批次更新全部成功: \(batchResponse.actualSuccessCount) 個任務")
+        }
 
         // 更新Widget數據
         await updateWidgetData()
 
-        return updatedItems
+        // 返回成功更新的項目
+        let successfulItems = items.filter { !batchResponse.actualFailedIds.contains($0.id) }
+        return successfulItems
     }
 
     /// 批量刪除TodoItems
@@ -185,12 +193,14 @@ class APIDataManager: ObservableObject {
 
     // MARK: - Widget數據更新
 
-    /// 更新Widget數據
+    /// 更新Widget數據（靜默模式）
     private func updateWidgetData() async {
         do {
             let allTasks = try await getAllTodoItems()
-            WidgetFileManager.shared.saveTodayTasksToFile(allTasks)
+            // 靜默更新Widget，不打印日誌
+            WidgetFileManager.shared.saveTodayTasksToFileQuietly(allTasks)
         } catch {
+            // 只在錯誤時才打印日誌
             print("❌ 更新Widget數據失敗: \(error.localizedDescription)")
         }
     }

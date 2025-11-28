@@ -26,27 +26,7 @@ struct TodoSheetItemRow: View {
             HStack(spacing: 12) {
                 // 矩形按鈕 (點擊前灰色，點擊後綠色)
                 Button {
-                    print("按鈕被點擊，狀態從 \(item.status) 變為 \(item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)")
-                    withAnimation {
-                        item.status = (item.status == .completed ? TodoStatus.toBeStarted : TodoStatus.completed)
-                    }
-                    
-                    // 使用 API 更新項目
-                    Task {
-                        do {
-                            try await APIDataManager.shared.updateTodoItem(item)
-                            print("TodoSheetItemRow - 成功更新待辦事項到 API")
-                        } catch {
-                            print("TodoSheetItemRow - 更新待辦事項失敗: \(error.localizedDescription)")
-                        }
-                    }
-                    
-                    // 發送狀態變更通知
-                    NotificationCenter.default.post(
-                        name: Notification.Name("TodoItemStatusChanged"),
-                        object: nil,
-                        userInfo: ["itemId": item.id.uuidString]
-                    )
+                    toggleTaskStatus()
                 } label: {
                     Rectangle()
                         .foregroundColor(.clear)
@@ -125,6 +105,44 @@ struct TodoSheetItemRow: View {
         .padding(.vertical, 16)
         .padding(.horizontal, 24)
         .background(Color.clear)
+    }
+
+    // 切換任務狀態 - 在TodoSheet中使用直接API調用
+    private func toggleTaskStatus() {
+        let originalStatus = item.status
+        let newStatus: TodoStatus = (item.status == .completed ? .toBeStarted : .completed)
+
+        // 立即更新本地狀態提供即時反饋
+        withAnimation(.easeInOut(duration: 0.2)) {
+            item.status = newStatus
+        }
+
+        // 創建更新後的任務
+        var updatedTask = item
+        updatedTask.status = newStatus
+
+        // 直接調用API更新，不使用批次更新
+        Task {
+            do {
+                let _ = try await APIDataManager.shared.updateTodoItem(updatedTask)
+                print("✅ TodoSheetItemRow - 任務狀態更新成功: \(item.title)")
+
+                // 發送狀態變更通知
+                NotificationCenter.default.post(
+                    name: Notification.Name("TodoItemStatusChanged"),
+                    object: nil,
+                    userInfo: ["itemId": item.id.uuidString]
+                )
+            } catch {
+                await MainActor.run {
+                    print("❌ TodoSheetItemRow - 任務狀態更新失敗: \(error.localizedDescription)")
+                    // 回滾到原來的狀態
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        item.status = originalStatus
+                    }
+                }
+            }
+        }
     }
 }
 

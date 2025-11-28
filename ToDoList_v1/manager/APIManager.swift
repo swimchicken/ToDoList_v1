@@ -250,17 +250,28 @@ class APIManager {
         return try await performRequest(request, responseType: [APITodoItem].self)
     }
 
-    func batchUpdateTodos(_ updates: [(UUID, UpdateTodoRequest)]) async throws -> [APITodoItem] {
+    func batchUpdateTodos(_ todos: [TodoItem]) async throws -> BatchOperationResponse {
         let url = URL(string: "\(baseURL)/todos/batch")!
 
-        let batchRequest = BatchUpdateRequest(updates: updates.map { (id, request) in
-            BatchUpdateItem(id: id, data: request)
+        let batchRequest = BatchUpdateRequest(items: todos.map { todo in
+            BatchUpdateItem(
+                id: todo.id,
+                title: todo.title,
+                status: todo.status.rawValue,
+                task_date: todo.taskDate,
+                priority: todo.priority,
+                is_pinned: todo.isPinned,
+                note: todo.note,
+                corresponding_image_id: todo.correspondingImageID.isEmpty ? nil : todo.correspondingImageID
+            )
         })
 
-        let requestData = try JSONEncoder().encode(batchRequest)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let requestData = try encoder.encode(batchRequest)
         let request = createRequest(url: url, method: .PUT, body: requestData)
 
-        return try await performRequest(request, responseType: [APITodoItem].self)
+        return try await performRequest(request, responseType: BatchOperationResponse.self)
     }
 
     func batchDeleteTodos(_ ids: [UUID]) async throws {

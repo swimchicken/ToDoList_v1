@@ -66,6 +66,8 @@ struct Home: View {
     @State private var scrollDateOffsets: [Int] = [-2, -1, 0, 1, 2] // 預載入的日期偏移範圍
     @State private var scrollPosition: Int? = 0 // 當前 ScrollView 位置，對應 currentDateOffset
     @State private var isScrolling: Bool = false // 追蹤是否正在滑動
+
+    // 批次更新相關 - 移除，使用單一系統
     
     // 創建一個計算屬性來橋接 currentDateOffset 到 scrollPosition
     private var scrollablePosition: Binding<Int?> {
@@ -826,27 +828,7 @@ struct Home: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             loadTodoItems()
         }
-        if delaySettlementManager.shouldShowSettlement() {
-            Task {
-                do {
-                    let allItems = try await apiDataManager.getAllTodoItems()
-                    await MainActor.run {
-                        self.toDoItems = allItems
-
-                        // 檢查是否有事件，沒有則跳過自動結算
-                        if !allItems.isEmpty {
-                            navigateToSettlementView = true
-                        } else {
-                            print("自動結算檢測但沒有任何事件，跳過結算流程")
-                        }
-                    }
-                } catch {
-                    await MainActor.run {
-                        print("自動結算載入項目失敗: \(error.localizedDescription)")
-                    }
-                }
-            }
-        }
+        // 移除重複的結算檢查邏輯，由 ContentView 統一處理
         if UserDefaults.standard.bool(forKey: "isSleepMode") {
             isSleepMode = true
             if let savedAlarmTime = UserDefaults.standard.string(forKey: "alarmTimeString") {
@@ -868,6 +850,7 @@ struct Home: View {
     }
     .onDisappear {
         timer?.invalidate()
+        // 移除批次更新處理
         NotificationCenter.default.removeObserver(self)
     }
     .background(
@@ -1207,6 +1190,8 @@ struct Home: View {
             navigateToSleep01View = true
         }
 
+        // 移除批次更新相關的通知監聽，在Home中使用單個API調用
+
         // 監聽睡眠模式狀態變更通知
         NotificationCenter.default.addObserver(forName: Notification.Name("SleepModeStateChanged"), object: nil, queue: .main) { _ in
             print("收到睡眠模式狀態變更通知")
@@ -1258,8 +1243,8 @@ struct Home: View {
                 await MainActor.run {
                     self.isLoading = false
                     self.toDoItems = items
-                    // 更新Widget數據
-                    WidgetFileManager.shared.saveTodayTasksToFile(items)
+                    // 只在Home頁面手動刷新時更新Widget，使用靜默模式
+                    WidgetFileManager.shared.saveTodayTasksToFileQuietly(items)
                 }
             } catch {
                 await MainActor.run {
@@ -1270,6 +1255,8 @@ struct Home: View {
             }
         }
     }
+
+    // MARK: - 移除批次更新方法，Home中使用單個API調用
 }
 
 extension Color {
