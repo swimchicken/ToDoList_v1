@@ -12,6 +12,10 @@ class APIDataManager: ObservableObject {
 
     private let apiManager = APIManager.shared
 
+    // 防止重複請求的機制
+    private var ongoingUpdateRequests: Set<UUID> = []
+    private let requestQueue = DispatchQueue(label: "APIDataManager.requests", attributes: .concurrent)
+
     private init() {}
 
     // MARK: - TodoItem管理
@@ -46,16 +50,57 @@ class APIDataManager: ObservableObject {
         return newItem
     }
 
-    /// 更新TodoItem
+    /// 更新TodoItem（帶去重機制）
     func updateTodoItem(_ item: TodoItem) async throws -> TodoItem {
-        let updateRequest = item.toUpdateRequest()
-        let apiItem = try await apiManager.updateTodo(id: item.id, updateRequest)
-        let updatedItem = apiItem.toTodoItem()
+        // 檢查是否已有相同任務的更新請求正在進行
+        return try await withCheckedThrowingContinuation { continuation in
+            requestQueue.async(flags: .barrier) {
+                // 如果已經有相同任務的請求正在進行，拒絕新請求
+                if self.ongoingUpdateRequests.contains(item.id) {
+                    print("⚠️ APIDataManager - 忽略重複的更新請求: \(item.title) (ID: \(item.id.uuidString.prefix(8)))")
+                    // 返回一個自訂錯誤表示重複請求
+                    let duplicateError = NSError(domain: "APIDataManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "重複的更新請求"])
+                    continuation.resume(throwing: duplicateError)
+                    return
+                }
 
-        // 更新Widget數據
-        await updateWidgetData()
+                // 標記該任務正在更新
+                self.ongoingUpdateRequests.insert(item.id)
+                print("🔄 APIDataManager - 開始更新任務: \(item.title) (ID: \(item.id.uuidString.prefix(8)))")
 
-        return updatedItem
+                // 執行實際的更新請求
+                Task {
+                    do {
+                        let updateRequest = item.toUpdateRequest()
+                        let apiItem = try await self.apiManager.updateTodo(id: item.id, updateRequest)
+                        let updatedItem = apiItem.toTodoItem()
+
+                        // Widget 數據將在結算完成時統一更新
+                        // await self.updateWidgetData()
+
+                        // 移除請求追蹤
+                        await self.removeOngoingRequest(item.id)
+
+                        continuation.resume(returning: updatedItem)
+                    } catch {
+                        // 移除請求追蹤
+                        await self.removeOngoingRequest(item.id)
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        }
+    }
+
+    /// 安全地移除正在進行的請求追蹤
+    private func removeOngoingRequest(_ id: UUID) async {
+        await withCheckedContinuation { continuation in
+            requestQueue.async(flags: .barrier) {
+                self.ongoingUpdateRequests.remove(id)
+                print("✅ APIDataManager - 完成任務更新: (ID: \(id.uuidString.prefix(8)))")
+                continuation.resume()
+            }
+        }
     }
 
     /// 刪除TodoItem
@@ -316,5 +361,11 @@ extension APIDataManager {
                 }
             }
         }
+    }
+
+    /// 手動觸發 Widget 數據更新（用於結算完成等場景）
+    func forceUpdateWidgetData() async {
+        await updateWidgetData()
+        print("📱 手動觸發 Widget 數據更新完成")
     }
 }

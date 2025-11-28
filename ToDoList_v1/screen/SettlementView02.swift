@@ -2439,7 +2439,12 @@ extension SettlementView02 {
             // 5. 清除主動結算標記（因為這是延期結算）
             UserDefaults.standard.set(false, forKey: "isActiveEndDay")
 
-            // 6. 延遲一下再導航回 Home，確保所有操作都完成
+            // 6. 更新 Widget 數據
+            Task {
+                await apiDataManager.forceUpdateWidgetData()
+            }
+
+            // 7. 延遲一下再導航回 Home，確保所有操作都完成
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 print("延期結算: 完成所有操作，導航回 Home")
                 navigateToHome = true
@@ -2493,6 +2498,11 @@ extension SettlementView02 {
                     print("SettlementView02: 暫存操作執行完成，但有錯誤發生")
                 } else {
                     print("SettlementView02: 所有暫存操作執行成功完成")
+                }
+
+                // 結算完成後更新 Widget 數據
+                Task {
+                    await apiDataManager.forceUpdateWidgetData()
                 }
             }
         }

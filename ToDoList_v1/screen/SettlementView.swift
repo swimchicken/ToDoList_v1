@@ -412,14 +412,15 @@ struct SettlementView: View {
             self.handleDataRefreshed()
         }
         
-        // 監聽任務狀態變更通知
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("TodoItemStatusChanged"),
-            object: nil,
-            queue: .main
-        ) { _ in
-            self.handleDataRefreshed()
-        }
+        // SettlementView 中使用樂觀更新，不需要監聽 API 完成後的通知
+        // 避免重複觸發狀態變更
+        // NotificationCenter.default.addObserver(
+        //     forName: Notification.Name("TodoItemStatusChanged"),
+        //     object: nil,
+        //     queue: .main
+        // ) { _ in
+        //     self.handleDataRefreshed()
+        // }
 
         // 監聽樂觀更新通知
         NotificationCenter.default.addObserver(
@@ -586,6 +587,9 @@ struct TaskRow: View {
     // 引用API數據管理器以更新任務狀態
     private let apiDataManager = APIDataManager.shared
 
+    // 防止重複點擊
+    @State private var isUpdating: Bool = false
+
     // 綠色和灰色
     private let greenColor = Color(red: 0, green: 0.72, blue: 0.41)
     private let grayColor = Color(red: 0.52, green: 0.52, blue: 0.52)
@@ -601,6 +605,9 @@ struct TaskRow: View {
             Circle()
                 .fill(isCompleted ? greenColor : Color.white.opacity(0.15))
                 .frame(width: 17, height: 17)
+                .opacity(isUpdating ? 0.5 : 1.0) // 更新中時減少透明度
+                .scaleEffect(isUpdating ? 0.9 : 1.0) // 更新中時稍微縮小
+                .animation(.easeInOut(duration: 0.2), value: isUpdating)
                 .onTapGesture {
                     toggleTaskStatus()
                 }
@@ -628,6 +635,14 @@ struct TaskRow: View {
     
     // 切換任務狀態
     private func toggleTaskStatus() {
+        // 防止重複點擊
+        guard !isUpdating else {
+            print("⚠️ TaskRow - 正在更新中，忽略重複點擊")
+            return
+        }
+
+        isUpdating = true
+
         // 創建更新後的任務
         var updatedTask = task
         updatedTask.status = isCompleted ? .undone : .completed
@@ -642,14 +657,28 @@ struct TaskRow: View {
         Task {
             do {
                 let _ = try await apiDataManager.updateTodoItem(updatedTask)
+                print("✅ TaskRow - 任務狀態更新成功: \(task.title)")
             } catch {
                 await MainActor.run {
-                    print("❌ TaskRow 更新失敗: \(error.localizedDescription)")
-                    // 發送樂觀更新失敗通知，回滾狀態
-                    NotificationCenter.default.post(
-                        name: Notification.Name("OptimisticTaskStatusFailed"),
-                        object: ["taskId": task.id, "originalStatus": task.status]
-                    )
+                    let nsError = error as NSError
+                    // 如果是重複請求錯誤（409），不需要回滾，因為樂觀更新是正確的
+                    if nsError.domain == "APIDataManager" && nsError.code == 409 {
+                        print("ℹ️ TaskRow - 忽略重複請求: \(task.title)")
+                    } else {
+                        print("❌ TaskRow 更新失敗: \(error.localizedDescription)")
+                        // 發送樂觀更新失敗通知，回滾狀態
+                        NotificationCenter.default.post(
+                            name: Notification.Name("OptimisticTaskStatusFailed"),
+                            object: ["taskId": task.id, "originalStatus": task.status]
+                        )
+                    }
+                }
+            }
+
+            // 無論成功或失敗，都重置更新狀態（添加延遲防止過快點擊）
+            await MainActor.run {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isUpdating = false
                 }
             }
         }
