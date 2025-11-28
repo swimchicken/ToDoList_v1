@@ -158,7 +158,8 @@ struct SettlementView02: View {
             initialDailyTasks = []
         }
 
-        self._dailyTasks = State(initialValue: initialDailyTasks)
+        // 直接使用傳入的未完成任務作為初始顯示數據（樂觀更新）
+        self._dailyTasks = State(initialValue: uncompletedTasks)
         self._allTodoItems = State(initialValue: [])
 
         // 設定已存在的明天任務ID
@@ -241,17 +242,15 @@ struct SettlementView02: View {
                     tempAddedItems.removeAll()
                     hasAppearedOnce = true
                     print("First time entering SettlementView02, resetting temp state")
-
-                    // 樂觀更新：立即使用傳入的任務資料顯示
-                    self.dailyTasks = uncompletedTasks
-                    print("SettlementView02 - 樂觀更新：立即顯示 \(uncompletedTasks.count) 個傳入任務")
+                    print("SettlementView02 - 初始化樂觀更新：已顯示 \(dailyTasks.count) 個傳入任務")
                 } else {
                     print("Re-entering SettlementView02, keeping temp state")
+                    // 非首次進入才調用完整的資料載入
+                    loadTasksFromDataManager()
                 }
 
-                // 加載初始數據
+                // 背景加載 API 數據
                 loadInitialData()
-                loadTasksFromDataManager()
             }
             .fullScreenCover(isPresented: $showAddTimeView) {
                 AddTimeView(
@@ -808,6 +807,9 @@ struct SettlementView02: View {
 
     // 處理初始數據
     private func processInitialData(_ allItems: [TodoItem]) {
+        // 先更新 allTodoItems 以確保有完整的數據
+        self.allTodoItems = allItems
+
         if moveTasksToTomorrow {
             let calendar = Calendar.current
             let today = calendar.startOfDay(for: Date())
@@ -860,13 +862,21 @@ struct SettlementView02: View {
                 }
             }
 
-            self.dailyTasks = settlementTasks
+            // 只有在 API 數據與樂觀更新數據不同時才更新 dailyTasks
+            print("🔍 比較數據 - dailyTasks: \(dailyTasks.count), settlementTasks: \(settlementTasks.count)")
+            print("🔍 dailyTasks IDs: \(dailyTasks.map { $0.id.uuidString.prefix(8) })")
+            print("🔍 settlementTasks IDs: \(settlementTasks.map { $0.id.uuidString.prefix(8) })")
+
+            if dailyTasks.count != settlementTasks.count ||
+               !Set(dailyTasks.map { $0.id }).isSuperset(of: Set(settlementTasks.map { $0.id })) {
+                self.dailyTasks = settlementTasks
+                print("SettlementView02 - API數據更新事件列表: \(settlementTasks.count) 個（結算類型：\(isSameDaySettlement ? "主動" : "延期")）")
+            } else {
+                print("SettlementView02 - API數據與樂觀更新一致，保持現有UI")
+            }
+
             self.existingTomorrowTaskIDs = existingTomorrowTaskIDs
-
-            print("SettlementView02 - 重新載入事件列表任務: \(settlementTasks.count) 個（結算類型：\(isSameDaySettlement ? "主動" : "延期")，已處理暫存操作）")
         }
-
-        self.allTodoItems = allItems
     }
 
     // 取消 API 請求
