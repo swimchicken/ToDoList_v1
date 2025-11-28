@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CloudKit
 
 /// CompleteDayDataManager - 管理已完成日期的數據
 class CompleteDayDataManager {
@@ -15,7 +14,7 @@ class CompleteDayDataManager {
     
     // MARK: - 常量
     private let completedDaysKey = "completedDays"
-    private let cloudKitService = CloudKitService.shared
+    // CloudKit已移除，改為純API架構
     private let apiDataManager = APIDataManager.shared
     
     // MARK: - Properties
@@ -24,53 +23,9 @@ class CompleteDayDataManager {
     
     // MARK: - 初始化
     private init() {
-        print("DEBUG: 初始化 CompleteDayDataManager")
         loadCompletedDaysFromLocal()
-        setupAccountChangeObserver()
     }
     
-    // MARK: - 設置帳號變化觀察者
-    private func setupAccountChangeObserver() {
-        // 監聽 iCloud 用戶變更通知
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("iCloudUserChanged"),
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self = self else { return }
-            
-            print("NOTICE: CompleteDayDataManager 收到用戶變更通知")
-            
-            // 清除本地完成日期數據
-            self.clearCompletedDaysData()
-            
-            // 重新從本地加載（新用戶的數據將為空）
-            self.loadCompletedDaysFromLocal()
-            
-            // 發送數據變更通知
-            self.notifyDataChanged()
-        }
-        
-        // 監聽 iCloud 帳號不可用通知
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("iCloudAccountUnavailable"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self = self else { return }
-            
-            print("NOTICE: CompleteDayDataManager 收到 iCloud 帳號不可用通知")
-            
-            // 清除本地完成日期數據
-            self.clearCompletedDaysData()
-            
-            // 重新從本地加載（將為空）
-            self.loadCompletedDaysFromLocal()
-            
-            // 發送數據變更通知
-            self.notifyDataChanged()
-        }
-    }
     
     // MARK: - 本地儲存操作
     

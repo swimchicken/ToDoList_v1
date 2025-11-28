@@ -816,23 +816,50 @@ struct SettlementView02: View {
                 return taskDay == tomorrow ? task.id : nil
             })
 
-            // 靜默日誌: print("🔧 SettlementView02 初始化：記錄明天已存在的任務ID數量：\(existingTomorrowTaskIDs.count)")
-            for id in existingTomorrowTaskIDs {
-                if let task = allItems.first(where: { $0.id == id }) {
-                    print("  - 明天已存在任務：\(task.title) (ID: \(id))")
+            // 判斷結算類型
+            let isActiveEndDay = UserDefaults.standard.bool(forKey: "isActiveEndDay")
+            let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: isActiveEndDay)
+
+            // 根據結算類型篩選要顯示的任務
+            let settlementTasks: [TodoItem]
+
+            if isSameDaySettlement {
+                // 當天結算：只顯示當天的未完成任務
+                settlementTasks = allItems.filter { task in
+                    guard let taskDate = task.taskDate else { return false }
+                    let taskDay = calendar.startOfDay(for: taskDate)
+                    return (taskDay == today) && (task.status == .toBeStarted || task.status == .undone)
+                }
+            } else {
+                // 延遲結算：顯示從上次結算日期到昨天的未完成任務
+                let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+                let lastSettlementDate = delaySettlementManager.getLastSettlementDate()
+
+                if let lastSettlement = lastSettlementDate {
+                    let lastSettlementDay = calendar.startOfDay(for: lastSettlement)
+                    let dayAfterLastSettlement = calendar.date(byAdding: .day, value: 1, to: lastSettlementDay) ?? lastSettlementDay
+
+                    settlementTasks = allItems.filter { task in
+                        guard let taskDate = task.taskDate else { return false }
+                        let taskDay = calendar.startOfDay(for: taskDate)
+                        let isInRange = taskDay >= dayAfterLastSettlement && taskDay <= yesterday
+                        let isUncompleted = task.status == .toBeStarted || task.status == .undone
+                        return isInRange && isUncompleted
+                    }
+                } else {
+                    // 沒有上次結算記錄，只看昨天的未完成任務
+                    settlementTasks = allItems.filter { task in
+                        guard let taskDate = task.taskDate else { return false }
+                        let taskDay = calendar.startOfDay(for: taskDate)
+                        return (taskDay == yesterday) && (task.status == .toBeStarted || task.status == .undone)
+                    }
                 }
             }
 
-            // 篩選要顯示在事件列表的任務：只顯示當天的未完成任務
-            let todayTasks = allItems.filter { task in
-                guard let taskDate = task.taskDate else { return false }
-                let taskDay = calendar.startOfDay(for: taskDate)
-                // 只顯示當天的未完成任務（準備移動到明天的）
-                return (taskDay == today) && (task.status == .toBeStarted || task.status == .undone)
-            }
-
-            self.dailyTasks = todayTasks
+            self.dailyTasks = settlementTasks
             self.existingTomorrowTaskIDs = existingTomorrowTaskIDs
+
+            print("SettlementView02 - 重新載入事件列表任務: \(settlementTasks.count) 個（結算類型：\(isSameDaySettlement ? "主動" : "延期")，已處理暫存操作）")
         }
 
         self.allTodoItems = allItems
