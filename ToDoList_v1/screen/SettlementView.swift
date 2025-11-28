@@ -637,7 +637,6 @@ struct TaskRow: View {
     private func toggleTaskStatus() {
         // 防止重複點擊
         guard !isUpdating else {
-            print("⚠️ TaskRow - 正在更新中，忽略重複點擊")
             return
         }
 
@@ -657,13 +656,13 @@ struct TaskRow: View {
         Task {
             do {
                 let _ = try await apiDataManager.updateTodoItem(updatedTask)
-                print("✅ TaskRow - 任務狀態更新成功: \(task.title)")
+                // 靜默成功，只在錯誤時輸出日誌
             } catch {
                 await MainActor.run {
                     let nsError = error as NSError
                     // 如果是重複請求錯誤（409），不需要回滾，因為樂觀更新是正確的
                     if nsError.domain == "APIDataManager" && nsError.code == 409 {
-                        print("ℹ️ TaskRow - 忽略重複請求: \(task.title)")
+                        // 重複請求是正常的，不需要日誌
                     } else {
                         print("❌ TaskRow 更新失敗: \(error.localizedDescription)")
                         // 發送樂觀更新失敗通知，回滾狀態

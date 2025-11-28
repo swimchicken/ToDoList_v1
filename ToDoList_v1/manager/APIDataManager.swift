@@ -57,7 +57,6 @@ class APIDataManager: ObservableObject {
             requestQueue.async(flags: .barrier) {
                 // 如果已經有相同任務的請求正在進行，拒絕新請求
                 if self.ongoingUpdateRequests.contains(item.id) {
-                    print("⚠️ APIDataManager - 忽略重複的更新請求: \(item.title) (ID: \(item.id.uuidString.prefix(8)))")
                     // 返回一個自訂錯誤表示重複請求
                     let duplicateError = NSError(domain: "APIDataManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "重複的更新請求"])
                     continuation.resume(throwing: duplicateError)
@@ -66,7 +65,6 @@ class APIDataManager: ObservableObject {
 
                 // 標記該任務正在更新
                 self.ongoingUpdateRequests.insert(item.id)
-                print("🔄 APIDataManager - 開始更新任務: \(item.title) (ID: \(item.id.uuidString.prefix(8)))")
 
                 // 執行實際的更新請求
                 Task {
@@ -97,7 +95,6 @@ class APIDataManager: ObservableObject {
         await withCheckedContinuation { continuation in
             requestQueue.async(flags: .barrier) {
                 self.ongoingUpdateRequests.remove(id)
-                print("✅ APIDataManager - 完成任務更新: (ID: \(id.uuidString.prefix(8)))")
                 continuation.resume()
             }
         }

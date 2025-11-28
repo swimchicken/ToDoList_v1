@@ -863,17 +863,12 @@ struct SettlementView02: View {
             }
 
             // 只有在 API 數據與樂觀更新數據不同時才更新 dailyTasks
-            print("🔍 比較數據 - dailyTasks: \(dailyTasks.count), settlementTasks: \(settlementTasks.count)")
-            print("🔍 dailyTasks IDs: \(dailyTasks.map { $0.id.uuidString.prefix(8) })")
-            print("🔍 settlementTasks IDs: \(settlementTasks.map { $0.id.uuidString.prefix(8) })")
-
             if dailyTasks.count != settlementTasks.count ||
                !Set(dailyTasks.map { $0.id }).isSuperset(of: Set(settlementTasks.map { $0.id })) {
                 self.dailyTasks = settlementTasks
-                print("SettlementView02 - API數據更新事件列表: \(settlementTasks.count) 個（結算類型：\(isSameDaySettlement ? "主動" : "延期")）")
-            } else {
-                print("SettlementView02 - API數據與樂觀更新一致，保持現有UI")
+                print("SettlementView02 - 已更新事件列表: \(settlementTasks.count) 個任務")
             }
+            // 移除 "數據一致" 的日誌，因為這是正常情況
 
             self.existingTomorrowTaskIDs = existingTomorrowTaskIDs
         }
