@@ -53,7 +53,10 @@ struct SettlementView: View {
     
     // 加載狀態
     @State private var isLoading: Bool = true
-    
+
+    // 跟蹤是否已經初始化過數據（避免重複API調用）
+    @State private var hasInitializedData: Bool = false
+
     // 數據刷新令牌 - 用於強制視圖刷新
     @State private var dataRefreshToken: UUID = UUID()
 
@@ -270,13 +273,13 @@ struct SettlementView: View {
         .onAppear {
             // 檢查是否有主動結算標記
             let isActiveEndDay = UserDefaults.standard.bool(forKey: "isActiveEndDay")
-            
+
             // 初始化當天結算狀態 - 如果是主動結算則一律視為當天結算
             isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: isActiveEndDay)
-            
+
             // 清除主動結算標記（一次性使用）
             UserDefaults.standard.removeObject(forKey: "isActiveEndDay")
-            
+
             // 打印結算信息以便調試
             if let lastDate = delaySettlementManager.getLastSettlementDate() {
                 let dateFormatter = DateFormatter()
@@ -285,12 +288,20 @@ struct SettlementView: View {
             } else {
                 print("SettlementView - 初始化結算狀態: 是否為當天結算 = \(isSameDaySettlement), 沒有上次結算日期（首次使用）")
             }
-            
+
             // 設置數據變更監聽
             setupDataChangeObservers()
-            
-            // 加載任務數據
-            loadTasks()
+
+            // 🎯 優化：只有第一次進入或需要刷新時才調用API
+            if !hasInitializedData {
+                print("SettlementView - 第一次進入，調用API加載數據")
+                loadTasks()
+                hasInitializedData = true
+            } else {
+                print("SettlementView - 頁面返回，保持現有數據，無需API調用")
+                // 如果已經有數據，直接設置為非加載狀態
+                isLoading = false
+            }
         }
         .onDisappear {
             // 移除通知觀察者
@@ -313,11 +324,11 @@ struct SettlementView: View {
         )
     }
 
-    // 加載任務數據
+    // 加載任務數據 (只在第一次進入時調用)
     func loadTasks() {
         isLoading = true
 
-        // 立即清空舊數據，確保loading期間不會顯示過時的任務
+        // 清空數據，準備載入新數據
         completedTasks = []
         uncompletedTasks = []
 
@@ -435,6 +446,16 @@ struct SettlementView: View {
                let newStatus = userInfo["newStatus"] as? TodoStatus {
                 self.handleOptimisticUpdate(taskId: taskId, newStatus: newStatus)
             }
+        }
+
+        // 監聽結算完成通知，重置初始化狀態
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("SettlementCompleted"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("SettlementView - 接收到結算完成通知，重置初始化狀態")
+            self.hasInitializedData = false  // 重置狀態，下次進入時會重新調用API
         }
 
         // 監聽樂觀更新失敗通知
