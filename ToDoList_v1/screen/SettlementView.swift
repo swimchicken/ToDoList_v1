@@ -185,14 +185,8 @@ struct SettlementView: View {
 
                             // 實際的已完成任務列表
                             VStack(alignment: .leading, spacing: 10) {
-                                if !completedTasks.isEmpty || !isLoading {
-                                    // 顯示從資料庫加載的已完成任務
-                                    // 即使在加載中也顯示已有的任務，避免閃爍
-                                    ForEach(completedTasks) { task in
-                                        TaskRow(task: task)
-                                    }
-                                } else if isLoading && completedTasks.isEmpty {
-                                    // 只有當真的沒有任務且正在加載時才顯示加載指示器
+                                if isLoading {
+                                    // 加載中時顯示loading指示器，不顯示任務列表
                                     HStack {
                                         Spacer()
                                         ProgressView()
@@ -200,8 +194,13 @@ struct SettlementView: View {
                                         Spacer()
                                     }
                                     .padding()
+                                } else if !completedTasks.isEmpty {
+                                    // 加載完成且有已完成任務時才顯示任務列表
+                                    ForEach(completedTasks) { task in
+                                        TaskRow(task: task)
+                                    }
                                 } else {
-                                    // 沒有已完成任務時不顯示任何內容
+                                    // 加載完成但沒有已完成任務時不顯示任何內容
                                     EmptyView()
                                 }
                             }
@@ -215,14 +214,8 @@ struct SettlementView: View {
                             .font(Font.custom("Instrument Sans", size: 13).weight(.semibold))
                             .foregroundColor(.white)
 
-                        if !uncompletedTasks.isEmpty || !isLoading {
-                            // 顯示從資料庫加載的未完成任務
-                            // 即使在加載中也顯示已有的任務，避免閃爍
-                            ForEach(uncompletedTasks) { task in
-                                TaskRow(task: task)
-                            }
-                        } else if isLoading && uncompletedTasks.isEmpty {
-                            // 只有當真的沒有任務且正在加載時才顯示加載指示器
+                        if isLoading {
+                            // 加載中時顯示loading指示器，不顯示任務列表
                             HStack {
                                 Spacer()
                                 ProgressView()
@@ -230,8 +223,13 @@ struct SettlementView: View {
                                 Spacer()
                             }
                             .padding()
+                        } else if !uncompletedTasks.isEmpty {
+                            // 加載完成且有未完成任務時才顯示任務列表
+                            ForEach(uncompletedTasks) { task in
+                                TaskRow(task: task)
+                            }
                         } else {
-                            // 沒有未完成任務時不顯示任何內容
+                            // 加載完成但沒有未完成任務時不顯示任何內容
                             EmptyView()
                         }
                     }
@@ -318,7 +316,11 @@ struct SettlementView: View {
     // 加載任務數據
     func loadTasks() {
         isLoading = true
-        
+
+        // 立即清空舊數據，確保loading期間不會顯示過時的任務
+        completedTasks = []
+        uncompletedTasks = []
+
         // 從UserDefaults獲取最近刪除的項目ID
         var recentlyDeletedItemIDs: Set<UUID> = []
         if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),

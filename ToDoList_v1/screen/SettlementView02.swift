@@ -158,8 +158,14 @@ struct SettlementView02: View {
             initialDailyTasks = []
         }
 
-        // 直接使用傳入的未完成任務作為初始顯示數據（樂觀更新）
-        self._dailyTasks = State(initialValue: uncompletedTasks)
+        // 根據toggle狀態決定初始顯示數據
+        if moveTasksToTomorrow {
+            // 如果要移動到明天，顯示未完成任務（樂觀更新）
+            self._dailyTasks = State(initialValue: uncompletedTasks)
+        } else {
+            // 如果不移動，顯示空列表（用戶要自己手動添加）
+            self._dailyTasks = State(initialValue: [])
+        }
         self._allTodoItems = State(initialValue: [])
 
         // 設定已存在的明天任務ID
@@ -871,6 +877,10 @@ struct SettlementView02: View {
             // 移除 "數據一致" 的日誌，因為這是正常情況
 
             self.existingTomorrowTaskIDs = existingTomorrowTaskIDs
+        } else {
+            // 如果不移動任務到明天，清空任務列表
+            self.dailyTasks = []
+            print("SettlementView02 - processInitialData: toggle關閉，清空任務列表")
         }
     }
 
