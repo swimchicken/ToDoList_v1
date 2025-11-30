@@ -956,12 +956,22 @@ struct TomorrowDateView: View {
         let currentHour = calendar.component(.hour, from: now)
         let isEarlyMorning = currentHour >= 0 && currentHour < 6
 
-        if isEarlyMorning {
-            // 凌晨時段：顯示"Today"
+        // 檢查是否是延遲結算
+        let delaySettlementManager = DelaySettlementManager.shared
+        let isActiveEndDay = UserDefaults.standard.bool(forKey: "isActiveEndDay")
+        let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: isActiveEndDay)
+
+
+        if !isSameDaySettlement {
+            // 延遲結算：任務移動到今天，顯示"Today"
+            let today = calendar.startOfDay(for: now)
+            return (today, "Today")
+        } else if isEarlyMorning {
+            // 當天結算 + 凌晨時段：顯示"Today"
             let today = calendar.startOfDay(for: now)
             return (today, "Today")
         } else {
-            // 其他時間：顯示"Tomorrow"
+            // 當天結算 + 其他時間：顯示"Tomorrow"
             return (tomorrow, "Tomorrow")
         }
     }
@@ -2321,37 +2331,65 @@ extension SettlementView02 {
         let currentHour = calendar.component(.hour, from: now)
         let isEarlyMorning = currentHour >= 0 && currentHour < 6
 
-        // 根據時間段決定移動邏輯
+        // 檢查結算類型
+        let delaySettlementManager = DelaySettlementManager.shared
+        let isActiveEndDay = UserDefaults.standard.bool(forKey: "isActiveEndDay")
+        let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: isActiveEndDay)
+
+
+        // 根據結算類型和時間段決定移動邏輯
         let sourceDay: Date
         let targetDay: Date
 
-        if isEarlyMorning {
-            // 凌晨0:00-6:00：昨天的任務移到今天
+        if !isSameDaySettlement {
+            // 延遲結算：統一將所有未完成任務移動到今天
+            let today = calendar.startOfDay(for: now)
+            // 對於延遲結算，源日期應該是任務原本的日期，不需要特別限制
+            // 但我們仍需要為過濾邏輯設定一個參考日期
+            sourceDay = today // 這個值在延遲結算中可能需要重新思考
+            targetDay = today
+            print("延遲結算：將未完成任務移至今天 \(today)")
+        } else if isEarlyMorning {
+            // 當天結算 + 凌晨0:00-6:00：昨天的任務移到今天
             let today = calendar.startOfDay(for: now)
             let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
             sourceDay = yesterday
             targetDay = today
-            print("凌晨時段(\(currentHour):xx)：將昨天的未完成任務移至今天")
+            print("當天結算 + 凌晨時段(\(currentHour):xx)：將昨天的未完成任務移至今天")
         } else {
-            // 其他時間：今天的任務移到明天
+            // 當天結算 + 其他時間：今天的任務移到明天
             let today = calendar.startOfDay(for: now)
             let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
             sourceDay = today
             targetDay = tomorrow
-            print("一般時段(\(currentHour):xx)：將今天的未完成任務移至明天")
+            print("當天結算 + 一般時段(\(currentHour):xx)：將今天的未完成任務移至明天")
         }
 
-        // 篩選要移動的任務：符合源日期的未完成事項（排除備忘錄）
-        let tasksToMove = uncompletedTasks.filter { task in
-            guard let taskDate = task.taskDate else {
-                // 沒有日期的任務（備忘錄）不應該被移動
-                return false
+        // 篩選要移動的任務：根據結算類型決定過濾邏輯
+        let tasksToMove: [TodoItem]
+
+        if !isSameDaySettlement {
+            // 延遲結算：移動所有未完成任務（因為它們已經通過 SettlementViewModel 篩選過了）
+            tasksToMove = uncompletedTasks.filter { task in
+                // 只排除備忘錄（沒有日期的任務）
+                return task.taskDate != nil
             }
-            let taskDay = calendar.startOfDay(for: taskDate)
-            return taskDay == sourceDay
+            print("延遲結算過濾：所有有日期的未完成任務都移動，共 \(tasksToMove.count) 個")
+        } else {
+            // 當天結算：根據源日期篩選
+            tasksToMove = uncompletedTasks.filter { task in
+                guard let taskDate = task.taskDate else {
+                    // 沒有日期的任務（備忘錄）不應該被移動
+                    return false
+                }
+                let taskDay = calendar.startOfDay(for: taskDate)
+                return taskDay == sourceDay
+            }
+            print("當天結算過濾：篩選源日期為 \(sourceDay) 的任務，共 \(tasksToMove.count) 個")
         }
 
         print("實際將移動的未完成任務: \(tasksToMove.count) 個（從總計 \(uncompletedTasks.count) 個中篩選）")
+
 
         for task in tasksToMove {
             // 決定新的任務時間

@@ -877,7 +877,11 @@ struct Add: View {
                         NotificationCenter.default.post(
                             name: Notification.Name("TodoItemApiSyncCompleted"),
                             object: nil,
-                            userInfo: ["item": newItem, "operation": "add"]
+                            userInfo: [
+                                "item": newItem,
+                                "operation": "add",
+                                "tempId": taskToSave.id  // 傳遞臨時ID用於匹配樂觀更新的項目
+                            ]
                         )
                     }
                 } catch {

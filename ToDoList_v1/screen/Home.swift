@@ -466,7 +466,7 @@ struct Home: View {
                                 onDismiss: {
                                     withAnimation(.easeInOut) {
                                         showToDoSheet = false
-                                        loadTodoItems()
+                                        // 移除不必要的 API 調用：編輯操作已有樂觀更新
                                     }
                                 },
                                 onAddButtonPressed: {
@@ -507,9 +507,7 @@ struct Home: View {
                         addTaskMode = .today
                         isFromTodoSheet = false
                         editingItem = nil
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                            loadTodoItems()
-                        }
+                        // 移除不必要的 API 調用：新增操作已有樂觀更新
                     },
                         onOptimisticAdd: { newItem in
                         // 樂觀更新：立即顯示新任務
@@ -587,19 +585,35 @@ struct Home: View {
                                     showingDeleteView = false
                                     selectedItem = nil
                                 }
-                                let deletedItemID = itemToDelete.id
+
+                                // 🔧 修復：從當前toDoItems中查找最新的項目（可能已被樂觀更新）
+                                // 先嘗試用title匹配，因為ID可能已經更新
+                                let currentItem = toDoItems.first { item in
+                                    item.title == itemToDelete.title &&
+                                    item.taskDate == itemToDelete.taskDate
+                                } ?? itemToDelete
+
+                                let deletedItemID = currentItem.id
+                                let deletedItem = currentItem // 使用最新的項目信息
+
+
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    toDoItems.removeAll { $0.id == deletedItemID }
+                                }
 
                                 Task {
                                     do {
                                         try await apiDataManager.deleteTodoItem(withID: deletedItemID)
-                                        print("成功刪除項目: \(deletedItemID)")
-
-                                        await MainActor.run {
-                                            self.loadTodoItems()
-                                        }
                                     } catch {
                                         await MainActor.run {
-                                            print("刪除失敗: \(error.localizedDescription)")
+                                            print("❌ API刪除失敗，回滾樂觀更新: \(error.localizedDescription)")
+                                            // 回滾樂觀更新：重新添加項目
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                // 按照原來的位置重新插入（或添加到末尾）
+                                                toDoItems.append(deletedItem)
+                                                // 可以考慮按創建時間重新排序
+                                                toDoItems.sort { $0.createdAt < $1.createdAt }
+                                            }
                                         }
                                     }
                                 }
@@ -616,42 +630,65 @@ struct Home: View {
                                     showingDeleteView = false
                                     selectedItem = nil
                                 }
-                                
+
+                                // 🔧 修復：從當前toDoItems中查找最新的項目（可能已被樂觀更新）
+                                let currentItem = toDoItems.first { item in
+                                    item.title == itemToMove.title &&
+                                    item.taskDate == itemToMove.taskDate
+                                } ?? itemToMove
+
+
                                 // 創建新的待辦項目（移除時間，變成備忘錄）
                                 let queueItem = TodoItem(
                                     id: UUID(),
-                                    userID: itemToMove.userID,
-                                    title: itemToMove.title,
-                                    priority: itemToMove.priority,
-                                    isPinned: itemToMove.isPinned,
+                                    userID: currentItem.userID,
+                                    title: currentItem.title,
+                                    priority: currentItem.priority,
+                                    isPinned: currentItem.isPinned,
                                     taskDate: nil, // 移除日期時間
-                                    note: itemToMove.note,
+                                    note: currentItem.note,
                                     status: .toBeStarted,
                                     createdAt: Date(),
                                     updatedAt: Date(),
-                                    correspondingImageID: itemToMove.correspondingImageID
+                                    correspondingImageID: currentItem.correspondingImageID
                                 )
-                                
-                                // 先新增到佇列，再刪除原項目
-                                let deletedItemID = itemToMove.id
+
+                                // 樂觀更新：立即移除原項目，添加隊列項目
+                                let movedItemID = currentItem.id
+                                let originalItem = currentItem // 保存副本以便回滾
+
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    // 移除原項目
+                                    toDoItems.removeAll { $0.id == movedItemID }
+                                    // 添加到佇列項目（如果當前視圖包含佇列項目）
+                                    toDoItems.append(queueItem)
+                                }
 
                                 Task {
                                     do {
                                         // 1. 先新增佇列項目
                                         let newQueueItem = try await apiDataManager.addTodoItem(queueItem)
-                                        print("成功放入代辦佇列: \(newQueueItem.title)")
 
                                         // 2. 再刪除原項目
-                                        try await apiDataManager.deleteTodoItem(withID: deletedItemID)
-                                        print("成功刪除原項目: \(deletedItemID)")
+                                        try await apiDataManager.deleteTodoItem(withID: movedItemID)
 
-                                        // 3. 最後重新載入數據
                                         await MainActor.run {
-                                            self.loadTodoItems()
+                                            // 更新樂觀添加的項目為實際API返回的項目
+                                            if let index = toDoItems.firstIndex(where: { $0.id == queueItem.id }) {
+                                                toDoItems[index] = newQueueItem
+                                            }
                                         }
                                     } catch {
                                         await MainActor.run {
-                                            print("移動到佇列失敗: \(error.localizedDescription)")
+                                            print("❌ API移動到佇列失敗，回滾樂觀更新: \(error.localizedDescription)")
+                                            // 回滾樂觀更新
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                // 移除樂觀添加的佇列項目
+                                                toDoItems.removeAll { $0.id == queueItem.id }
+                                                // 恢復原項目
+                                                toDoItems.append(originalItem)
+                                                toDoItems.sort { $0.createdAt < $1.createdAt }
+                                            }
                                         }
                                     }
                                 }
@@ -708,9 +745,7 @@ struct Home: View {
                         withAnimation {
                             self.showTaskSelectionOverlay = false
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            self.loadTodoItems()
-                        }
+                        // 移除不必要的 API 調用：批次操作已通過 API 通知機制處理
                     },
                     onEditTask: { task in
                         // 交接開始：命令 TaskSelectionOverlay 消失，並設定要編輯的任務
@@ -825,9 +860,7 @@ struct Home: View {
             currentDate = Date()
         }
         loadTodoItems()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            loadTodoItems()
-        }
+        // 移除重複的 API 調用：0.5 秒內載入兩次是不必要的
         // 移除重複的結算檢查邏輯，由 ContentView 統一處理
         if UserDefaults.standard.bool(forKey: "isSleepMode") {
             isSleepMode = true
@@ -1137,9 +1170,7 @@ struct Home: View {
         }
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemStatusChanged"), object: nil, queue: .main) { _ in
             self.dataRefreshToken = UUID()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.loadTodoItems()
-            }
+            // 移除不必要的 API 調用：狀態變更已通過樂觀更新處理
         }
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemsDataRefreshed"), object: nil, queue: .main) { _ in
             loadTodoItems()
@@ -1148,14 +1179,14 @@ struct Home: View {
         // 監聽 API 同步完成
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemApiSyncCompleted"), object: nil, queue: .main) { notification in
             if let userInfo = notification.userInfo,
-               let item = userInfo["item"] as? TodoItem,
-               let operation = userInfo["operation"] as? String {
+               let newItem = userInfo["item"] as? TodoItem,
+               let operation = userInfo["operation"] as? String,
+               let tempId = userInfo["tempId"] as? UUID {
 
                 if operation == "add" {
-                    // 找到樂觀更新的項目並更新為實際 API 返回的數據
-                    if let index = toDoItems.firstIndex(where: { $0.id == item.id }) {
-                        toDoItems[index] = item
-                        print("✅ 樂觀更新完成，更新為 API 數據")
+                    // 使用臨時ID找到樂觀更新的項目，並更新為實際 API 返回的數據
+                    if let index = toDoItems.firstIndex(where: { $0.id == tempId }) {
+                        toDoItems[index] = newItem
                     }
                 }
             }
@@ -1171,7 +1202,6 @@ struct Home: View {
                 if operation == "add" {
                     // 移除失敗的樂觀更新項目
                     toDoItems.removeAll { $0.id == tempId }
-                    print("❌ 樂觀更新失敗，已撤回: \(error)")
 
                     // 顯示錯誤提示
                     toastMessage = "保存失敗: \(error)"
@@ -1227,7 +1257,7 @@ struct Home: View {
                     isSyncing = false
                     print("手動同步失敗: \(error.localizedDescription)")
                     loadingError = "同步失敗: \(error.localizedDescription)"
-                    loadTodoItems()
+                    // 移除不必要的備用 API 調用：如果手動同步失敗，loadTodoItems 可能也會失敗
                 }
             }
         }

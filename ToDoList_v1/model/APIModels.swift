@@ -7,7 +7,6 @@
 
 import Foundation
 
-// MARK: - 認證相關模型
 
 struct AppleLoginRequest: Codable {
     let identityToken: String
