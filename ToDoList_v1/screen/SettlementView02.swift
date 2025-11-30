@@ -1400,6 +1400,8 @@ struct AddTaskButton: View {
             isPinned: isPinned,
             taskDate: finalTaskDate,
             note: note,
+            taskType: finalTaskDate != nil ? .scheduled : .memo,
+            completionStatus: .pending,
             status: .toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),
@@ -1766,6 +1768,8 @@ struct SettlementTodoItemRow: View {
                         isPinned: tomorrowItem.isPinned,
                         taskDate: tomorrowItem.taskDate,
                         note: tomorrowItem.note,
+                        taskType: tomorrowItem.taskDate != nil ? .scheduled : .memo,
+                        completionStatus: tomorrowItem.status == .completed ? .completed : .pending,
                         status: tomorrowItem.status,
                         createdAt: Date(),  // 新的創建時間
                         updatedAt: Date(),
@@ -1809,8 +1813,8 @@ struct SettlementView02_Previews: PreviewProvider {
     static var previews: some View {
         // 创建一些测试数据用于预览
         let testItems = [
-            TodoItem(id: UUID(), userID: "testUser", title: "测试任务1", priority: 2, isPinned: false, taskDate: Date(), note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-            TodoItem(id: UUID(), userID: "testUser", title: "测试任务2", priority: 1, isPinned: true, taskDate: nil, note: "", status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
+            TodoItem(id: UUID(), userID: "testUser", title: "测试任务1", priority: 2, isPinned: false, taskDate: Date(), note: "", taskType: .scheduled, completionStatus: .pending, status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+            TodoItem(id: UUID(), userID: "testUser", title: "测试任务2", priority: 1, isPinned: true, taskDate: nil, note: "", taskType: .memo, completionStatus: .pending, status: .undone, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
         ]
         
         SettlementView02(uncompletedTasks: testItems, moveTasksToTomorrow: true)
@@ -2429,6 +2433,8 @@ extension SettlementView02 {
                 isPinned: task.isPinned,
                 taskDate: newTaskDate, // 使用新的邏輯決定的時間
                 note: task.note,
+                taskType: newTaskDate != nil ? .scheduled : .memo,
+                completionStatus: task.status == .completed ? .completed : .pending,
                 status: task.status,
                 createdAt: task.createdAt,
                 updatedAt: Date(), // 更新修改時間

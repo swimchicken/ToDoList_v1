@@ -812,6 +812,8 @@ struct BottomControlsView: View {
                 isPinned: task.isPinned,
                 taskDate: newTaskDate,
                 note: task.note,
+                taskType: task.taskType,
+                completionStatus: task.completionStatus,
                 status: task.status,
                 createdAt: task.createdAt,
                 updatedAt: Date(),

@@ -542,6 +542,9 @@ class CloudKitService {
         let correspondingImageID = record.value(forKey: "correspondingImageID") as? String ?? ""
         
         // 創建並返回 TodoItem
+        // 從舊狀態推導新字段
+        let (taskType, completionStatus) = TodoItem.deriveNewFields(from: status, taskDate: taskDate)
+
         return TodoItem(
             id: id,
             userID: userID,
@@ -550,6 +553,8 @@ class CloudKitService {
             isPinned: isPinned,
             taskDate: taskDate,
             note: note,
+            taskType: taskType,
+            completionStatus: completionStatus,
             status: status,
             createdAt: createdAt,
             updatedAt: updatedAt,

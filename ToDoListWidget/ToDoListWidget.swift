@@ -129,6 +129,8 @@ struct Provider: TimelineProvider {
                 isPinned: false,
                 taskDate: Date(),
                 note: "如果看到這個，表示 Widget 正在運行",
+                taskType: .scheduled,
+                completionStatus: .pending,
                 status: .toBeStarted,
                 createdAt: Date(),
                 updatedAt: Date(),
@@ -797,7 +799,8 @@ struct ToDoListWidget: Widget {
 } timeline: {
     SimpleEntry(date: .now, tasks: [
         TodoItem(id: UUID(), userID: "", title: "完成專案報告", priority: 3, isPinned: true,
-                taskDate: Date(), note: "下午3點前提交", status: .toBeStarted,
+                taskDate: Date(), note: "下午3點前提交",
+                taskType: .scheduled, completionStatus: .pending, status: .toBeStarted,
                 createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
     ])
 }

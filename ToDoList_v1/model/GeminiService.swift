@@ -62,6 +62,8 @@ struct GeminiResponse: Decodable {
                 isPinned: false,
                 taskDate: finalDate,
                 note: geminiTask.notes ?? "",
+                taskType: finalDate != nil ? .scheduled : .memo,
+                completionStatus: .pending,
                 status: .toBeStarted,
                 createdAt: Date(),
                 updatedAt: Date(),

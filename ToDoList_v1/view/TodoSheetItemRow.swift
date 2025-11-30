@@ -107,19 +107,35 @@ struct TodoSheetItemRow: View {
         .background(Color.clear)
     }
 
+    // 🔄 防重複更新的狀態
+    @State private var isUpdating = false
+
     // 切換任務狀態 - 在TodoSheet中使用直接API調用
     private func toggleTaskStatus() {
+        // 🛡️ 防止重複點擊
+        guard !isUpdating else {
+            print("⚠️ TodoSheetItemRow 任務更新中，忽略重複操作: \(item.title)")
+            return
+        }
+
         let originalStatus = item.status
+        let originalCompletionStatus = item.completionStatus
         let newStatus: TodoStatus = (item.status == .completed ? .toBeStarted : .completed)
+        let newCompletionStatus: CompletionStatus = (item.completionStatus == .completed ? .pending : .completed) // 🆕 更新新字段
+
+        // 🔒 設定更新中狀態
+        isUpdating = true
 
         // 立即更新本地狀態提供即時反饋
         withAnimation(.easeInOut(duration: 0.2)) {
             item.status = newStatus
+            item.completionStatus = newCompletionStatus // 🆕 同時更新新字段
         }
 
         // 創建更新後的任務
         var updatedTask = item
         updatedTask.status = newStatus
+        updatedTask.completionStatus = newCompletionStatus // 🆕 確保新字段也被更新
 
         // 直接調用API更新，不使用批次更新
         Task {
@@ -139,8 +155,14 @@ struct TodoSheetItemRow: View {
                     // 回滾到原來的狀態
                     withAnimation(.easeInOut(duration: 0.2)) {
                         item.status = originalStatus
+                        item.completionStatus = originalCompletionStatus // 🆕 同時回滾新字段
                     }
                 }
+            }
+
+            // 🔓 無論成功或失敗都要解除更新中狀態
+            await MainActor.run {
+                isUpdating = false
             }
         }
     }
@@ -154,6 +176,8 @@ struct TodoSheetItemRow_Previews: PreviewProvider {
         isPinned: false,
         taskDate: Date(),
         note: "備註",
+        taskType: .scheduled,
+        completionStatus: .pending,
         status: TodoStatus.toBeStarted, // 明確指定枚舉類型
         createdAt: Date(),
         updatedAt: Date(),
@@ -167,6 +191,8 @@ struct TodoSheetItemRow_Previews: PreviewProvider {
         isPinned: false,
         taskDate: Date(),
         note: "備註",
+        taskType: .scheduled,
+        completionStatus: .completed,
         status: TodoStatus.completed, // 明確指定枚舉類型
         createdAt: Date(),
         updatedAt: Date(),

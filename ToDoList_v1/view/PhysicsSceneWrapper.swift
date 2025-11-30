@@ -19,37 +19,29 @@ struct PhysicsSceneWrapper: View {
         )
     }
     
-    // 生成物理場景的唯一ID
+    // 生成物理場景的唯一ID - 🔧 優化避免不必要的重建
     private func generateSceneId() -> String {
         // 1. 項目數量部分
         let countPart = "\(todoItems.count)"
-        
-        // 2. 狀態部分 - 簡化為統計各狀態的數量
+
+        // 2. 狀態部分 - 🆕 使用新的 completionStatus 統計
         var completedCount = 0
-        var toBeStartedCount = 0
-        var undoneCount = 0
-        var todoListCount = 0
-        
+        var pendingCount = 0
+
         for item in todoItems {
-            switch item.status {
+            switch item.completionStatus {
             case .completed:
                 completedCount += 1
-            case .toBeStarted:
-                toBeStartedCount += 1
-            case .undone:
-                undoneCount += 1
-            case .toDoList:
-                todoListCount += 1
+            case .pending:
+                pendingCount += 1
             }
         }
-        
-        let statusPart = "c\(completedCount)t\(toBeStartedCount)u\(undoneCount)l\(todoListCount)"
-        
-        // 3. 刷新令牌部分 - 使用較短的雜湊值
-        let tokenPart = "\(refreshToken.hashValue)"
-        
-        // 合併所有部分
-        return "\(countPart)-\(statusPart)-\(tokenPart)"
+
+        // 🔧 移除 refreshToken，只基於真實的數據變化
+        let statusPart = "comp\(completedCount)pend\(pendingCount)"
+
+        // 🆕 只有在真正影響球球渲染的數據變化時才重建場景
+        return "\(countPart)-\(statusPart)"
     }
     
     var body: some View {

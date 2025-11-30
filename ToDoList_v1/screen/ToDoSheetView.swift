@@ -39,36 +39,23 @@ struct ToDoSheetView: View {
     private var filteredItems: [TodoItem] {
         switch selectedCategory {
         case .all:
-            // 全部項目 - 只包含待辦佇列相關項目：備忘錄 + 過期未完成項目
-            let today = Calendar.current.startOfDay(for: Date())
+            // 全部項目 - 只包含佇列相關項目：備忘錄 + 未完成任務
             return mutableItems.filter { item in
                 // 排除已完成的項目
-                guard item.status != .completed else { return false }
+                guard item.completionStatus != .completed else { return false }
 
-                // 包含：1. 備忘錄項目 (無日期)
-                if item.taskDate == nil {
-                    return true
-                }
-
-                // 包含：2. 過期的未完成項目
-                if let taskDate = item.taskDate {
-                    let taskDay = Calendar.current.startOfDay(for: taskDate)
-                    return taskDay < today && (item.status == .undone || item.status == .toBeStarted)
-                }
-
-                return false
+                // 🆕 使用新的邏輯：佇列項目 = 備忘錄 + 未完成任務
+                return item.taskType == .memo || item.taskType == .uncompleted
             }
         case .memo:
-            // 備忘錄 - 篩選沒有時間且未完成的項目 (taskDate == nil && status != .completed)
-            return mutableItems.filter { $0.taskDate == nil && $0.status != .completed }
-        case .incomplete:
-            // 未完成 - 過去日期且狀態為未完成（不包含今天和未來）
-            let today = Calendar.current.startOfDay(for: Date())
+            // 備忘錄 - 用戶主動創建的無時間項目
             return mutableItems.filter {
-                guard let taskDate = $0.taskDate else { return false }
-                let taskDay = Calendar.current.startOfDay(for: taskDate)
-                return taskDay < today &&
-                       ($0.status == .undone || $0.status == .toBeStarted)
+                $0.taskType == .memo && $0.completionStatus != .completed
+            }
+        case .incomplete:
+            // 未完成 - 結算產生的無時間項目
+            return mutableItems.filter {
+                $0.taskType == .uncompleted && $0.completionStatus != .completed
             }
         }
     }
@@ -226,6 +213,8 @@ struct ToDoSheetView_Previews: PreviewProvider {
             isPinned: false,
             taskDate: Date(),
             note: "清空收件箱",
+            taskType: .scheduled,
+            completionStatus: .pending,
             status: TodoStatus.toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),
@@ -239,6 +228,8 @@ struct ToDoSheetView_Previews: PreviewProvider {
             isPinned: false,
             taskDate: Date(),
             note: "準備PPT",
+            taskType: .scheduled,
+            completionStatus: .pending,
             status: TodoStatus.toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),
@@ -252,6 +243,8 @@ struct ToDoSheetView_Previews: PreviewProvider {
             isPinned: false,
             taskDate: Date(),
             note: "整理本週工作內容",
+            taskType: .scheduled,
+            completionStatus: .pending,
             status: TodoStatus.toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),

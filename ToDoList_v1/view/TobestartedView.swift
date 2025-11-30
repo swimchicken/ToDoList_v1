@@ -98,8 +98,8 @@ struct TobestartedView: View {
 // Preview for TobestartedView
 struct TobestartedView_Previews: PreviewProvider {
     @State static var previewItems: [TodoItem] = [
-        TodoItem(id: UUID(), userID: "user1", title: "回覆所有未讀郵件", priority: 1, isPinned: false, taskDate: nil, note: "", status: .toDoList, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
-        TodoItem(id: UUID(), userID: "user1", title: "整理桌面和文件夾", priority: 1, isPinned: false, taskDate: nil, note: "", status: .toDoList, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
+        TodoItem(id: UUID(), userID: "user1", title: "回覆所有未讀郵件", priority: 1, isPinned: false, taskDate: nil, note: "", taskType: .memo, completionStatus: .pending, status: .toDoList, createdAt: Date(), updatedAt: Date(), correspondingImageID: ""),
+        TodoItem(id: UUID(), userID: "user1", title: "整理桌面和文件夾", priority: 1, isPinned: false, taskDate: nil, note: "", taskType: .memo, completionStatus: .pending, status: .toDoList, createdAt: Date(), updatedAt: Date(), correspondingImageID: "")
     ]
     @State static var previewFilter: String = "全部"
 

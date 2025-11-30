@@ -638,7 +638,7 @@ struct Home: View {
                                 } ?? itemToMove
 
 
-                                // 創建新的待辦項目（移除時間，變成備忘錄）
+                                // 創建新的待辦項目（移除時間，變成未完成任務）
                                 let queueItem = TodoItem(
                                     id: UUID(),
                                     userID: currentItem.userID,
@@ -647,7 +647,9 @@ struct Home: View {
                                     isPinned: currentItem.isPinned,
                                     taskDate: nil, // 移除日期時間
                                     note: currentItem.note,
-                                    status: .toBeStarted,
+                                    taskType: .uncompleted, // 🆕 設定為未完成類型
+                                    completionStatus: .pending, // 🆕 設定為待完成狀態
+                                    status: .undone, // 🔄 向後兼容：未完成任務
                                     createdAt: Date(),
                                     updatedAt: Date(),
                                     correspondingImageID: currentItem.correspondingImageID
@@ -1169,8 +1171,12 @@ struct Home: View {
             isSleepMode = false
         }
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemStatusChanged"), object: nil, queue: .main) { _ in
-            self.dataRefreshToken = UUID()
-            // 移除不必要的 API 調用：狀態變更已通過樂觀更新處理
+            // 🔧 移除自動的 dataRefreshToken 更新，減少球球 UI 閃爍
+            // 球球場景現在基於真實數據變化而不是 refreshToken 來決定是否重建
+            // self.dataRefreshToken = UUID() // 註釋掉避免不必要的重建
+
+            // 只在必要時更新 refreshToken（例如項目數量變化）
+            // 狀態變更會通過 SwiftUI 的數據綁定自動反映到球球中
         }
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemsDataRefreshed"), object: nil, queue: .main) { _ in
             loadTodoItems()

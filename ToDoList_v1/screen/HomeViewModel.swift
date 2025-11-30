@@ -435,6 +435,8 @@ class HomeViewModel: ObservableObject {
             isPinned: itemToMove.isPinned,
             taskDate: nil,
             note: itemToMove.note,
+            taskType: .uncompleted, // 🆕 設定為未完成類型
+            completionStatus: .pending, // 🆕 設定為待完成狀態
             status: .toBeStarted,
             createdAt: Date(),
             updatedAt: Date(),

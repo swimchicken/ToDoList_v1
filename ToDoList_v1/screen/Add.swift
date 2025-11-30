@@ -775,9 +775,26 @@ struct Add: View {
             print("日期和時間都未啟用，日期設為 nil")
         }
 
-        // 判斷狀態：如果是編輯模式則保持原狀態，否則設為 toBeStarted
-        let taskStatus: TodoStatus = editingItem?.status ?? .toBeStarted
-        
+        // 🆕 判斷新的任務類型和完成狀態
+        let (taskType, completionStatus): (TaskType, CompletionStatus)
+        if let editingItem = editingItem {
+            // 編輯模式：保持原有類型和狀態
+            taskType = editingItem.taskType
+            completionStatus = editingItem.completionStatus
+        } else {
+            // 新增模式：根據是否有日期決定類型
+            if finalTaskDate != nil {
+                taskType = .scheduled // 有日期時間的事件
+            } else {
+                taskType = .memo // 備忘錄（用戶主動創建）
+            }
+            completionStatus = .pending // 新任務都是待完成
+        }
+
+        // 🔄 向後兼容：推導舊狀態
+        let taskStatus: TodoStatus = editingItem?.status ??
+            (taskType == .memo ? .toDoList : .toBeStarted)
+
         // ✅ 根據是否為編輯模式決定使用哪個 ID 和創建時間
         let itemId = editingItem?.id ?? UUID()
         let createdAt = editingItem?.createdAt ?? Date()
@@ -796,7 +813,9 @@ struct Add: View {
             isPinned: isPinned,
             taskDate: finalTaskDate,
             note: note,
-            status: taskStatus,
+            taskType: taskType, // 🆕 新的任務類型
+            completionStatus: completionStatus, // 🆕 新的完成狀態
+            status: taskStatus, // 🔄 向後兼容
             createdAt: createdAt,  // ✅ 編輯時保持原創建時間
             updatedAt: Date(),     // 更新時間總是當前時間
             correspondingImageID: editingItem?.correspondingImageID ?? ""

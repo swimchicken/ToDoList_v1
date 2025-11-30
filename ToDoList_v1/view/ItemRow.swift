@@ -123,19 +123,35 @@ struct ItemRow: View {
         .frame(height: 52) // 固定行高
     }
 
+    // 🔄 防重複更新的狀態
+    @State private var isUpdating = false
+
     // 切換任務狀態 - 在Home中使用直接API調用
     private func toggleTaskStatus() {
+        // 🛡️ 防止重複點擊
+        guard !isUpdating else {
+            print("⚠️ 任務更新中，忽略重複操作: \(item.title)")
+            return
+        }
+
         let originalStatus = item.status
+        let originalCompletionStatus = item.completionStatus
         let newStatus: TodoStatus = (item.status == .completed ? .toBeStarted : .completed)
+        let newCompletionStatus: CompletionStatus = (item.completionStatus == .completed ? .pending : .completed) // 🆕 更新新字段
+
+        // 🔒 設定更新中狀態
+        isUpdating = true
 
         // 立即更新本地狀態提供即時反饋
         withAnimation(.easeInOut(duration: 0.2)) {
             item.status = newStatus
+            item.completionStatus = newCompletionStatus // 🆕 同時更新新字段
         }
 
         // 創建更新後的任務
         var updatedTask = item
         updatedTask.status = newStatus
+        updatedTask.completionStatus = newCompletionStatus // 🆕 確保新字段也被更新
 
         // 直接調用API更新，不使用批次更新
         Task {
@@ -155,8 +171,14 @@ struct ItemRow: View {
                     // 回滾到原來的狀態
                     withAnimation(.easeInOut(duration: 0.2)) {
                         item.status = originalStatus
+                        item.completionStatus = originalCompletionStatus // 🆕 同時回滾新字段
                     }
                 }
+            }
+
+            // 🔓 無論成功或失敗都要解除更新中狀態
+            await MainActor.run {
+                isUpdating = false
             }
         }
     }
@@ -167,32 +189,32 @@ struct ItemRow_Previews: PreviewProvider {
     @State static var todo1 = TodoItem(
         id: UUID(), userID: "u",
         title: "未完成事件，這是一個比較長的標題來測試對齊", priority: 2, isPinned: false,
-        taskDate: Date(), note: "", status: .toBeStarted,
+        taskDate: Date(), note: "", taskType: .scheduled, completionStatus: .pending, status: .toBeStarted,
         createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     @State static var todo2 = TodoItem(
         id: UUID(), userID: "u",
         title: "已完成範例", priority: 1, isPinned: false,
-        taskDate: Date().addingTimeInterval(3600), note: "", status: .completed,
+        taskDate: Date().addingTimeInterval(3600), note: "", taskType: .scheduled, completionStatus: .completed, status: .completed,
         createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     @State static var todo3 = TodoItem(
         id: UUID(), userID: "u",
         title: "置頂項目示例", priority: 3, isPinned: true,
-        taskDate: Date().addingTimeInterval(7200), note: "", status: .toBeStarted,
+        taskDate: Date().addingTimeInterval(7200), note: "", taskType: .scheduled, completionStatus: .pending, status: .toBeStarted,
         createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     @State static var todo4 = TodoItem(
         id: UUID(), userID: "u",
         title: "已完成的置頂項目", priority: 2, isPinned: true,
-        taskDate: Date().addingTimeInterval(10800), note: "", status: .completed,
+        taskDate: Date().addingTimeInterval(10800), note: "", taskType: .scheduled, completionStatus: .completed, status: .completed,
         createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
     // 新增一個無時間的項目
     @State static var todo5 = TodoItem(
         id: UUID(), userID: "u",
         title: "備忘錄項目（無時間）", priority: 0, isPinned: false,
-        taskDate: nil, note: "測試無時間項目的顯示方式", status: .toBeStarted,
+        taskDate: nil, note: "測試無時間項目的顯示方式", taskType: .memo, completionStatus: .pending, status: .toBeStarted,
         createdAt: Date(), updatedAt: Date(), correspondingImageID: ""
     )
 
