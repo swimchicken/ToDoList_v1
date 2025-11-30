@@ -332,13 +332,8 @@ struct SettlementView: View {
         completedTasks = []
         uncompletedTasks = []
 
-        // 從UserDefaults獲取最近刪除的項目ID
-        var recentlyDeletedItemIDs: Set<UUID> = []
-        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
-           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
-            recentlyDeletedItemIDs = Set(decodedIDs)
-            print("SettlementView - 獲取到 \(recentlyDeletedItemIDs.count) 個最近刪除項目ID")
-        }
+        // 🧹 移除本地刪除項目追蹤 - 現在完全依賴 API 數據
+        // API 返回的數據已經是最新且正確的，不需要本地過濾
         
         // 使用API獲取任務數據
         Task {

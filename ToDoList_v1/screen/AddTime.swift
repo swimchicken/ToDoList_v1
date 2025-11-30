@@ -16,7 +16,7 @@ struct AddTimeView: View {
     @State private var tempSelectedDate = Date()
     @State private var scrollOffset: CGFloat = 0
     
-    // State for the time picker
+    // State for the time picker - 初始化為當前時間
     @State private var selectedHour = 8
     @State private var selectedMinute = 0
     @State private var selectedAMPM = 1 // 0 for AM, 1 for PM

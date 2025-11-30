@@ -76,9 +76,16 @@ struct SettlementView02: View {
         let isEarlyMorning = currentHour >= 0 && currentHour < 6
 
         if isEarlyMorning {
-            return calendar.startOfDay(for: now)
+            // 凌晨時段返回今天的當前時間
+            return now
         } else {
-            return calendar.date(byAdding: .day, value: 1, to: now) ?? Date()
+            // 其他時段返回明天的當前時間
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? Date()
+            let tomorrowWithCurrentTime = calendar.date(bySettingHour: calendar.component(.hour, from: now),
+                                                      minute: calendar.component(.minute, from: now),
+                                                      second: 0,
+                                                      of: calendar.startOfDay(for: tomorrow)) ?? tomorrow
+            return tomorrowWithCurrentTime
         }
     }()
     @State private var isDateEnabled: Bool = false
@@ -166,7 +173,8 @@ struct SettlementView02: View {
             // 如果不移動，顯示空列表（用戶要自己手動添加）
             self._dailyTasks = State(initialValue: [])
         }
-        self._allTodoItems = State(initialValue: [])
+        // 初始化 allTodoItems 包含傳入的任務
+        self._allTodoItems = State(initialValue: uncompletedTasks)
 
         // 設定已存在的明天任務ID
         if moveTasksToTomorrow {
@@ -255,8 +263,8 @@ struct SettlementView02: View {
                     loadTasksFromDataManager()
                 }
 
-                // 背景加載 API 數據
-                loadInitialData()
+                // 移除不必要的 API 調用 - SettlementView 已提供正確的過濾數據
+                // loadInitialData()
             }
             .fullScreenCover(isPresented: $showAddTimeView) {
                 AddTimeView(
@@ -678,6 +686,9 @@ struct SettlementView02: View {
                 // 當天的未完成任務（所有結算類型都需要）
                 let isTodayUncompleted = (taskDay == today) && (item.status == .toBeStarted || item.status == .undone)
 
+                // 延遲結算需要包含的過去未完成任務
+                let isPastUncompleted = (taskDay < today) && (item.status == .toBeStarted || item.status == .undone)
+
                 if isSameDaySettlement {
                     // 🎯 主動結算：顯示當天未完成 + 明天所有任務 + 新增任務
                     let isTomorrowTask = (taskDay == tomorrow)
@@ -692,18 +703,9 @@ struct SettlementView02: View {
                     let isTomorrowTask = (taskDay == tomorrow)
                     let isExistingTomorrowTask = existingTomorrowTaskIDs.contains(item.id)
                     let isTomorrowNewTask = isTomorrowTask && !isExistingTomorrowTask
-                    let shouldInclude = isTodayUncompleted || isTomorrowNewTask
+                    let shouldInclude = isTodayUncompleted || isPastUncompleted || isTomorrowNewTask
 
-                    if isTomorrowTask {
-                        print("🔧 延期結算 - 明天任務檢查: \(item.title)")
-                        print("    是否為明天任務: \(isTomorrowTask)")
-                        print("    是否為已存在任務: \(isExistingTomorrowTask)")
-                        print("    是否為新增任務: \(isTomorrowNewTask)")
-                        print("    最終是否包含: \(shouldInclude)")
-                    }
-                    if shouldInclude {
-                        print("🔧 延期結算 - 包含任務: \(item.title) (今天未完成: \(isTodayUncompleted), 明天新增: \(isTomorrowNewTask))")
-                    }
+                    // 延遲結算過濾邏輯已修復
                     return shouldInclude
                 }
             }
@@ -1376,14 +1378,22 @@ struct AddTaskButton: View {
             let isEarlyMorning = currentHour >= 0 && currentHour < 6
 
             if isEarlyMorning {
-                // 凌晨時段(0:00-6:00)，新任務設為今天
-                finalTaskDate = calendar.startOfDay(for: now)
-                print("SettlementView02: 凌晨時段，設定今天日期")
+                // 凌晨時段(0:00-6:00)，新任務設為今天的當前時間
+                let todayWithCurrentTime = calendar.date(bySettingHour: calendar.component(.hour, from: now),
+                                                        minute: calendar.component(.minute, from: now),
+                                                        second: 0,
+                                                        of: calendar.startOfDay(for: now)) ?? now
+                finalTaskDate = todayWithCurrentTime
+                print("SettlementView02: 凌晨時段，設定今天當前時間")
             } else {
-                // 其他時段，新任務設為明天
+                // 其他時段，新任務設為明天的當前時間
                 let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? Date()
-                finalTaskDate = calendar.startOfDay(for: tomorrow)
-                print("SettlementView02: 預設設定明天日期")
+                let tomorrowWithCurrentTime = calendar.date(bySettingHour: calendar.component(.hour, from: now),
+                                                          minute: calendar.component(.minute, from: now),
+                                                          second: 0,
+                                                          of: tomorrow) ?? tomorrow
+                finalTaskDate = tomorrowWithCurrentTime
+                print("SettlementView02: 預設設定明天當前時間")
             }
 
             let formatter = DateFormatter()
@@ -1452,9 +1462,16 @@ struct AddTaskButton: View {
         let isEarlyMorning = currentHour >= 0 && currentHour < 6
 
         if isEarlyMorning {
-            selectedDate = calendar.startOfDay(for: now) // 凌晨時段重置為今天
+            // 凌晨時段重置為今天的當前時間
+            selectedDate = now
         } else {
-            selectedDate = calendar.date(byAdding: .day, value: 1, to: now) ?? Date() // 其他時段重置為明天
+            // 其他時段重置為明天的當前時間
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? Date()
+            let tomorrowWithCurrentTime = calendar.date(bySettingHour: calendar.component(.hour, from: now),
+                                                      minute: calendar.component(.minute, from: now),
+                                                      second: 0,
+                                                      of: calendar.startOfDay(for: tomorrow)) ?? tomorrow
+            selectedDate = tomorrowWithCurrentTime
         }
         isEditing = false
         isTextFieldFocused = false

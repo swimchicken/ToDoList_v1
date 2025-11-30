@@ -19,6 +19,9 @@ struct ToDoList_v1App: App {
         // 設定語言偏好，避免 AFPreferences 警告
         setupLanguagePreferences()
 
+        // 🧹 清理遺留的本地存儲數據
+        cleanupLegacyUserDefaults()
+
         // 應用啟動時更新 Widget 數據
         updateWidgetData()
 
@@ -152,6 +155,22 @@ struct ToDoList_v1App: App {
         } else {
             UserDefaults.standard.set(["en-US"], forKey: "AppleLanguages")
         }
+        UserDefaults.standard.synchronize()
+    }
+
+    /// 🧹 清理遺留的本地存儲數據 - 優化存儲空間
+    private func cleanupLegacyUserDefaults() {
+        let keysToRemove = [
+            "recentlyDeletedItemIDs"  // 遺留的刪除項目追蹤數據
+        ]
+
+        for key in keysToRemove {
+            if UserDefaults.standard.object(forKey: key) != nil {
+                UserDefaults.standard.removeObject(forKey: key)
+                print("🧹 已清理遺留的 UserDefaults key: \(key)")
+            }
+        }
+
         UserDefaults.standard.synchronize()
     }
 }

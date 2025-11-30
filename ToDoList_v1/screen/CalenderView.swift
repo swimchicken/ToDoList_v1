@@ -40,18 +40,8 @@ struct CalendarView: View {
         
         print("日曆視圖初始化，傳入了 \(toDoItems.wrappedValue.count) 個待辦事項")
         
-        // 使用獨立代碼塊確保在初始化完成後進行刪除項目檢查
-        DispatchQueue.main.async {
-            // 獲取已刪除項目ID集合
-            var recentlyDeletedItemIDs: Set<UUID> = []
-            if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
-               let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
-                recentlyDeletedItemIDs = Set(decodedIDs)
-                if !recentlyDeletedItemIDs.isEmpty {
-                    print("日曆視圖初始化時檢測到 \(recentlyDeletedItemIDs.count) 個已刪除項目ID")
-                }
-            }
-        }
+        // 🧹 移除不必要的本地刪除項目追踪初始化
+        // 現在完全依賴 API 數據，不需要本地過濾
     }
     
     // 新增：重置到當週
@@ -188,18 +178,10 @@ struct CalendarView: View {
         let calendar = Calendar.current
         let targetDate = calendar.date(from: DateComponents(year: year, month: month, day: day))!
         
-        // 獲取已刪除項目ID集合
-        var recentlyDeletedItemIDs: Set<UUID> = []
-        if let savedData = UserDefaults.standard.data(forKey: "recentlyDeletedItemIDs"),
-           let decodedIDs = try? JSONDecoder().decode([UUID].self, from: savedData) {
-            recentlyDeletedItemIDs = Set(decodedIDs)
-        }
-        
+        // 🧹 移除本地刪除項目過濾邏輯 - API 數據已經是最新的
+
         return toDoItems.filter { item in
-            // 首先檢查該項目是否已被刪除
-            if recentlyDeletedItemIDs.contains(item.id) {
-                return false
-            }
+            // 移除本地刪除檢查，API 數據已經過濾了已刪除的項目
             
             // 檢查 taskDate 是否為 nil
             guard let taskDate = item.taskDate else {
