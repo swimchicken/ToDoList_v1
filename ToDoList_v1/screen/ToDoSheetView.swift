@@ -123,12 +123,15 @@ struct ToDoSheetView: View {
                                     TodoSheetItemRow(
                                         item: $mutableItems[originalIndex],
                                         onAddToHome: { homeItem in
-                                            // 更新本地項目
+                                            // 同步更新：將 mutableItems 的變更推回 toDoItems
                                             toDoItems = mutableItems
 
-                                            // 關閉待辦事項佇列視窗
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                                onDismiss()
+                                            // 立即刷新過濾結果，確保已完成的項目不顯示
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                                // 關閉待辦事項佇列視窗
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                                    onDismiss()
+                                                }
                                             }
                                         },
                                         selectedDate: selectedDate
@@ -171,6 +174,10 @@ struct ToDoSheetView: View {
         .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: animateSheetUp)
         .onAppear {
             animateSheetUp = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TodoItemsDataRefreshed"))) { _ in
+            // 當收到數據刷新通知時，同步 mutableItems 與最新的 toDoItems
+            mutableItems = toDoItems
         }
     }
 

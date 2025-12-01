@@ -70,26 +70,23 @@ struct ToDoList_v1App: App {
     // MARK: - Widget 數據管理
     /// 更新 Widget 數據
     private func updateWidgetData() {
-        print("=== App 啟動：開始更新 Widget 數據 ===")
-        
-        // 獲取所有任務並更新 Widget
+        // 靜默獲取所有任務並更新 Widget
         Task {
             do {
                 let allTasks = try await APIDataManager.shared.getAllTodoItems()
-                print("從 API 獲取到 \(allTasks.count) 個任務")
-
                 // 使用 UserDefaults 保存
                 WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
+
+                // 僅在debug模式下測試數據存取
+                #if DEBUG
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    self.testWidgetDataAccess()
+                }
+                #endif
             } catch {
                 print("更新 Widget 數據失敗: \(error.localizedDescription)")
             }
         }
-        
-        print("=== App 啟動：Widget 數據更新完成 ===")
-        print()
-        
-        // 測試 Widget 數據存取
-        testWidgetDataAccess()
     }
     
     /// 測試 Widget 數據存取

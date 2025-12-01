@@ -62,22 +62,37 @@ struct TodoSheetItemRow: View {
                 
                 // 右側箭頭按鈕 - 添加到首頁並賦予選擇的日期
                 Button {
-                    // 創建一個新的副本
+                    // 創建一個新的副本用於添加到日程
                     var homeItem = item
 
                     // 賦予選擇的日期而非當前時間
                     homeItem.taskDate = selectedDate
-                    
+
                     // 如果之前是備忘錄（待辦佇列），更改狀態為 toBeStarted
                     if homeItem.status == .toDoList {
                         homeItem.status = .toBeStarted
                     }
-                    
+
                     // 使用 API 添加到首頁事件
                     Task {
                         do {
+                            // 第一步：添加到日程
                             let addedItem = try await APIDataManager.shared.addTodoItem(homeItem)
+                            print("🚀 成功添加到日程: \(homeItem.title)")
+
+                            // 第二步：更新原始memo項目狀態為已完成，這樣它就不會在待辦佇列中顯示
+                            var updatedMemo = item
+                            updatedMemo.completionStatus = .completed
+                            updatedMemo.status = .completed
+
+                            let _ = try await APIDataManager.shared.updateTodoItem(updatedMemo)
+                            print("🚀 成功更新原始備忘錄狀態: \(item.title)")
+
                             await MainActor.run {
+                                // 立即更新本地狀態，讓UI馬上反映變化
+                                item.completionStatus = .completed
+                                item.status = .completed
+
                                 // 發送通知以刷新首頁
                                 NotificationCenter.default.post(
                                     name: Notification.Name("TodoItemsDataRefreshed"),
@@ -91,7 +106,7 @@ struct TodoSheetItemRow: View {
                             }
                         } catch {
                             // 錯誤記錄到控制台
-                            print("添加失敗: \(error.localizedDescription)")
+                            print("❌ 添加到日程失敗: \(error.localizedDescription)")
                         }
                     }
                 } label: {

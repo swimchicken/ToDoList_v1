@@ -825,50 +825,49 @@ struct Add: View {
         print("嘗試\(editingItem == nil ? "新增" : "更新")待辦事項 - ItemID: \(itemId), UserID: \(currentUserID)")
         print("Task data: title='\(taskToSave.title)', note='\(taskToSave.note)', userID='\(taskToSave.userID)', status=\(taskToSave.status), priority=\(taskToSave.priority), isPinned=\(taskToSave.isPinned), taskDate=\(taskToSave.taskDate?.description ?? "nil"), correspondingImageID='\(taskToSave.correspondingImageID)'")
         
-        if let _ = editingItem {
+        if let originalEditingItem = editingItem {
+            // ✅ 編輯模式：添加樂觀更新
+            // 1. 立即更新本地 toDoItems 中的對應項目
+            if let index = toDoItems.firstIndex(where: { $0.id == originalEditingItem.id }) {
+                toDoItems[index] = taskToSave
+                print("✅ 樂觀更新編輯項目: \(taskToSave.title)")
+            }
+
+            // 2. 立即重置保存狀態並關閉視圖
+            self.isSaving = false
+            self.currentTaskId = nil
+            if let onClose = self.onClose {
+                onClose()
+            }
+
+            // 3. 在背景執行API更新
             Task {
                 do {
                     let updatedItem = try await APIDataManager.shared.updateTodoItem(taskToSave)
                     await MainActor.run {
-                        // 確保還是同一個任務才重置狀態
-                        guard self.currentTaskId == taskId else {
-                            print("任務ID已變更，不重置狀態")
-                            return
+                        // 4. 用API返回的實際數據替換樂觀更新的數據
+                        if let index = self.toDoItems.firstIndex(where: { $0.id == originalEditingItem.id }) {
+                            self.toDoItems[index] = updatedItem
                         }
-
-                        // 重置保存狀態
-                        self.isSaving = false
-                        self.currentTaskId = nil
-
-                        print("成功更新待辦事項! ID: \(updatedItem.id), TaskID: \(taskId)")
-
-                        // 關閉視圖，讓父視圖重新載入數據
-                        if let onClose = self.onClose {
-                            onClose()
-                        }
+                        print("✅ 成功更新待辦事項到API! ID: \(updatedItem.id), TaskID: \(taskId)")
                     }
                 } catch {
                     await MainActor.run {
-                        // 確保還是同一個任務才重置狀態
-                        guard self.currentTaskId == taskId else {
-                            print("任務ID已變更，不重置狀態")
-                            return
+                        print("❌ API更新失敗，回滾樂觀更新: \(error.localizedDescription)")
+                        // 5. 回滾樂觀更新：恢復原始項目數據
+                        if let index = self.toDoItems.firstIndex(where: { $0.id == originalEditingItem.id }) {
+                            self.toDoItems[index] = originalEditingItem
+                            print("🔄 已回滾到原始數據: \(originalEditingItem.title)")
                         }
 
-                        // 重置保存狀態
-                        self.isSaving = false
-                        self.currentTaskId = nil
-
-                        print("更新失敗: \(error.localizedDescription), TaskID: \(taskId)")
-                        self.saveError = "更新失敗: \(error.localizedDescription)"
-                        self.showSaveAlert = true
-
-                        // 短暫延遲關閉視圖
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                            if let onClose = self.onClose {
-                                onClose()
-                            }
-                        }
+                        // 6. 顯示錯誤提示（可選）
+                        // 注意：這裡不能直接設置self.saveError，因為視圖已關閉
+                        // 可以通過通知系統顯示錯誤
+                        NotificationCenter.default.post(
+                            name: Notification.Name("TodoItemUpdateFailed"),
+                            object: nil,
+                            userInfo: ["error": error.localizedDescription]
+                        )
                     }
                 }
             }

@@ -77,6 +77,7 @@ struct Home: View {
             },
             set: { newOffset in
                 if let newOffset = newOffset, self.currentDateOffset != newOffset {
+                    print("🔄 scrollablePosition 更新 - 從 \(self.currentDateOffset) 到 \(newOffset)")
                     self.currentDateOffset = newOffset
                     // 動態擴展滾動範圍
                     self.expandScrollRangeIfNeeded(for: newOffset)
@@ -96,31 +97,31 @@ struct Home: View {
     
     // 修改後的taiwanTime，基於currentDate和日期偏移量
     var taiwanTime: (monthDay: String, weekday: String, timeStatus: String) {
-        let currentDateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
-        
+        let currentDateWithOffset = taipeiCalendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+
         let formatter = DateFormatter()
         formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
         formatter.locale = Locale(identifier: "en_US")  // 改為英文
-        
+
         // 月份和日期
         formatter.dateFormat = "MMM dd"
         let monthDay = formatter.string(from: currentDateWithOffset)
-        
+
         // 星期幾（英文）
         formatter.dateFormat = "EEEE"
         let weekday = formatter.string(from: currentDateWithOffset)
-        
+
         // 時間和清醒狀態
         formatter.dateFormat = "HH:mm"
         let time = formatter.string(from: currentDateWithOffset)
         let timeStatus = "\(time) awake"
-        
+
         return (monthDay: monthDay, weekday: weekday, timeStatus: timeStatus)
     }
     
     // MARK: - ADDED: 新增一個計算屬性來獲取當前選擇的日期
     private var selectedDate: Date {
-        Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+        taipeiCalendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
     }
     
     // 用於更新睡眠模式下的進度條 - 更改為每秒更新一次，使動畫更流暢
@@ -149,20 +150,20 @@ struct Home: View {
     
     // 檢查當前顯示的日期是否已完成
     private var isCurrentDisplayDayCompleted: Bool {
-        let dateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+        let dateWithOffset = taipeiCalendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
         return completeDayDataManager.isDayCompleted(date: dateWithOffset)
     }
     
     // 計算屬性：篩選並排序當前日期的待辦事項
     private var sortedToDoItems: [TodoItem] {
         // 獲取帶偏移量的日期
-        let dateWithOffset = Calendar.current.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
-        
+        let dateWithOffset = taipeiCalendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+
         // 獲取篩選日期的開始和結束時間點
-        let calendar = Calendar.current
+        let calendar = taipeiCalendar
         let startOfDay = calendar.startOfDay(for: dateWithOffset)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
-        
+
         // 篩選當天的項目（只包含有時間的項目）
         let filteredItems = toDoItems.filter { item in
             // 先過濾有任務日期的項目，再進行日期比較
@@ -171,7 +172,7 @@ struct Home: View {
             }
             return taskDate >= startOfDay && taskDate < endOfDay
         }
-        
+
         // 排序：先按置頂狀態排序，再按優先級排序(高到低)，最後按任務日期排序
         return filteredItems.sorted { item1, item2 in
             // 置頂項目優先
@@ -181,12 +182,12 @@ struct Home: View {
             if !item1.isPinned && item2.isPinned {
                 return false
             }
-            
+
             // 如果置頂狀態相同，按優先級排序（由高到低）
             if item1.priority != item2.priority {
                 return item1.priority > item2.priority
             }
-                        
+
             // 如果優先級相同，按任務日期排序（由早到晚）
             // 因為這個階段的項目都已經通過了前面的過濾，所以已經確保它們都有任務日期
             let date1 = item1.taskDate ?? Date.distantFuture
@@ -206,17 +207,40 @@ struct Home: View {
         return Binding<TodoItem>(
             get: { sortedItem },
             set: { newValue in
-                // 如果數據模型被更新，嘗試將更改同步到 CloudKit
+                // ✅ 增強樂觀更新：如果數據模型被更新，立即更新本地狀態並同步到API
                 if let index = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
+                    let originalValue = self.toDoItems[index]  // 保存原始值以便回滾
+
+                    // 1. 立即樂觀更新本地狀態
                     self.toDoItems[index] = newValue
-                    
-                    // 使用 API 伺服器更新項目
+                    print("✅ ItemRow樂觀更新項目: \(newValue.title)")
+
+                    // 2. 在背景使用 API 伺服器更新項目
                     Task {
                         do {
-                            let _ = try await self.apiDataManager.updateTodoItem(newValue)
-                            print("成功更新待辦事項")
+                            let updatedItem = try await self.apiDataManager.updateTodoItem(newValue)
+                            await MainActor.run {
+                                // 3. 用API返回的實際數據替換樂觀更新的數據
+                                if let currentIndex = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
+                                    self.toDoItems[currentIndex] = updatedItem
+                                }
+                                print("✅ ItemRow成功同步到API: \(updatedItem.title)")
+                            }
                         } catch {
-                            print("更新待辦事項失敗: \(error.localizedDescription)")
+                            await MainActor.run {
+                                print("❌ ItemRow API更新失敗，回滾樂觀更新: \(error.localizedDescription)")
+                                // 4. 回滾樂觀更新：恢復原始值
+                                if let currentIndex = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
+                                    self.toDoItems[currentIndex] = originalValue
+                                    print("🔄 ItemRow已回滾到原始數據: \(originalValue.title)")
+                                }
+
+                                // 5. 顯示錯誤提示
+                                self.toastMessage = "更新失敗: \(error.localizedDescription)"
+                                withAnimation {
+                                    self.showToast = true
+                                }
+                            }
                         }
                     }
                 }
@@ -264,6 +288,35 @@ struct Home: View {
                         // 待辦事項佇列按鈕
                         HStack {
                             Button {
+                                print("🔄 點擊待辦事項佇列 - DEBUG")
+                                print("   📅 當前 currentDate (原始): \(currentDate)")
+                                print("   📅 當前 currentDateOffset = \(currentDateOffset)")
+                                print("   📅 taipeiCalendar 時區: \(taipeiCalendar.timeZone)")
+
+                                // 正確的方式：直接使用 Calendar.startOfDay 但確保使用正確的時區
+                                // 先將 currentDate 轉換為台灣時間的組件，然後重新構建為該天的開始
+                                let taipeiTimeZone = TimeZone(identifier: "Asia/Taipei")!
+                                var calendar = Calendar.current
+                                calendar.timeZone = taipeiTimeZone
+
+                                // 獲取台灣時間的今天開始
+                                let today = calendar.startOfDay(for: currentDate)
+
+                                // 計算顯示日期：先加上偏移量，再獲取那一天的開始
+                                let offsetDate = calendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
+                                let displayedDayStart = calendar.startOfDay(for: offsetDate)
+
+                                print("   📅 實際今天 (startOfDay): \(today)")
+                                print("   📅 顯示的日期 (startOfDay): \(displayedDayStart)")
+                                print("   📅 是否為今天: \(displayedDayStart == today)")
+
+                                // 使用標準 Calendar 進行對比測試
+                                let systemToday = Calendar.current.startOfDay(for: currentDate)
+                                print("   🔍 對比 - 系統日曆今天: \(systemToday)")
+
+                                // 測試不使用 startOfDay 的日期
+                                print("   🔍 offsetDate (未 startOfDay): \(offsetDate)")
+
                                 withAnimation { showToDoSheet.toggle() }
                             } label: {
                                 Text("待辦事項佇列")
@@ -321,8 +374,8 @@ struct Home: View {
                                             print("🔥 所有項目數量: \(allItems.count)")
 
                                             // 修正邏輯：應該只檢查今天的項目，而不是所有項目
-                                            let today = Date()
-                                            let calendar = Calendar.current
+                                            let today = currentDate
+                                            let calendar = taipeiCalendar
                                             let startOfToday = calendar.startOfDay(for: today)
                                             let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
@@ -394,9 +447,16 @@ struct Home: View {
                                 }
                                 return modifiedTask
                             }
-                            
+
+                            // 📝 新增：立即實現樂觀更新
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                for task in tasksWithCorrectDate {
+                                    self.toDoItems.append(task)
+                                }
+                            }
+
                             self.pendingTasks = tasksWithCorrectDate
-                            
+
                             if !self.pendingTasks.isEmpty {
                                 // 稍微延遲以獲得更好的動畫效果
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -729,17 +789,49 @@ struct Home: View {
                 TaskSelectionOverlay(
                     tasks: $pendingTasks,
                     onCancel: {
-                        withAnimation {
+                        // 📝 修改：回滾樂觀更新，移除之前添加的任務
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            for task in pendingTasks {
+                                self.toDoItems.removeAll { $0.id == task.id }
+                            }
                             self.showTaskSelectionOverlay = false
                         }
                     },
                     onAdd: { itemsToAdd in
+                        // 📝 修改：處理部分選擇的情況
+                        // 1. 首先移除所有樂觀添加的任務
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            for task in pendingTasks {
+                                self.toDoItems.removeAll { $0.id == task.id }
+                            }
+                        }
+
+                        // 2. 只保留用戶選擇的任務（立即樂觀更新）
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            for item in itemsToAdd {
+                                self.toDoItems.append(item)
+                            }
+                        }
+
+                        // 3. 異步保存到 API
                         Task {
                             for item in itemsToAdd {
                                 do {
-                                    let _ = try await self.apiDataManager.addTodoItem(item)
+                                    let savedItem = try await self.apiDataManager.addTodoItem(item)
+                                    // 4. 用 API 返回的實際數據替換樂觀更新的數據
+                                    DispatchQueue.main.async {
+                                        if let index = self.toDoItems.firstIndex(where: { $0.id == item.id }) {
+                                            self.toDoItems[index] = savedItem
+                                        }
+                                    }
                                     print("成功保存任務: \(item.title)")
                                 } catch {
+                                    // 5. API 失敗時回滾對應的樂觀更新
+                                    DispatchQueue.main.async {
+                                        withAnimation(.easeInOut(duration: 0.3)) {
+                                            self.toDoItems.removeAll { $0.id == item.id }
+                                        }
+                                    }
                                     print("保存任務失敗: \(error.localizedDescription)")
                                 }
                             }
@@ -747,7 +839,6 @@ struct Home: View {
                         withAnimation {
                             self.showTaskSelectionOverlay = false
                         }
-                        // 移除不必要的 API 調用：批次操作已通過 API 通知機制處理
                     },
                     onEditTask: { task in
                         // 交接開始：命令 TaskSelectionOverlay 消失，並設定要編輯的任務
@@ -858,6 +949,13 @@ struct Home: View {
         .animation(.easeOut, value: showNoEventsAlert) // 為沒有事件提示彈窗加上動畫
     }
     .onAppear {
+        // 確保 currentDate 是最新的
+        currentDate = Date()
+        print("🏠 Home onAppear - 初始化")
+        print("   📅 currentDate: \(currentDate)")
+        print("   📅 currentDateOffset: \(currentDateOffset)")
+        print("   📅 實際顯示日期: \(taipeiCalendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate)")
+
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             currentDate = Date()
         }
@@ -1034,10 +1132,10 @@ struct Home: View {
     
     // 獲取特定日期偏移量的過濾項目
     private func getFilteredToDoItems(for dateOffset: Int) -> [TodoItem] {
-        let dateWithOffset = Calendar.current.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
-        
+        let dateWithOffset = taipeiCalendar.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
+
         // 獲取篩選日期的開始和結束時間點
-        let calendar = Calendar.current
+        let calendar = taipeiCalendar
         let startOfDay = calendar.startOfDay(for: dateWithOffset)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
         
@@ -1112,8 +1210,18 @@ struct Home: View {
                         }
                 )
                 .onAppear {
+                    print("🔄 ScrollView onAppear - scrollTo currentDateOffset: \(currentDateOffset)")
                     DispatchQueue.main.async {
                         proxy.scrollTo(currentDateOffset, anchor: .center)
+                    }
+                }
+                .onChange(of: showToDoSheet) { isShowing in
+                    // 當ToDoSheet狀態改變時，確保ScrollView位置正確
+                    if !isShowing { // 當ToDoSheet關閉時
+                        print("🔄 ToDoSheet關閉 - 重新同步ScrollView到 currentDateOffset: \(currentDateOffset)")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            proxy.scrollTo(currentDateOffset, anchor: .center)
+                        }
                     }
                 }
             }
@@ -1138,8 +1246,8 @@ struct Home: View {
     
     // 為特定日期偏移量檢查節日
     private func getHolidayInfo(for dateOffset: Int) -> (isHoliday: Bool, name: String, time: String)? {
-        let dateWithOffset = Calendar.current.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
-        let calendar = Calendar.current
+        let dateWithOffset = taipeiCalendar.date(byAdding: .day, value: dateOffset, to: currentDate) ?? currentDate
+        let calendar = taipeiCalendar
         
         // 檢查是否為生日（8/22）
         let dateComponents = calendar.dateComponents([.month, .day], from: dateWithOffset)
@@ -1201,20 +1309,39 @@ struct Home: View {
         // 監聽樂觀更新失敗
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemOptimisticUpdateFailed"), object: nil, queue: .main) { notification in
             if let userInfo = notification.userInfo,
-               let tempId = userInfo["tempId"] as? UUID,
                let operation = userInfo["operation"] as? String,
                let error = userInfo["error"] as? String {
 
                 if operation == "add" {
-                    // 移除失敗的樂觀更新項目
-                    toDoItems.removeAll { $0.id == tempId }
+                    // 🔧 修復：支援 tempId (來自Add) 和 homeItemId (來自箭頭按鈕)
+                    if let tempId = userInfo["tempId"] as? UUID {
+                        // 移除失敗的樂觀更新項目 (來自Add)
+                        toDoItems.removeAll { $0.id == tempId }
+                    } else if let homeItemId = userInfo["homeItemId"] as? UUID {
+                        // 移除失敗的樂觀更新項目 (來自箭頭按鈕)
+                        toDoItems.removeAll { $0.id == homeItemId }
+                    }
 
                     // 顯示錯誤提示
                     toastMessage = "保存失敗: \(error)"
+                    withAnimation {
+                        showToast = true
+                    }
+                }
+            }
+        }
+        // 監聽項目更新失敗通知
+        NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemUpdateFailed"), object: nil, queue: .main) { notification in
+            if let userInfo = notification.userInfo,
+               let errorMessage = userInfo["error"] as? String {
+                // 顯示錯誤提示
+                toastMessage = "更新失敗: \(errorMessage)"
+                withAnimation {
                     showToast = true
                 }
             }
         }
+
         NotificationCenter.default.addObserver(forName: Notification.Name("CompletedDaysDataChanged"), object: nil, queue: .main) { _ in
             dataRefreshToken = UUID()
         }
