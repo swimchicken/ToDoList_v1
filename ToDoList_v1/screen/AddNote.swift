@@ -172,7 +172,7 @@ struct AddNote: View {
                 VStack(spacing: 0) {
                     // 標題部分 - 固定頂部
                     HStack {
-                        Text("note")
+                        Text("common.note")
                             .font(.system(size: 26))
                             .fontWeight(.medium)
                             .foregroundColor(.white)
@@ -236,7 +236,7 @@ struct AddNote: View {
                         Button(action: {
                             presentationMode.wrappedValue.dismiss()
                         }) {
-                            Text("Back")
+                            Text("common.back")
                                 .foregroundColor(.white)
                                 .frame(height: 46)
                                 .frame(width: 80)
@@ -249,7 +249,7 @@ struct AddNote: View {
                         Button(action: {
                             saveNote()
                         }) {
-                            Text("Save")
+                            Text("common.save")
                                 .font(.system(size: 18, weight: .bold))
                                 .frame(maxWidth: .infinity)
                                 .padding()

@@ -71,7 +71,7 @@ struct ProfileSidebarView: View {
                 Button("Save", action: updateUserName)
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("Please enter your new name.")
+                Text("profile.enter_new_name")
             }
         }
         .transition(.move(edge: .leading))
@@ -129,7 +129,7 @@ struct ProfileSidebarView: View {
                         .font(.custom("Inter", size: 13))
                         .foregroundColor(.gray)
                     
-                    Text("Full access")
+                    Text("profile.full_access")
                         .font(.custom("Inter", size: 12))
                         .foregroundColor(.gray.opacity(0.7))
                 }

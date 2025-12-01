@@ -483,7 +483,7 @@ struct CalendarView: View {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(1.5)
-                                    Text("載入中...")
+                                    Text("common.loading")
                                         .foregroundColor(.white)
                                         .padding(.top, 8)
                                 }

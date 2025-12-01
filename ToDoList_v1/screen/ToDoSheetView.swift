@@ -97,7 +97,7 @@ struct ToDoSheetView: View {
                 
                 // 標題欄
                 HStack {
-                    Text("待辦事項佇列")
+                    Text("settlement.todo_queue_title")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
                     Spacer()
@@ -123,12 +123,12 @@ struct ToDoSheetView: View {
                     VStack(spacing: 0) {
                         if filteredItems.isEmpty && selectedCategory == .memo {
                             VStack(spacing: 8) {
-                                Text("還沒有備忘錄項目")
+                                Text("todo_sheet.no_memo_items")
                                     .font(.system(size: 16))
                                     .foregroundColor(.white.opacity(0.7))
                                     .padding(.top, 30)
                                 
-                                Text("點擊加號來添加一個沒有時間的備忘錄項目")
+                                Text("settlement.add_memo_prompt")
                                     .font(.system(size: 14))
                                     .foregroundColor(.gray.opacity(0.7))
                                     .multilineTextAlignment(.center)

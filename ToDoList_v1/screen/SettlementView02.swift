@@ -498,7 +498,7 @@ struct SettlementView02: View {
                          }
                      }) {
                          HStack {
-                             Text("待辦事項佇列")
+                             Text("settlement.todo_queue_title")
                                  .font(.system(size: 15, weight: .medium))
                                  .foregroundColor(Color.white.opacity(0.8))
                              Spacer()
@@ -523,7 +523,7 @@ struct SettlementView02: View {
                      Button(action: {
                          self.presentationMode.wrappedValue.dismiss()
                      }) {
-                         Text("返回")
+                         Text("common.back")
                              .font(Font.custom("Inria Sans", size: 20))
                              .foregroundColor(.white)
                      }
@@ -972,7 +972,7 @@ struct DividerView: View {
 struct WakeUpTitleView: View {
     var body: some View {
         HStack {
-            Text("What do you want to wake up at")
+            Text("settlement.wake_up_prompt")
                 .font(Font.custom("Instrument Sans", size: 13).weight(.semibold))
                 .foregroundColor(.white)
             Spacer()
@@ -1047,7 +1047,7 @@ struct AlarmInfoView: View {
                 .foregroundColor(.blue)
                 .font(.system(size: 11.73462))
             
-            Text("9:00 awake")
+            Text("settlement.example.nine_am_awake")
                 .font(Font.custom("Inria Sans", size: 11.73462))
                 .multilineTextAlignment(.center)
                 .foregroundColor(.white)
@@ -1275,7 +1275,7 @@ struct AddTaskButton: View {
                 // 未編輯狀態下的內容
                 Image(systemName: "plus")
                     .foregroundColor(.white.opacity(0.8))
-                Text("Add task")
+                Text("common.add_task")
                     .font(Font.custom("Inria Sans", size: 18).weight(.bold))
                     .foregroundColor(.white.opacity(0.8))
                 Spacer()
@@ -1355,7 +1355,7 @@ struct AddTaskButton: View {
                         isTextFieldFocused = false
                         onShowAddNote()
                     }) {
-                        Text("note")
+                        Text("common.note")
                             .foregroundColor(!note.isEmpty ? .green : .white.opacity(0.65))
                             .frame(width: 110, height: 33.7)
                             .background(Color.white.opacity(0.15))
@@ -1563,7 +1563,7 @@ struct SettlementTodoQueueView: View {
         VStack(alignment: .leading, spacing: 0) {
             // 標題欄
             HStack {
-                Text("待辦事項佇列")
+                Text("settlement.todo_queue_title")
                     .font(Font.custom("Inter", size: 16))
                     .foregroundColor(.white)
                 Spacer()
@@ -1604,7 +1604,7 @@ struct SettlementTodoQueueView: View {
                                 .padding(.top, 20)
 
                             if selectedFilter == "備忘錄" {
-                                Text("點擊加號來添加一個沒有時間的備忘錄項目")
+                                Text("settlement.add_memo_prompt")
                                     .font(.system(size: 12))
                                     .foregroundColor(.gray.opacity(0.7))
                                     .multilineTextAlignment(.center)
@@ -1647,7 +1647,7 @@ struct SettlementTodoQueueView: View {
             }) {
                 HStack {
                     Spacer()
-                    Text("收合")
+                    Text("common.collapse")
                         .font(Font.custom("Inter", size: 12).weight(.medium))
                         .foregroundColor(.gray)
                     Image(systemName: "chevron.down")
@@ -1910,7 +1910,7 @@ struct TextInputView: View {
                             ZStack(alignment: .topLeading) {
                                 // Placeholder
                                 if text.isEmpty && !isTextFieldFocused {
-                                    Text("輸入待辦事項, 或直接跟 AI 說要做什麼")
+                                    Text("common.todo_input_placeholder")
                                         .foregroundColor(.gray.opacity(0.5))
                                         .multilineTextAlignment(.leading)
                                         .frame(maxWidth: .infinity, alignment: .leading)

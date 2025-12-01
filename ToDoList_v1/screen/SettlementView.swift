@@ -146,7 +146,7 @@ struct SettlementView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if isSameDaySettlement {
                         // 狀態2（當天結算）顯示「你今天完成了」和「n個任務」
-                        Text("你今天完成了")
+                        Text("settlement.completed_today_prefix")
                             .font(Font.custom("Instrument Sans", size: 13).weight(.bold))
                             .foregroundColor(.white)
                         Text("\(completedTasks.count)個任務")
@@ -154,10 +154,10 @@ struct SettlementView: View {
                             .foregroundColor(.white)
                     } else {
                         // 狀態1（延遲結算）顯示原來的文字
-                        Text("未結算提醒")
+                        Text("settlement.unsettled_reminder")
                             .font(Font.custom("Instrument Sans", size: 13).weight(.bold))
                             .foregroundColor(.white)
-                        Text("你尚未結算之前的任務")
+                        Text("settlement.previous_tasks_unsettled")
                             .font(Font.custom("Instrument Sans", size: 31.79449).weight(.bold))
                             .foregroundColor(.white)
                     }
@@ -734,7 +734,7 @@ struct BottomControlsView: View {
     var body: some View {
         VStack(spacing: 20) {
             HStack {
-                Text("將未完成的任務直接移至明日待辦")
+                Text("settlement.move_to_tomorrow")
                     .font(.system(size: 15))
                     .foregroundColor(.white)
                 Spacer()
@@ -773,7 +773,7 @@ struct BottomControlsView: View {
                     // 返回上一頁
                     presentationMode.wrappedValue.dismiss()
                 }) {
-                    Text("返回首頁")
+                    Text("common.back_to_home")
                         .font(.system(size: 15))
                         .foregroundColor(.white.opacity(0.7))
                         .frame(maxWidth: .infinity)

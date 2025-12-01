@@ -40,7 +40,7 @@ struct TaskEditView: View {
             VStack(alignment: .leading, spacing: 0) {
                 
                 // --- 頂部內容 ---
-                Text("Edit task")
+                Text("task_edit.title")
                     .font(.system(size: 16)).foregroundColor(.white)
                     .padding(.top, 16).padding(.leading, 20)
                 
@@ -107,7 +107,7 @@ struct TaskEditView: View {
                                 .background(Color.white.opacity(0.15)).cornerRadius(12)
                         }
                         Button(action: { showAddNoteView = true }) {
-                            Text("note").foregroundColor(!note.isEmpty ? .green : .white.opacity(0.65))
+                            Text("common.note").foregroundColor(!note.isEmpty ? .green : .white.opacity(0.65))
                                 .font(.system(size: 18)).frame(width: 110, height: 33.7)
                                 .background(Color.white.opacity(0.15)).cornerRadius(12)
                         }
@@ -119,14 +119,14 @@ struct TaskEditView: View {
                 // --- Back/Save 按鈕 ---
                 HStack {
                     Button(action: { onClose() }) {
-                        Text("Back")
+                        Text("common.back")
                             .font(.system(size: 17, weight: .medium))
                             .foregroundColor(.white.opacity(0.8))
                             .padding()
                     }
                     Spacer()
                     Button(action: { saveChanges() }) {
-                        Text("Save")
+                        Text("common.save")
                             .font(.system(size: 17, weight: .bold))
                             .foregroundColor(.black)
                             .frame(width: 260, height: 60)
