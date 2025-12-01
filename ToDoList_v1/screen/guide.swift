@@ -29,7 +29,7 @@ struct guide: View {
                     .padding(.bottom, 10)
                     
                     // 標題
-                    Text("Signup")
+                    Text("guide.signup")
                         .font(Font.custom("Inria Sans", size: 25.45489)
                                 .weight(.bold)
                                 .italic())
@@ -59,7 +59,7 @@ struct guide: View {
                                 .font(Font.custom("Inter", size: 22).weight(.semibold))
                                 .foregroundColor(.white)
                                 .placeholder(when: password.isEmpty) {
-                                    Text("Password")
+                                    Text("common.password")
                                         .font(Font.custom("Inter", size: 22).weight(.medium))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
@@ -70,7 +70,7 @@ struct guide: View {
                                 .font(Font.custom("Inter", size: 22).weight(.semibold))
                                 .foregroundColor(.white)
                                 .placeholder(when: confirmPassword.isEmpty) {
-                                    Text("Confirm password")
+                                    Text("guide.confirm_password")
                                         .font(Font.custom("Inter", size: 22).weight(.medium))
                                         .foregroundColor(.white.opacity(0.6))
                                 }
@@ -92,7 +92,7 @@ struct guide: View {
                                     }
                                 }
                             }) {
-                                Text("Create account")
+                                Text("guide.create_account")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(width: 300, height: 56)
@@ -105,7 +105,7 @@ struct guide: View {
                                 // 返回 EmailLogin 頁面
                                 presentationMode.wrappedValue.dismiss()
                             }) {
-                                Text("Back")
+                                Text("common.back")
                                     .font(Font.custom("Inter", size: 16).weight(.medium))
                                     .foregroundColor(.white.opacity(0.7))
                                     .frame(width: 300, height: 30)
@@ -118,10 +118,10 @@ struct guide: View {
                     
                     // 條款
                     (
-                        Text("By creating an account or signing you agree to our ")
+                        Text("guide.terms_prefix")
                             .foregroundColor(.white.opacity(0.7))
                         +
-                        Text("Terms and Conditions")
+                        Text("guide.terms_and_conditions")
                             .foregroundColor(.white)
                             .underline()
                     )

@@ -130,10 +130,10 @@ struct HomeBottomView: View {
                     HStack {
                         Button(action: onEndTodayTapped) {
                             if isSyncing {
-                                HStack { Text("同步中..."); ProgressView() }
+                                HStack { Text("common.syncing"); ProgressView() }
                                     .frame(maxWidth: .infinity)
                             } else {
-                                Text("結束今天").frame(maxWidth: .infinity)     // "end today"
+                                Text("home_bottom.end_today").frame(maxWidth: .infinity)     // "end today"
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -254,10 +254,10 @@ struct HomeBottomView: View {
                         // 按鈕 1: Return to Today
                         Button(action: onReturnToTodayTapped) {
                             if isSyncing {
-                                HStack { Text("同步中..."); ProgressView() }
+                                HStack { Text("common.syncing"); ProgressView() }
                                     .frame(maxWidth: .infinity)
                             } else {
-                                Text("回到今天").frame(maxWidth: .infinity)     // "return to today"
+                                Text("home_bottom.return_to_today").frame(maxWidth: .infinity)     // "return to today"
                             }
                         }
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
@@ -372,7 +372,7 @@ struct HomeBottomView: View {
             
             HStack(spacing: 10) {
                 Button(action: onSleepButtonTapped) {
-                    Text("回到睡眠模式")      // "back to sleep mode"
+                    Text("home_bottom.back_to_sleep_mode")      // "back to sleep mode"
                         .font(.custom("Inria Sans", size: 20).weight(.bold))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)
@@ -798,7 +798,7 @@ struct HomeBottomView: View {
                                 ZStack(alignment: .leading) {  // ← 改為 .leading（移除 .top）
                                     // Placeholder
                                     if text.isEmpty && !isTextFieldFocused {
-                                        Text("輸入待辦事項, 或直接跟 AI 說要做什麼")
+                                        Text("common.todo_input_placeholder")
                                             .foregroundColor(.gray.opacity(0.5))
                                             .multilineTextAlignment(.leading)
                                             .frame(maxWidth: .infinity, alignment: .leading)
