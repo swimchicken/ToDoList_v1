@@ -2526,20 +2526,20 @@ extension SettlementView02 {
 
             print("延期結算: 所有暫存操作執行完成")
 
-            // 2. 標記今天為已完成
-            let completeDayDataManager = CompleteDayDataManager.shared
-            completeDayDataManager.markTodayAsCompleted()
-            print("延期結算: 已標記今天為已完成的一天")
-
-            // 3. 標記結算流程完成
-            delaySettlementManager.markSettlementCompleted()
-            print("延期結算: 已標記結算流程完成")
-
-            // 4. 如果需要移動任務到明天，執行移動
+            // 2. 如果需要移動任務，先執行移動（在標記結算完成之前）
             if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
                 moveUncompletedTasksToTomorrowData()
                 print("延期結算: 已移動 \(uncompletedTasks.count) 個未完成任務到明天")
             }
+
+            // 3. 標記今天為已完成
+            let completeDayDataManager = CompleteDayDataManager.shared
+            completeDayDataManager.markTodayAsCompleted()
+            print("延期結算: 已標記今天為已完成的一天")
+
+            // 4. 標記結算流程完成
+            delaySettlementManager.markSettlementCompleted()
+            print("延期結算: 已標記結算流程完成")
 
             // 5. 清除主動結算標記（因為這是延期結算）
             UserDefaults.standard.set(false, forKey: "isActiveEndDay")
@@ -2549,7 +2549,11 @@ extension SettlementView02 {
                 await apiDataManager.forceUpdateWidgetData()
             }
 
-            // 7. 📝 修復：立即導航回 Home，不需要延遲
+            // 7. 發送結算完成通知給 ContentView
+            print("延期結算: 發送結算完成通知")
+            NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
+
+            // 8. 📝 修復：立即導航回 Home，不需要延遲
             print("延期結算: 完成所有操作，立即導航回 Home")
             navigateToHome = true
         }

@@ -44,8 +44,9 @@ class APIDataManager: ObservableObject {
         let apiItem = try await apiManager.createTodo(createRequest)
         let newItem = apiItem.toTodoItem()
 
-        // 更新Widget數據
-        await updateWidgetData()
+        // 🔧 註解自動 Widget 更新，避免觸發額外 API 調用干擾樂觀更新
+        // Widget 會在其他時機（如應用啟動、手動刷新）更新
+        // await updateWidgetData()
 
         return newItem
     }
@@ -104,8 +105,8 @@ class APIDataManager: ObservableObject {
     func deleteTodoItem(withID id: UUID) async throws {
         try await apiManager.deleteTodo(id: id)
 
-        // 更新Widget數據
-        await updateWidgetData()
+        // 🔧 註解自動 Widget 更新，避免觸發額外 API 調用
+        // await updateWidgetData()
     }
 
     /// 快速更新狀態
@@ -113,8 +114,8 @@ class APIDataManager: ObservableObject {
         let apiItem = try await apiManager.updateTodoStatus(id: id, status: status)
         let updatedItem = apiItem.toTodoItem()
 
-        // 更新Widget數據
-        await updateWidgetData()
+        // 🔧 註解自動 Widget 更新，避免觸發額外 API 調用
+        // await updateWidgetData()
 
         return updatedItem
     }
@@ -246,6 +247,7 @@ class APIDataManager: ObservableObject {
             print("❌ 更新Widget數據失敗: \(error.localizedDescription)")
         }
     }
+
 }
 
 // MARK: - 同步方法（兼容現有代碼）

@@ -77,7 +77,6 @@ struct Home: View {
             },
             set: { newOffset in
                 if let newOffset = newOffset, self.currentDateOffset != newOffset {
-                    print("🔄 scrollablePosition 更新 - 從 \(self.currentDateOffset) 到 \(newOffset)")
                     self.currentDateOffset = newOffset
                     // 動態擴展滾動範圍
                     self.expandScrollRangeIfNeeded(for: newOffset)
@@ -288,10 +287,6 @@ struct Home: View {
                         // 待辦事項佇列按鈕
                         HStack {
                             Button {
-                                print("🔄 點擊待辦事項佇列 - DEBUG")
-                                print("   📅 當前 currentDate (原始): \(currentDate)")
-                                print("   📅 當前 currentDateOffset = \(currentDateOffset)")
-                                print("   📅 taipeiCalendar 時區: \(taipeiCalendar.timeZone)")
 
                                 // 正確的方式：直接使用 Calendar.startOfDay 但確保使用正確的時區
                                 // 先將 currentDate 轉換為台灣時間的組件，然後重新構建為該天的開始
@@ -306,16 +301,11 @@ struct Home: View {
                                 let offsetDate = calendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate
                                 let displayedDayStart = calendar.startOfDay(for: offsetDate)
 
-                                print("   📅 實際今天 (startOfDay): \(today)")
-                                print("   📅 顯示的日期 (startOfDay): \(displayedDayStart)")
-                                print("   📅 是否為今天: \(displayedDayStart == today)")
 
                                 // 使用標準 Calendar 進行對比測試
                                 let systemToday = Calendar.current.startOfDay(for: currentDate)
-                                print("   🔍 對比 - 系統日曆今天: \(systemToday)")
 
                                 // 測試不使用 startOfDay 的日期
-                                print("   🔍 offsetDate (未 startOfDay): \(offsetDate)")
 
                                 withAnimation { showToDoSheet.toggle() }
                             } label: {
@@ -362,53 +352,46 @@ struct Home: View {
                                 let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
                                 print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
                                 UserDefaults.standard.set(true, forKey: "isActiveEndDay")
+                                // 🔧 移除不必要的數據重新拉取
+                                // 結束一天的操作不需要重新拉取所有數據
                                 // API 數據管理器不需要手動保存，所有操作都是即時的
-                                NotificationCenter.default.post(
-                                    name: Notification.Name("TodoItemsDataRefreshed"),
-                                    object: nil
-                                )
-                                Task {
-                                    do {
-                                        let allItems = try await apiDataManager.getAllTodoItems()
-                                        await MainActor.run {
-                                            print("🔥 所有項目數量: \(allItems.count)")
 
-                                            // 修正邏輯：應該只檢查今天的項目，而不是所有項目
-                                            let today = currentDate
-                                            let calendar = taipeiCalendar
-                                            let startOfToday = calendar.startOfDay(for: today)
-                                            let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
+                                // 🔧 也移除 TodoItemsDataRefreshed 通知，避免觸發其他重新載入
+                                // NotificationCenter.default.post(
+                                //     name: Notification.Name("TodoItemsDataRefreshed"),
+                                //     object: nil
+                                // )
 
-                                            // 過濾今天的項目（有日期且在今天範圍內）
-                                            let todayItems = allItems.filter { item in
-                                                // 只包含有日期且在今天的項目
-                                                guard let taskDate = item.taskDate else {
-                                                    print("🔥 跳過沒有日期的項目（備忘錄）: \(item.title)")
-                                                    return false
-                                                }
+                                // 直接使用當前的 toDoItems 數據進行檢查，不需要重新拉取
+                                let today = currentDate
+                                let calendar = taipeiCalendar
+                                let startOfToday = calendar.startOfDay(for: today)
+                                print("🔥 使用當前項目數量: \(toDoItems.count)")
+                                let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
-                                                let isToday = taskDate >= startOfToday && taskDate < endOfToday
-                                                print("🔥 項目 '\(item.title)' 是否為今天: \(isToday)")
-                                                return isToday
-                                            }
-
-                                            print("🔥 今天的項目數量: \(todayItems.count)")
-
-                                            // 檢查今天是否有事件
-                                            if todayItems.isEmpty {
-                                                print("🔥 今天沒有任何事件，顯示提示彈窗")
-                                                showNoEventsAlert = true
-                                            } else {
-                                                // 【修改點】直接設置為 true 即可，不再需要延遲或重置
-                                                print("🔥 今天有 \(todayItems.count) 個事件，準備跳轉到結算頁面")
-                                                self.navigateToSettlementView = true
-                                            }
-                                        }
-                                    } catch {
-                                        await MainActor.run {
-                                            print("🔥 載入項目失敗: \(error.localizedDescription)")
-                                        }
+                                // 過濾今天的項目（有日期且在今天範圍內）
+                                let todayItems = toDoItems.filter { item in
+                                    // 只包含有日期且在今天的項目
+                                    guard let taskDate = item.taskDate else {
+                                        print("🔥 跳過沒有日期的項目（備忘錄）: \(item.title)")
+                                        return false
                                     }
+
+                                    let isToday = taskDate >= startOfToday && taskDate < endOfToday
+                                    print("🔥 項目 '\(item.title)' 是否為今天: \(isToday)")
+                                    return isToday
+                                }
+
+                                print("🔥 今天的項目數量: \(todayItems.count)")
+
+                                // 檢查今天是否有事件
+                                if todayItems.isEmpty {
+                                    print("🔥 今天沒有任何事件，顯示提示彈窗")
+                                    showNoEventsAlert = true
+                                } else {
+                                    // 【修改點】直接設置為 true 即可，不再需要延遲或重置
+                                    print("🔥 今天有 \(todayItems.count) 個事件，準備跳轉到結算頁面")
+                                    self.navigateToSettlementView = true
                                 }
                             } else {
                                 print("🔥 正在同步中，無法執行結算")
@@ -535,6 +518,31 @@ struct Home: View {
                                     isFromTodoSheet = true
                                     withAnimation(.easeInOut) {
                                         showAddTaskSheet = true
+                                    }
+                                },
+                                onOptimisticAdd: { newItem in
+                                    // 立即在 toDoItems 中添加新任務，提供即時反饋
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        toDoItems.append(newItem)
+                                    }
+                                    print("🚀 樂觀更新：立即添加任務到 Home - \(newItem.title)")
+                                },
+                                onReplaceOptimistic: { tempId, realItem in
+                                    // 替換或移除樂觀添加的項目
+                                    if let index = toDoItems.firstIndex(where: { $0.id == tempId }) {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            if realItem.correspondingImageID == "REMOVE" {
+                                                // 移除失敗的樂觀更新項目
+                                                toDoItems.remove(at: index)
+                                                print("🔄 移除失敗的樂觀更新項目")
+                                            } else {
+                                                // 替換為真實項目
+                                                toDoItems[index] = realItem
+                                                print("🔄 直接替換樂觀項目成功: \(realItem.title)")
+                                            }
+                                        }
+                                    } else {
+                                        print("⚠️ 找不到要替換的樂觀項目，tempId: \(tempId)")
                                     }
                                 },
                                 selectedDate: selectedDate
@@ -1286,9 +1294,11 @@ struct Home: View {
             // 只在必要時更新 refreshToken（例如項目數量變化）
             // 狀態變更會通過 SwiftUI 的數據綁定自動反映到球球中
         }
-        NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemsDataRefreshed"), object: nil, queue: .main) { _ in
-            loadTodoItems()
-        }
+        // 🔧 暫時停用 TodoItemsDataRefreshed 監聽，避免干擾樂觀更新
+        // 只有在非樂觀更新場景下才需要重新載入數據
+        // NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemsDataRefreshed"), object: nil, queue: .main) { _ in
+        //     loadTodoItems()
+        // }
 
         // 監聽 API 同步完成
         NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemApiSyncCompleted"), object: nil, queue: .main) { notification in
@@ -1341,6 +1351,28 @@ struct Home: View {
                 }
             }
         }
+
+        // 監聽項目添加失敗通知（樂觀更新回滾）
+        NotificationCenter.default.addObserver(forName: Notification.Name("TodoItemAddFailed"), object: nil, queue: .main) { notification in
+            if let userInfo = notification.userInfo,
+               let tempIdString = userInfo["tempId"] as? String,
+               let tempId = UUID(uuidString: tempIdString) {
+                // 移除樂觀更新的臨時項目
+                withAnimation(.easeOut(duration: 0.3)) {
+                    toDoItems.removeAll { $0.id == tempId }
+                }
+                print("🔄 樂觀更新回滾：移除臨時項目 ID - \(tempIdString)")
+
+                // 顯示錯誤提示
+                toastMessage = "添加任務失敗，請重試"
+                withAnimation {
+                    showToast = true
+                }
+            }
+        }
+
+        // 🔧 移除通知監聽器，改用直接回調機制避免通知時序問題
+        // 舊的通知機制已被 onReplaceOptimistic 回調取代
 
         NotificationCenter.default.addObserver(forName: Notification.Name("CompletedDaysDataChanged"), object: nil, queue: .main) { _ in
             dataRefreshToken = UUID()
