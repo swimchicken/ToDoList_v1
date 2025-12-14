@@ -11,6 +11,8 @@ struct ToDoSheetView: View {
     @Binding var toDoItems: [TodoItem]            // 使用 Binding 讓更新可以傳遞回父視圖
     let onDismiss: () -> Void                     // 用來從外部關閉此視圖
     var onAddButtonPressed: () -> Void = {}       // 回調函數，通知 Home 顯示 Add 視圖
+    var onOptimisticAdd: ((TodoItem) -> Void)?    // 樂觀更新回調
+    var onReplaceOptimistic: ((UUID, TodoItem) -> Void)?  // 替換樂觀項目回調
 
     // 新增：當前選擇的日期（從 Home 傳遞過來）
     var selectedDate: Date = Date()
@@ -22,10 +24,14 @@ struct ToDoSheetView: View {
     init(toDoItems: Binding<[TodoItem]>,
          onDismiss: @escaping () -> Void,
          onAddButtonPressed: @escaping () -> Void = {},
+         onOptimisticAdd: ((TodoItem) -> Void)? = nil,
+         onReplaceOptimistic: ((UUID, TodoItem) -> Void)? = nil,
          selectedDate: Date = Date()) {
         self._toDoItems = toDoItems                 // 初始化繫結
         self.onDismiss = onDismiss
         self.onAddButtonPressed = onAddButtonPressed
+        self.onOptimisticAdd = onOptimisticAdd
+        self.onReplaceOptimistic = onReplaceOptimistic
         self.selectedDate = selectedDate
         // 初始化內部副本
         _mutableItems = State(initialValue: toDoItems.wrappedValue)
@@ -34,30 +40,44 @@ struct ToDoSheetView: View {
     @State private var selectedCategory: ToDoCategory = .memo // 默認顯示備忘錄項目
     @State private var animateSheetUp: Bool = false
     @State private var currentDragOffset: CGFloat = 0  // 拖曳時累計的垂直偏移量
+    @State private var refreshTrigger: UUID = UUID()  // 強制重新計算過濾項目
 
     // 根據選取條件過濾待辦事項
     private var filteredItems: [TodoItem] {
+        // 觀察 refreshTrigger 以強制重新計算
+        _ = refreshTrigger
+
+
+        let result: [TodoItem]
         switch selectedCategory {
         case .all:
-            // 全部項目 - 只包含佇列相關項目：備忘錄 + 未完成任務
-            return mutableItems.filter { item in
+            // 🔧 使用 toDoItems 而不是 mutableItems，確保看到最新狀態
+            result = toDoItems.filter { item in
                 // 排除已完成的項目
-                guard item.completionStatus != .completed else { return false }
+                guard item.completionStatus != .completed else {
+                    return false
+                }
 
                 // 🆕 使用新的邏輯：佇列項目 = 備忘錄 + 未完成任務
-                return item.taskType == .memo || item.taskType == .uncompleted
+                let isQueueItem = item.taskType == .memo || item.taskType == .uncompleted
+                return isQueueItem
             }
         case .memo:
-            // 備忘錄 - 用戶主動創建的無時間項目
-            return mutableItems.filter {
-                $0.taskType == .memo && $0.completionStatus != .completed
+            // 🔧 使用 toDoItems 而不是 mutableItems，確保看到最新狀態
+            result = toDoItems.filter {
+                let isMemoAndNotCompleted = $0.taskType == .memo && $0.completionStatus != .completed
+                return isMemoAndNotCompleted
             }
         case .incomplete:
-            // 未完成 - 結算產生的無時間項目
-            return mutableItems.filter {
-                $0.taskType == .uncompleted && $0.completionStatus != .completed
+            // 🔧 使用 toDoItems 而不是 mutableItems，確保看到最新狀態
+            result = toDoItems.filter {
+                let isUncompletedAndNotCompleted = $0.taskType == .uncompleted && $0.completionStatus != .completed
+                return isUncompletedAndNotCompleted
             }
         }
+
+
+        return result
     }
 
     var body: some View {
@@ -119,20 +139,28 @@ struct ToDoSheetView: View {
                         } else {
                             ForEach(filteredItems.indices, id: \.self) { index in
                                 let item = filteredItems[index]
-                                if let originalIndex = mutableItems.firstIndex(where: { $0.id == item.id }) {
+                                if let originalIndex = toDoItems.firstIndex(where: { $0.id == item.id }) {
                                     TodoSheetItemRow(
-                                        item: $mutableItems[originalIndex],
+                                        item: $toDoItems[originalIndex],
                                         onAddToHome: { homeItem in
-                                            // 同步更新：將 mutableItems 的變更推回 toDoItems
-                                            toDoItems = mutableItems
-
-                                            // 立即刷新過濾結果，確保已完成的項目不顯示
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                                // 關閉待辦事項佇列視窗
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                                    onDismiss()
-                                                }
-                                            }
+                                            // 🔧 不再需要同步 mutableItems，因為我們直接使用 toDoItems
+                                            // toDoItems 的更新會自動反映到 UI
+                                        },
+                                        onDismissSheet: {
+                                            // 立即關閉彈窗
+                                            closeSheet()
+                                        },
+                                        onOptimisticUpdate: { newItem in
+                                            // 立即在 Home.swift 中添加新項目
+                                            onOptimisticAdd?(newItem)
+                                        },
+                                        onReplaceOptimisticItem: { tempId, realItem in
+                                            // 替換樂觀添加的項目為真實項目
+                                            onReplaceOptimistic?(tempId, realItem)
+                                        },
+                                        onRefreshQueue: {
+                                            // 刷新待辦佇列，觸發重新計算過濾項目
+                                            refreshTrigger = UUID()
                                         },
                                         selectedDate: selectedDate
                                     )
@@ -175,10 +203,11 @@ struct ToDoSheetView: View {
         .onAppear {
             animateSheetUp = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TodoItemsDataRefreshed"))) { _ in
-            // 當收到數據刷新通知時，同步 mutableItems 與最新的 toDoItems
-            mutableItems = toDoItems
-        }
+        // 🔧 暫時禁用數據刷新監聽器，避免干擾樂觀更新
+        // .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TodoItemsDataRefreshed"))) { _ in
+        //     // 當收到數據刷新通知時，同步 mutableItems 與最新的 toDoItems
+        //     mutableItems = toDoItems
+        // }
     }
 
     // MARK: - 關閉浮層 (包含動畫)

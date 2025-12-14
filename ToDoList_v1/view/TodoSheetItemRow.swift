@@ -10,6 +10,18 @@ struct TodoSheetItemRow: View {
     // 新增：處理將項目添加到首頁的回調
     var onAddToHome: ((TodoItem) -> Void)? = nil
 
+    // 新增：立即關閉彈窗的回調
+    var onDismissSheet: (() -> Void)? = nil
+
+    // 新增：樂觀更新回調，立即在 UI 中顯示新任務
+    var onOptimisticUpdate: ((TodoItem) -> Void)? = nil
+
+    // 新增：替換樂觀更新項目的回調
+    var onReplaceOptimisticItem: ((UUID, TodoItem) -> Void)? = nil
+
+    // 新增：刷新待辦佇列的回調（當備忘錄狀態改變時）
+    var onRefreshQueue: (() -> Void)? = nil
+
     // 新增：當前選擇的日期（從 Home 傳遞過來）
     var selectedDate: Date = Date()
     
@@ -68,10 +80,19 @@ struct TodoSheetItemRow: View {
                     // 賦予選擇的日期而非當前時間
                     homeItem.taskDate = selectedDate
 
-                    // 如果之前是備忘錄（待辦佇列），更改狀態為 toBeStarted
-                    if homeItem.status == .toDoList {
-                        homeItem.status = .toBeStarted
-                    }
+                    // 更新任務類型和狀態
+                    homeItem.taskType = .scheduled
+                    homeItem.completionStatus = .pending
+                    homeItem.status = .toBeStarted
+
+                    // 生成新的 ID，避免與原始備忘錄 ID 衝突
+                    homeItem.id = UUID()
+
+                    // 立即樂觀更新：在 Home.swift 中顯示新任務
+                    onOptimisticUpdate?(homeItem)
+
+                    // 立即關閉彈窗，提供即時反饋
+                    onDismissSheet?()
 
                     // 使用 API 添加到首頁事件
                     Task {
@@ -80,33 +101,73 @@ struct TodoSheetItemRow: View {
                             let addedItem = try await APIDataManager.shared.addTodoItem(homeItem)
                             print("🚀 成功添加到日程: \(homeItem.title)")
 
-                            // 第二步：更新原始memo項目狀態為已完成，這樣它就不會在待辦佇列中顯示
+                            // 第二步：更新原始備忘錄狀態 - 使用備忘錄的服務器 ID
                             var updatedMemo = item
                             updatedMemo.completionStatus = .completed
                             updatedMemo.status = .completed
 
+                            // 💡 關鍵：確保備忘錄項目有有效的服務器 ID 才進行更新
+                            // 如果備忘錄是通過 Add.swift 創建的，它應該已經有服務器 ID
                             let _ = try await APIDataManager.shared.updateTodoItem(updatedMemo)
-                            print("🚀 成功更新原始備忘錄狀態: \(item.title)")
+                            print("✅ 成功更新原始備忘錄狀態: \(item.title)")
 
                             await MainActor.run {
-                                // 立即更新本地狀態，讓UI馬上反映變化
+                                // 更新本地狀態
+                                print("🔍 [TodoSheetItemRow] 更新前 - \(item.title): completionStatus=\(item.completionStatus), status=\(item.status)")
+
                                 item.completionStatus = .completed
                                 item.status = .completed
 
-                                // 發送通知以刷新首頁
-                                NotificationCenter.default.post(
-                                    name: Notification.Name("TodoItemsDataRefreshed"),
-                                    object: nil
-                                )
+                                print("🔍 [TodoSheetItemRow] 更新後 - \(item.title): completionStatus=\(item.completionStatus), status=\(item.status)")
 
-                                // 如果有回調，傳遞新項目
-                                if let onAddToHome = onAddToHome {
-                                    onAddToHome(homeItem)
-                                }
+                                // 🔧 直接替換樂觀更新項目，不使用通知機制
+                                // 這樣可以避免通知時序問題和重複更新
+                                onReplaceOptimisticItem?(homeItem.id, addedItem)
+                                print("✅ 直接替換樂觀更新項目為真實項目: \(addedItem.title)")
+
+                                // 🆕 刷新待辦佇列，讓已完成的備忘錄從列表中消失
+                                print("🔍 [TodoSheetItemRow] 準備調用 onRefreshQueue")
+                                onRefreshQueue?()
+                                print("🔄 刷新待辦佇列 - 移除已完成的備忘錄: \(item.title)")
+
+                                // 🔧 移除 onAddToHome 調用，避免重複操作
+                                // onAddToHome 可能會導致額外的 UI 更新
                             }
                         } catch {
-                            // 錯誤記錄到控制台
-                            print("❌ 添加到日程失敗: \(error.localizedDescription)")
+                            // 🔍 詳細錯誤分析
+                            print("❌ 操作失敗: \(error.localizedDescription)")
+
+                            if let urlError = error as? URLError, urlError.code == .badURL {
+                                print("🔍 可能是 URL 格式問題")
+                            } else if error.localizedDescription.contains("404") {
+                                print("🔍 備忘錄項目可能未同步到服務器，ID: \(item.id)")
+                                print("🔍 這可能是因為該備忘錄項目還沒有完成 API 同步")
+                            }
+
+                            await MainActor.run {
+                                // 🔧 直接通過回調移除失敗的樂觀更新項目
+                                // 簡單的做法：用 nil 替換表示移除
+                                if let onReplaceOptimisticItem = onReplaceOptimisticItem {
+                                    // 傳遞一個特殊的空項目表示移除
+                                    let emptyItem = TodoItem(
+                                        id: UUID(),
+                                        userID: "",
+                                        title: "",
+                                        priority: -1,
+                                        isPinned: false,
+                                        taskDate: nil,
+                                        note: "",
+                                        taskType: .memo,
+                                        completionStatus: .pending,
+                                        status: .toBeStarted,
+                                        createdAt: Date(),
+                                        updatedAt: Date(),
+                                        correspondingImageID: "REMOVE"
+                                    )
+                                    onReplaceOptimisticItem(homeItem.id, emptyItem)
+                                }
+                                print("🔄 回滾失敗的樂觀更新項目")
+                            }
                         }
                     }
                 } label: {
