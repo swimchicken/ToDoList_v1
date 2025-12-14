@@ -102,7 +102,7 @@ struct Sleep01View: View {
                         .opacity(showTopUI ? (1.0 - fadeProgress) : 0)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Good morning")
+                        Text("sleep01.good_morning")
                             .font(Font.custom("Inria Sans", size: isSwipeUpAnimationCompleted ? 47.93416 : 32).weight(.bold))
                         Text(userName)
                             .font(Font.custom("Inria Sans", size: isSwipeUpAnimationCompleted ? 24 : 18))
@@ -259,7 +259,7 @@ struct Sleep01View: View {
                 Spacer()
                 HStack(spacing: 4) {
                     Image(systemName: "sun.max.fill").foregroundColor(.yellow)
-                    Text("26℃").font(.system(size: 14, weight: .medium))
+                    Text("common.temperature_celsius").font(.system(size: 14, weight: .medium))
                 }
                 .foregroundColor(.white)
             }
@@ -293,7 +293,7 @@ struct Sleep01View: View {
 
             VStack(spacing: 10) {
                 Image(systemName: "chevron.up").font(.system(size: 24, weight: .bold))
-                Text("Stop").font(Font.custom("Inria Sans", size: 20).weight(.bold))
+                Text("common.stop").font(Font.custom("Inria Sans", size: 20).weight(.bold))
             }
             .foregroundColor(.gray)
             .padding(.bottom, 40)
@@ -339,7 +339,7 @@ struct Sleep01View: View {
                     }
                     presentationMode.wrappedValue.dismiss()
                 }) {
-                    Text("back to home page")
+                    Text("sleep01.back_to_home")
                         .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -383,7 +383,7 @@ struct Sleep01View: View {
                 VStack(alignment: .leading, spacing: 25) {
                     // 頂部標題
                     HStack(alignment: .lastTextBaseline) {
-                        Text("今天有")
+                        Text("sleep01.today_has")
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.gray)
                         Text("\(todayTodoItems.count) 個任務")
@@ -410,7 +410,7 @@ struct Sleep01View: View {
                 
                 // --- 開始今天按鈕（在毛玻璃區塊底部） ---
                 Button(action: performSwipeUpAnimation) {
-                    Text("開始今天")
+                    Text("sleep01.start_today")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.black)
                         .frame(maxWidth: .infinity)

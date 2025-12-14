@@ -208,7 +208,7 @@ struct SettlementView03: View {
 
     private var whatToDoText: some View {
         HStack {
-            Text("What do you want to at")
+            Text("settlement03.what_to_do_at")
                 .font(Font.custom("Instrument Sans", size: 13).weight(.semibold))
                 .foregroundColor(.white)
             Spacer()
@@ -218,7 +218,7 @@ struct SettlementView03: View {
     private var dateDisplayView: some View {
         let tomorrowParts = formatDateForDisplay(tomorrow)
         return HStack(alignment: .bottom) {
-            Text("Tomorrow")
+            Text("common.tomorrow")
                 .font(Font.custom("Instrument Sans", size: 31.79449).weight(.bold))
                 .foregroundColor(.white)
             Spacer()
@@ -238,7 +238,7 @@ struct SettlementView03: View {
         HStack {
             Image(systemName: "sun.max.fill")
                 .foregroundColor(.yellow)
-            Text("26°C")
+            Text("common.temperature_celsius")
                 .font(Font.custom("Inria Sans", size: 11.73462))
                 .foregroundColor(.white)
             Spacer()
@@ -256,7 +256,7 @@ struct SettlementView03: View {
 
     private var alarmToggleSection: some View {
         HStack {
-            Text("不使用鬧鐘")
+            Text("settlement03.no_alarm")
                 .font(Font.custom("Inter", size: 16))
                 .foregroundColor(.white)
             Spacer()
@@ -275,7 +275,7 @@ struct SettlementView03: View {
                 // 返回上一頁
                 self.presentationMode.wrappedValue.dismiss()
             }) {
-                Text("返回")
+                Text("common.back")
                     .font(Font.custom("Inria Sans", size: 20))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊

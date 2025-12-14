@@ -56,7 +56,7 @@ struct guide2: View {
                     .padding(.bottom, 10)
                     
                     // 主標題
-                    Text("Please check your email")
+                    Text("guide2.check_email")
                         .font(
                             Font.custom("Inria Sans", size: 25.45489)
                                 .weight(.bold)
@@ -104,7 +104,7 @@ struct guide2: View {
                                     }
                                 }
                             }) {
-                                Text("Verify")
+                                Text("common.verify")
                                     .font(Font.custom("Inter", size: 16).weight(.semibold))
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity, minHeight: 56)
@@ -118,7 +118,7 @@ struct guide2: View {
                             Button(action: {
                                 presentationMode.wrappedValue.dismiss()
                             }) {
-                                Text("Back")
+                                Text("common.back")
                                     .font(Font.custom("Inter", size: 16).weight(.medium))
                                     .foregroundColor(.white.opacity(0.7))
                             }
@@ -133,11 +133,11 @@ struct guide2: View {
                         Button(action: {
                             // 重新發送驗證碼的邏輯
                         }) {
-                            Text("Send code again")
+                            Text("guide2.send_code_again")
                                 .foregroundColor(.white)
                                 .underline(true, color: .white)
                         }
-                        Text("00:20")
+                        Text("common.timer_placeholder")
                     }
                     .foregroundColor(.white.opacity(0.7))
                     .font(Font.custom("Inter", size: 14))

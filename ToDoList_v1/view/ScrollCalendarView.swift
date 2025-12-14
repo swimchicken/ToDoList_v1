@@ -85,7 +85,7 @@ struct ScrollCalendarView: View {
                         .padding(.leading, 16)
                     Spacer()
                     if dayIndex == 0 {
-                        Text("待辦事項佇列")
+                        Text("settlement.todo_queue_title")
                             .foregroundColor(.white)
                             .font(.system(size: 14, weight: .semibold))
                             .padding(.trailing, 10)

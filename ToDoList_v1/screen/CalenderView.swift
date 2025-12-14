@@ -279,6 +279,16 @@ struct CalendarView: View {
         return isDayCompleted(day: day, month: selectedMonth, year: selectedYear)
     }
     
+    // 檢查指定日期是否為過去日期
+    func isPastDate(day: Int, month: Int, year: Int) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let dateComponents = DateComponents(year: year, month: month, day: day)
+        guard let date = calendar.date(from: dateComponents) else { return false }
+        let targetDate = calendar.startOfDay(for: date)
+        return targetDate < today
+    }
+    
     // 修改：檢查日期是否在當前選擇的週（基於點擊的日期或今天）
     func isInCurrentWeek(day: Int, month: Int, year: Int) -> Bool {
         let calendar = Calendar.current
@@ -318,30 +328,60 @@ struct CalendarView: View {
         return "\(title.prefix(7))..."
     }
     
-    // 修改：計算當週所需的高度（基於點擊的日期或今天）
+    // 計算單一事項的實際文字高度
+    func calculateActualEventHeight(title: String, isActiveWeek: Bool, availableWidth: CGFloat) -> CGFloat {
+        let font = UIFont.systemFont(ofSize: 10)
+        let maxLines = isActiveWeek ? 3 : 1
+        
+        // 使用NSString的boundingRect計算實際高度
+        let text = NSString(string: title)
+        let rect = text.boundingRect(
+            with: CGSize(width: availableWidth - 8, height: .greatestFiniteMagnitude), // -8 for horizontal padding
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font],
+            context: nil
+        )
+        
+        let actualLines = min(maxLines, max(1, Int(ceil(rect.height / font.lineHeight))))
+        return CGFloat(actualLines) * font.lineHeight + 4 // +4 for vertical padding (.padding(.vertical, 2))
+    }
+    
+    // 修改：計算週所需的高度（根據實際事項文字高度精確計算）
     func calculateWeekHeight(for week: [(day: Int, month: Int, year: Int, isCurrentMonth: Bool)], isCurrentWeek: Bool) -> CGFloat {
-        var maxEvents = 0
+        var maxDayHeight: CGFloat = 0
+        let availableWidth: CGFloat = (UIScreen.main.bounds.width - 32) / 7 // 32 for horizontal padding, 7 days per week
         
         for dayInfo in week {
             let events = eventsForDate(dayInfo.day, month: dayInfo.month, year: dayInfo.year)
-            maxEvents = max(maxEvents, events.count)
+            let eventsToShow = Array(events.prefix(3))
+            
+            var dayEventHeight: CGFloat = 0
+            
+            // 計算該日所有事項的實際高度
+            for event in eventsToShow {
+                let eventHeight = calculateActualEventHeight(title: event.title, isActiveWeek: isCurrentWeek, availableWidth: availableWidth)
+                dayEventHeight += eventHeight
+            }
+            
+            // 添加事項間距
+            if eventsToShow.count > 1 {
+                dayEventHeight += CGFloat(eventsToShow.count - 1) * 3 // 3 is spacing between events
+            }
+            
+            // 如果事項超過3個，添加"+x more"文字高度
+            if events.count > 3 {
+                dayEventHeight += 15 // height for "+x more" text
+            }
+            
+            maxDayHeight = max(maxDayHeight, dayEventHeight)
         }
         
-        if isCurrentWeek {
-            // 當週：日期高度 + 待辦事項高度（根據事項數量）
-            let dateHeight: CGFloat = 45
-            let eventBaseHeight: CGFloat = 20  // 每個事項基本高度
-            let eventSpacing: CGFloat = 3      // 事項間距
-            let padding: CGFloat = 10          // 增加下方padding
-            
-            let eventsToShow = min(maxEvents, 3)
-            let extraText: CGFloat = maxEvents > 3 ? 20 : 0  // 增加 "+x more" 文字高度空間
-            
-            return dateHeight + CGFloat(eventsToShow) * eventBaseHeight + CGFloat(max(0, eventsToShow - 1)) * eventSpacing + extraText + padding + 5 // 增加額外的5點空間
-        } else {
-            // 非當週：固定較小高度
-            return 69
-        }
+        // 基礎計算參數
+        let dateHeight: CGFloat = 45
+        let padding: CGFloat = 10
+        let safetyMargin: CGFloat = 5 // 減少安全邊距，因為現在計算更精確
+        
+        return dateHeight + maxDayHeight + padding + safetyMargin
     }
     
     var body: some View {
@@ -386,15 +426,8 @@ struct CalendarView: View {
                             dismiss()
                         }
                     } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 50, height: 50)
-                            
-                            Image(systemName: "checkmark.square")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
-                        }
+                        Image("calendar_icon")
+                            .font(.system(size: 20))
                     }
                 }
                 .padding(.horizontal)
@@ -504,8 +537,8 @@ struct CalendarView: View {
                         ZStack(alignment: .top) {
                             // 如果是選擇的週，添加背景色
                             if containsReferenceWeek {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(hex:"181818"))
                                     .frame(height: weekHeight)
                             }
                             
@@ -515,7 +548,7 @@ struct CalendarView: View {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(1.5)
-                                    Text("載入中...")
+                                    Text("common.loading")
                                         .foregroundColor(.white)
                                         .padding(.top, 8)
                                 }
@@ -619,13 +652,25 @@ struct CalendarView: View {
                                                         
                                                         // 日期文字固定位置
                                                         Text(String(dayInfo.day))
-                                                            .font(.system(size: 16, weight: .bold))
+                                                            .font(.system(size: 16, weight: .semibold))
                                                             .foregroundColor(
                                                                 isToday(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year)
                                                                 ? .black
+                                                                : isPastDate(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year)
+                                                                ? .green
                                                                 : (dayInfo.isCurrentMonth
                                                                 ? .white
                                                                 : .gray.opacity(0.7)) // 非當前月份使用淡灰色
+                                                            )
+                                                            .overlay(
+                                                                Group {
+                                                                    if isPastDate(day: dayInfo.day, month: dayInfo.month, year: dayInfo.year){
+                                                                        Rectangle()
+                                                                            .fill(Color.green)
+                                                                            .frame(height: 1)
+//                                                                                .padding(.horizontal, 2)
+                                                                    }
+                                                                }
                                                             )
                                                     }
                                                     .frame(width: 36, height: 36) // 確保ZStack有固定大小
@@ -696,7 +741,7 @@ struct CalendarView: View {
                 
                 Spacer()
             }
-            .padding(.top, 40)
+            .padding(.top, 20)
         }
         .navigationBarHidden(true)
         .onAppear {

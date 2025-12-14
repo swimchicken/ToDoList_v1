@@ -128,7 +128,7 @@ struct SettingView: View {
     private var headerView: some View {
 // ... (existing code)
         HStack {
-            Text("設定")
+            Text("settings.title")
                 .font(.system(size: 20).weight(.semibold))
                 .foregroundColor(.white)
             
@@ -158,7 +158,7 @@ struct SettingView: View {
                 print("使用者登出")
                 // 執行登出操作
             }) {
-                Text("Log out")
+                Text("common.logout")
                     .font(.system(size: 16).weight(.regular))
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity, alignment: .leading) // 保持左對齊
@@ -269,7 +269,7 @@ struct WeekStartPickerView: View {
             
             VStack(alignment: .center, spacing: 0) {
                 // 2. 頂部標題
-                Text("一週起始於")
+                Text("settings.week_starts_on")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundColor(Color.white.opacity(0.7))
                     .padding(.top, 25) // 頂部留空間給拖移條
@@ -361,7 +361,7 @@ struct ReminderTimePickerView: View {
             
             VStack(alignment: .center, spacing: 0) {
                 // 3. 頂部標題
-                Text("通知提醒時間")
+                Text("settings.notification_time")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundColor(Color.white.opacity(0.7))
                     // 保持和上一個 picker 相同的頂部間距 (25)
@@ -434,7 +434,7 @@ struct HolidayPickerView: View {
             
             VStack(alignment: .center, spacing: 0) {
                 // 4. 頂部標題
-                Text("節假日")
+                Text("settings.holidays")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundColor(Color.white.opacity(0.7))
                     .padding(.top, 25) // 保持一致的頂部間距

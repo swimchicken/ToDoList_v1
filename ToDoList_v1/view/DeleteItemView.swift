@@ -63,7 +63,7 @@ struct DeleteItemView: View {
                     
                     // 編輯按鈕
                     Button(action: onEdit) {
-                        Text("編輯")
+                        Text("common.edit")
                             .font(Font.custom("SF Pro Display", size: 20))
                             .kerning(0.38)
                             .multilineTextAlignment(.center)
@@ -76,7 +76,7 @@ struct DeleteItemView: View {
                     
                     // 放入代辦佇列按鈕
                     Button(action: onMoveToQueue) {
-                        Text("放入代辦佇列")
+                        Text("delete_item.move_to_todo_queue")
                             .font(Font.custom("SF Pro Display", size: 20))
                             .kerning(0.38)
                             .multilineTextAlignment(.center)
@@ -89,7 +89,7 @@ struct DeleteItemView: View {
                     
                     // 刪除按鈕
                     Button(action: onDelete) {
-                        Text("刪除")
+                        Text("common.delete")
                             .font(Font.custom("SF Pro Display", size: 20))
                             .kerning(0.38)
                             .multilineTextAlignment(.center)
@@ -112,7 +112,7 @@ struct DeleteItemView: View {
                 
                 // 取消按鈕
                 Button(action: onCancel) {
-                    Text("取消")
+                    Text("common.cancel")
                         .font(Font.custom("SF Pro Display", size: 20))
                         .kerning(0.38)
                         .multilineTextAlignment(.center)

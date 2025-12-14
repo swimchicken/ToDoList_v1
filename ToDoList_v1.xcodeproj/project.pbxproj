@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A0C8C722ED4AC60009B92D4 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0A0C8C712ED4AC60009B92D4 /* Localizable.xcstrings */; };
+		0A0C8C732ED4AC60009B92D4 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0A0C8C712ED4AC60009B92D4 /* Localizable.xcstrings */; };
 		282FF9AA2E4DD5E000754DB2 /* WidgetFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */; };
 		2862192C2E3BCEC7003C05D8 /* GoogleSignInManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */; };
 		2862192E2E3BD073003C05D8 /* TestPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2862192D2E3BD073003C05D8 /* TestPage.swift */; };
@@ -133,6 +135,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0A0C8C712ED4AC60009B92D4 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		282FF9A92E4DD5E000754DB2 /* WidgetFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetFileManager.swift; sourceTree = "<group>"; };
 		2862192B2E3BCEC7003C05D8 /* GoogleSignInManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSignInManager.swift; sourceTree = "<group>"; };
 		2862192D2E3BD073003C05D8 /* TestPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestPage.swift; sourceTree = "<group>"; };
@@ -275,6 +278,7 @@
 		7911CDD72D633BAD0034BEE6 = {
 			isa = PBXGroup;
 			children = (
+				0A0C8C712ED4AC60009B92D4 /* Localizable.xcstrings */,
 				286219342E3BD557003C05D8 /* client_221079984807-jac1p2o47ol60ba3mkngdnbktkqmhu2n.apps.googleusercontent.com.plist */,
 				8DF757F62E3FEB3800F1CDA9 /* ToDoListWidgetExtensionRelease.entitlements */,
 				7911CDE22D633BAD0034BEE6 /* ToDoList_v1 */,
@@ -555,6 +559,7 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hant",
 			);
 			mainGroup = 7911CDD72D633BAD0034BEE6;
 			packageReferences = (
@@ -582,6 +587,7 @@
 				EBD425282EBDCB6B00FC68CC /* Release.xcconfig in Resources */,
 				5FA625AD2E7A99750060D6C2 /* alarm_sound.mp3 in Resources */,
 				7911CDEA2D633BB60034BEE6 /* Assets.xcassets in Resources */,
+				0A0C8C732ED4AC60009B92D4 /* Localizable.xcstrings in Resources */,
 				5FA625AF2E7AA4E70060D6C2 /* alarm_sound.caf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -605,6 +611,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EBD425272EBDCB6B00FC68CC /* Release.xcconfig in Resources */,
+				0A0C8C722ED4AC60009B92D4 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -793,6 +800,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -850,6 +858,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

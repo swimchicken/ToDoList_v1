@@ -44,7 +44,7 @@ struct guide4: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 10)
                 
-                Text("What's your age?")
+                Text("guide4.age_prompt")
                     .font(Font.custom("Inria Sans", size: 25.45489)
                             .weight(.bold)
                             .italic())
@@ -74,7 +74,7 @@ struct guide4: View {
                         .labelsHidden()
                         
                         NavigationLink(destination: guide5().navigationBarBackButtonHidden(true)) {
-                            Text("Next")
+                            Text("common.next")
                                 .font(Font.custom("Inter", size: 16).weight(.semibold))
                                 .foregroundColor(.black)
                                 .frame(maxWidth: .infinity, minHeight: 56)
@@ -88,7 +88,7 @@ struct guide4: View {
                         Button(action: {
                             dismiss()  // 關閉當前頁面
                         }) {
-                            Text("Back")
+                            Text("common.back")
                                 .font(Font.custom("Inter", size: 16))
                                 .foregroundColor(.white.opacity(0.7))
                                 .frame(width: 329, height: 20)

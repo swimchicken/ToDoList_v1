@@ -36,7 +36,7 @@ struct AddTimeView: View {
             VStack(spacing: 0) {
                 // Title
                 HStack {
-                    Text("When ?")
+                    Text("add_time.when_prompt")
                         .font(
                             Font.custom("Inria Sans", size: 25.45489)
                                 .weight(.bold)
@@ -58,7 +58,7 @@ struct AddTimeView: View {
                                 Image(systemName: "calendar")
                                     .foregroundColor(.gray)
                                     .font(.system(size: 22))
-                                Text("Set the date")
+                                Text("add_time.set_date")
                                     .foregroundColor(.gray)
                                     .font(.system(size: 22))
                                 Spacer()
@@ -191,7 +191,7 @@ struct AddTimeView: View {
                                 Image(systemName: "clock")
                                     .foregroundColor(.gray)
                                     .font(.system(size: 22))
-                                Text("Set the time")
+                                Text("add_time.set_time")
                                     .foregroundColor(.gray)
                                     .font(.system(size: 22))
                                 Spacer()
@@ -267,7 +267,7 @@ struct AddTimeView: View {
                         // Call the onBack callback
                         onBack()
                     }) {
-                        Text("返回")
+                        Text("common.back")
                             .foregroundColor(.white)
                             .padding(.vertical, 15)
                             .padding(.horizontal, 10)
@@ -293,7 +293,7 @@ struct AddTimeView: View {
                         // Call the onSave callback
                         onSave()
                     }) {
-                        Text("Save")
+                        Text("common.save")
                             .foregroundColor(.black)
                             .fontWeight(.semibold)
                             .frame(width: 230, height: 50)
@@ -578,7 +578,7 @@ struct YearMonthPicker: View {
                 
                 Spacer()
                 
-                Text("選擇日期")
+                Text("add_time.select_date")
                     .font(.headline)
                     .foregroundColor(.white)
                 

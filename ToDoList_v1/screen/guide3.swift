@@ -47,7 +47,7 @@ struct guide3: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 10)
                 
-                Text("What's your name?")
+                Text("guide3.name_prompt")
                     .font(Font.custom("Inria Sans", size: 25.45489)
                             .weight(.bold)
                             .italic())
@@ -73,7 +73,7 @@ struct guide3: View {
                             .padding(.horizontal, 40)
                         
                         NavigationLink(destination: guide4().navigationBarBackButtonHidden(true)) {
-                            Text("Next")
+                            Text("common.next")
                                 .font(Font.custom("Inter", size: 16).weight(.semibold))
                                 .foregroundColor(.black)
                                 .frame(maxWidth: .infinity, minHeight: 56)

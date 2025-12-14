@@ -14,7 +14,7 @@ struct TobestartedView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("待辦事項佇列")
+                Text("settlement.todo_queue_title")
                     .font(Font.custom("Inter", size: 16))
                     .foregroundColor(.white)
                 Spacer()
@@ -78,7 +78,7 @@ struct TobestartedView: View {
             }) {
                 HStack {
                     Spacer()
-                    Text("收合") // 可以考慮更改文字，或只用圖示
+                    Text("common.collapse") // 可以考慮更改文字，或只用圖示
                         .font(Font.custom("Inter", size: 12).weight(.medium)) // 調整字體
                         .foregroundColor(.gray)
                     Image(systemName: "chevron.up") // 圖示改為向上，表示收合
