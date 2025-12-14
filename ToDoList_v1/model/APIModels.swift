@@ -1,9 +1,3 @@
-//
-//  APIModels.swift
-//  ToDoList_v1
-//
-//  API數據模型定義
-//
 
 import Foundation
 
@@ -351,3 +345,4 @@ extension TodoItem {
         )
     }
 }
+
