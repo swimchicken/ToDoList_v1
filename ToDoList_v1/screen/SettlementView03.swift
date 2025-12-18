@@ -49,13 +49,13 @@ struct SettlementView03: View {
     // 接收從SettlementView02傳遞的任務信息
     let uncompletedTasks: [TodoItem]
     let moveTasksToTomorrow: Bool
-    let pendingOperations: [SettlementOperation]  // 新增：接收暫存操作
+  
+    @ObservedObject private var stateManager = SettlementStateManager.shared
     
     // 默認初始化方法（用於preview或無任務情況）
-    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false, pendingOperations: [SettlementOperation] = []) {
+    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false) {
         self.uncompletedTasks = uncompletedTasks
         self.moveTasksToTomorrow = moveTasksToTomorrow
-        self.pendingOperations = pendingOperations
     }
     
     // 引用已完成日期數據管理器
@@ -309,54 +309,95 @@ struct SettlementView03: View {
     
     // MARK: - 核心執行邏輯 (Master Commit)
     private func handleFinalSettlement() {
+        guard !isProcessing else { return }
         isProcessing = true
+        
         print("🚀 [SettlementView03] 開始執行最終結算流程...")
         
         Task {
-            // 1. 執行 Page 2 的暫存操作 (Create/Delete/Update)
-            await executePendingOperations()
-            
-            // 2. 執行 Page 1 的移動任務邏輯 (Batch Update)
-            if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
-                await performMoveTasksToTomorrow()
-            }
-            
-            // 3. 標記今天完成
-            completeDayDataManager.markTodayAsCompleted()
-            
-            // 4. 標記結算流程完成
-            delaySettlementManager.markSettlementCompleted()
-            
-            // 5. 更新 Widget 顯示 (如果有此功能)
-            // await apiManager.forceUpdateWidgetData()
-            
-            // 6. 處理 UI 和導航 (回到主線程)
-            await MainActor.run {
-                if !isAlarmDisabled {
-                    setupAlarmAndSleepMode()
-                } else {
-                    clearAlarmAndSleepMode()
+            do {
+                // 1. 執行 Page 2 的暫存操作
+                // ✅ 修正：加上 'try'，因為此函式會拋出錯誤
+                try await executePendingOperations()
+                
+                // 2. 執行 Page 1 的移動任務邏輯
+                if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
+                    await performMoveTasksToTomorrow()
                 }
                 
-                // 發送通知讓其他頁面刷新
-                NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
-                NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
+                // 3. 標記今天完成
+                completeDayDataManager.markTodayAsCompleted()
                 
-                isProcessing = false
-                navigateToHome = true
+                // 4. 標記結算流程完成
+                delaySettlementManager.markSettlementCompleted()
+                
+                // 5. 全部成功！回到主線程更新 UI 並清空資料
+                await MainActor.run {
+                    if !isAlarmDisabled {
+                        setupAlarmAndSleepMode()
+                    } else {
+                        clearAlarmAndSleepMode()
+                    }
+                    
+                    print("🧹 結算成功，清空暫存資料")
+                    // ✅ 只有在這裡才清空資料
+                    stateManager.reset()
+                    
+                    // 發送通知刷新首頁
+                    NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
+                    NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
+                    
+                    isProcessing = false
+                    navigateToHome = true
+                }
+                
+            } catch {
+                // ✅ 錯誤處理：如果有任何一步失敗 (throw error)，就會跳到這裡
+                await MainActor.run {
+                    print("❌ 結算流程失敗: \(error.localizedDescription)")
+                    print("⚠️ 暫存資料未清空，請檢查網路或 API 狀態")
+                    
+                    isProcessing = false
+                    // 這裡不導航回首頁，讓用戶可以重試
+                }
             }
         }
     }
     
-    private func executePendingOperations() async {
-        guard !pendingOperations.isEmpty else { return }
-        print("⚡️ [API] 開始執行 \(pendingOperations.count) 個暫存操作")
-        
-        for operation in pendingOperations {
-            do {
+    private func executePendingOperations() async throws {
+            guard !stateManager.pendingOperations.isEmpty else { return }
+            print("⚡️ [API] 開始執行 \(stateManager.pendingOperations.count) 個暫存操作")
+            
+            // 依序執行每個操作，如果有一個失敗就 throw error
+            for operation in stateManager.pendingOperations {
                 switch operation {
                 case .addItem(let item):
-                    // ✅ 修正：參數名稱、順序與型別皆對應您的 APIModels.swift
+                    // ✅ 修正：呼叫 createTodo，並進行資料轉換
+                    print("➕ 執行新增 API (Create): \(item.title)")
+                    
+                    // 將 TodoItem 轉換為 CreateTodoRequest
+                    let request = CreateTodoRequest(
+                        title: item.title,
+                        note: item.note,
+                        priority: item.priority,
+                        isPinned: item.isPinned,
+                        taskDate: item.taskDate,
+                        taskType: TaskType (rawValue: item.taskType.rawValue)!,
+                        completionStatus: item.completionStatus,
+                        status: item.status,
+                        correspondingImageId: item.correspondingImageID
+                    )
+                    
+                    // 呼叫正確的方法名稱：createTodo
+                    let _ = try await apiManager.createTodo(request)
+                    
+                    print("✅ 新增成功: \(item.title)")
+                    
+                case .deleteItem(let id):
+                    try await apiManager.deleteTodo(id: id)
+                    print("✅ 刪除成功: \(id)")
+                    
+                case .updateItem(let item):
                     let request = UpdateTodoRequest(
                         title: item.title,
                         note: item.note,
@@ -369,33 +410,11 @@ struct SettlementView03: View {
                         correspondingImageId: item.correspondingImageID.isEmpty ? "" : item.correspondingImageID
                     )
                     let _ = try await apiManager.updateTodo(id: item.id, request)
-                    print("✅ 新增成功: \(item.title)")
-                    
-                case .deleteItem(let id):
-                    // 🔴 刪除只需要 ID
-                    try await apiManager.deleteTodo(id: id)
-                    print("✅ 刪除成功: \(id)")
-                    
-                case .updateItem(let item):
-                    // ✅ 修正：同上，確保所有欄位都正確映射
-                    let request = UpdateTodoRequest(
-                        title: item.title,
-                        note: item.note,
-                        priority: item.priority,
-                        isPinned: item.isPinned,
-                        taskDate: item.taskDate,
-                        taskType: item.taskType, // 🆕 選填：補上以防萬一
-                        completionStatus: item.completionStatus, // 🆕 選填：補上
-                        status: item.status, // ✅ 正確：直接傳 TodoStatus Enum
-                        correspondingImageId: item.correspondingImageID.isEmpty ? "" : item.correspondingImageID // ✅ 修正參數名
-                    )
-                    let _ = try await apiManager.updateTodo(id: item.id, request)
                     print("✅ 更新成功: \(item.title)")
                 }
-            } catch {
-                print("❌ 操作失敗: \(error.localizedDescription)")
             }
-        }
+            print("🎉 所有暫存操作執行完畢！")
+        
     }
     
     // 執行任務批量移動
@@ -413,7 +432,7 @@ struct SettlementView03: View {
         let targetDayStart = calendar.startOfDay(for: tomorrow)
         
         // 2. 建立排除清單 (如果在 Page 2 刪除了，就不移動)
-        let deletedIds = pendingOperations.compactMap { operation -> UUID? in
+        let deletedIds = stateManager.pendingOperations.compactMap { operation -> UUID? in
             if case .deleteItem(let id) = operation { return id }
             return nil
         }

@@ -103,11 +103,9 @@ struct SettlementView02: View {
     // 記錄settlement開始時明天已有的任務ID，用於過濾
     @State private var existingTomorrowTaskIDs: Set<UUID> = []
 
-    // 新增：暫存操作記錄，只有在 SettlementView03 完成時才提交
-    @State private var pendingOperations: [SettlementOperation] = []
-    @State private var tempDeletedItemIDs: Set<UUID> = []  // 暫時標記為刪除的項目ID
-    @State private var tempAddedItems: [TodoItem] = []     // 暫時添加的新項目
-    @State private var hasAppearedOnce = false             // 追蹤是否已經appear過
+    // ✅ 新增這一行：引用共享的 StateManager
+    @ObservedObject private var stateManager = SettlementStateManager.shared
+    
     @State private var isExecutingSettlement = false      // 📝 新增：防止重複執行結算
     
     // **新增**: 用於儲存列表內容底部在螢幕上的Y座標
@@ -234,21 +232,13 @@ struct SettlementView02: View {
             .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 setupKeyboardListeners()
-
+                
                 // 📝 修改：根據結算類型設定預設日期
                 setupDefaultDate()
-
-                // \u53ea\u5728\u7b2c\u4e00\u6b21\u9032\u5165\u6642\u91cd\u7f6e\u66ab\u5b58\u72c0\u614b
-                if !hasAppearedOnce {
-                    pendingOperations.removeAll()
-                    tempDeletedItemIDs.removeAll()
-                    tempAddedItems.removeAll()
-                    hasAppearedOnce = true
-                    print("First time entering SettlementView02, resetting temp state")
-                    print("SettlementView02 - 初始化樂觀更新：已顯示 \(dailyTasks.count) 個傳入任務")
-                } else {
-                    print("Re-entering SettlementView02, keeping temp state")
-                    // 非首次進入才調用完整的資料載入
+                
+                
+                DispatchQueue.main.async {
+                    // 讀取 Manager 的資料並更新 UI
                     loadTasksFromDataManager()
                 }
 
@@ -273,8 +263,7 @@ struct SettlementView02: View {
                 Group {
                     NavigationLink(destination: SettlementView03(
                         uncompletedTasks: uncompletedTasks,
-                        moveTasksToTomorrow: moveTasksToTomorrow,
-                        pendingOperations: pendingOperations  // 傳遞暫存操作
+                        moveTasksToTomorrow: moveTasksToTomorrow
                     ), isActive: $navigateToSettlementView03) {
                         EmptyView()
                     }
@@ -331,7 +320,9 @@ struct SettlementView02: View {
                 .padding(.bottom, 180) 
             }
             .onPreferenceChange(ViewBottomYPreferenceKey.self) { newY in
-                self.listContentBottomY = newY
+                DispatchQueue.main.async {
+                    self.listContentBottomY = newY
+                }
             }
             .scrollIndicators(.hidden)
             .padding(.horizontal, 12)
@@ -384,8 +375,8 @@ struct SettlementView02: View {
                 onShowAddNote: { showAddNoteView = true },
                 onTaskCreated: { newTask in
                     // 處理暫存新任務
-                    pendingOperations.append(.addItem(newTask))
-                    tempAddedItems.append(newTask)
+                    stateManager.pendingOperations.append(.addItem(newTask))
+                    stateManager.tempAddedItems.append(newTask)
                     print("SettlementView02: 已暫存新任務 - \(newTask.title)")
                 }
             )
@@ -409,9 +400,12 @@ struct SettlementView02: View {
                                 // 當 TextEditor 內容高度變化時，更新狀態變數
                                 // 只有在高度真的有變時才更新，避免不必要的畫面重繪
                                 // 60 是 TextEditor 的最小高度
-                                let currentHeight = max(newHeight, 60)
-                                if self.textInputViewHeight != currentHeight {
-                                    self.textInputViewHeight = currentHeight
+                                DispatchQueue.main.async {
+                                    // 當 TextEditor 內容高度變化時，更新狀態變數
+                                    let currentHeight = max(newHeight, 60)
+                                    if self.textInputViewHeight != currentHeight {
+                                        self.textInputViewHeight = currentHeight
+                                    }
                                 }
                             }
                             // **▲▲▲ 在這裡結束新增 ▲▲▲**
@@ -466,11 +460,11 @@ struct SettlementView02: View {
                          },
                          onItemUpdated: { updatedItem in
                              // 處理項目狀態更新的暫存操作
-                             pendingOperations.append(.updateItem(updatedItem))
+                             stateManager.pendingOperations.append(.updateItem(updatedItem))
 
                              // 如果這個項目在暫存新增列表中，直接更新它
-                             if let index = tempAddedItems.firstIndex(where: { $0.id == updatedItem.id }) {
-                                 tempAddedItems[index] = updatedItem
+                             if let index = stateManager.tempAddedItems.firstIndex(where: { $0.id == updatedItem.id }) {
+                                 stateManager.tempAddedItems[index] = updatedItem
                                  print("SettlementView02: 更新暫存新增項目的狀態")
                              }
 
@@ -478,10 +472,10 @@ struct SettlementView02: View {
                          },
                          onItemMoved: { newItem, originalId in
                              // 處理項目移動的暫存操作
-                             pendingOperations.append(.addItem(newItem))
-                             pendingOperations.append(.deleteItem(originalId))
-                             tempAddedItems.append(newItem)
-                             tempDeletedItemIDs.insert(originalId)
+                             stateManager.pendingOperations.append(.addItem(newItem))
+                             stateManager.pendingOperations.append(.deleteItem(originalId))
+                             stateManager.tempAddedItems.append(newItem)
+                             stateManager.tempDeletedItemIDs.insert(originalId)
 
                              print("SettlementView02: 已暫存項目移動 - 新增 \(newItem.title)，刪除原項目")
 
@@ -549,7 +543,7 @@ struct SettlementView02: View {
                              print("SettlementView02: 延期結算，直接完成結算流程")
                              executeDelayedSettlement()
                           */
-                         print("SettlementView02: 準備跳轉到 SettlementView03，傳遞 \(pendingOperations.count) 個暫存操作")
+                         print("SettlementView02: 準備跳轉到 SettlementView03，傳遞 \(stateManager.pendingOperations.count) 個暫存操作")
                          navigateToSettlementView03 = true
                          
                      }) {
@@ -686,19 +680,19 @@ struct SettlementView02: View {
         let originalItems = originalTodoItems
 
         // 處理暫存操作：過濾掉暫時刪除的項目，添加暫時新增的項目（但排除被暫存刪除的）
-        var processedItems = originalItems.filter { !tempDeletedItemIDs.contains($0.id) }
+        var processedItems = originalItems.filter { !stateManager.tempDeletedItemIDs.contains($0.id) }
 
         // 🔧 修復：暫存新增的項目也要檢查是否被暫存刪除了
-        let filteredTempAddedItems = tempAddedItems.filter { !tempDeletedItemIDs.contains($0.id) }
+        let filteredTempAddedItems = stateManager.tempAddedItems.filter { !stateManager.tempDeletedItemIDs.contains($0.id) }
         processedItems.append(contentsOf: filteredTempAddedItems)
 
         print("🔧 原始項目數量: \(originalItems.count)")
-        print("🔧 暫存新增項目數量: \(tempAddedItems.count)")
+        print("🔧 暫存新增項目數量: \(stateManager.tempAddedItems.count)")
         print("🔧 過濾後暫存新增項目數量: \(filteredTempAddedItems.count)")
-        print("🔧 暫存刪除項目數量: \(tempDeletedItemIDs.count)")
+        print("🔧 暫存刪除項目數量: \(stateManager.tempDeletedItemIDs.count)")
 
         allTodoItems = processedItems
-        print("SettlementView02 - 載入所有待辦事項: \(allTodoItems.count) 個（已處理 \(tempDeletedItemIDs.count) 個暫存刪除，\(tempAddedItems.count) 個暫存新增）")
+        print("SettlementView02 - 載入所有待辦事項: \(allTodoItems.count) 個（已處理 \(stateManager.tempDeletedItemIDs.count) 個暫存刪除，\(stateManager.tempAddedItems.count) 個暫存新增）")
 
         // 🔧 修復：無論 moveTasksToTomorrow 狀態如何，都需要處理任務顯示邏輯
         let calendar = Calendar.current
@@ -755,18 +749,19 @@ struct SettlementView02: View {
     
     /// 暫存刪除任務（不立即執行，等到 SettlementView03 完成時才執行）
     private func deleteTask(_ task: TodoItem) {
+        
         // 靜默日誌: print("🔧 SettlementView02: 開始刪除任務 - \(task.title) (ID: \(task.id))")
-        print("🔧 刪除前 tempDeletedItemIDs 數量: \(tempDeletedItemIDs.count)")
-        print("🔧 刪除前 pendingOperations 數量: \(pendingOperations.count)")
+        print("🔧 刪除前 tempDeletedItemIDs 數量: \(stateManager.tempDeletedItemIDs.count)")
+        print("🔧 刪除前 pendingOperations 數量: \(stateManager.pendingOperations.count)")
 
         // 添加到暫存操作記錄
-        pendingOperations.append(.deleteItem(task.id))
+        stateManager.pendingOperations.append(.deleteItem(task.id))
 
         // 標記為暫時刪除
-        tempDeletedItemIDs.insert(task.id)
+        stateManager.tempDeletedItemIDs.insert(task.id)
 
-        print("🔧 刪除後 tempDeletedItemIDs 數量: \(tempDeletedItemIDs.count)")
-        print("🔧 刪除後 pendingOperations 數量: \(pendingOperations.count)")
+        print("🔧 刪除後 tempDeletedItemIDs 數量: \(stateManager.tempDeletedItemIDs.count)")
+        print("🔧 刪除後 pendingOperations 數量: \(stateManager.pendingOperations.count)")
 
         // 立即更新 UI 顯示
         print("🔧 開始重新載入任務列表...")
@@ -2565,12 +2560,12 @@ extension SettlementView02 {
 
     /// 執行所有暫存操作（從 SettlementView03 複製過來）
     private func executeAllPendingOperations() {
-        print("SettlementView02: 開始執行 \(pendingOperations.count) 個暫存操作")
+        print("SettlementView02: 開始執行 \(stateManager.pendingOperations.count) 個暫存操作")
 
         Task {
             var hasErrors = false
 
-            for operation in pendingOperations {
+            for operation in stateManager.pendingOperations {
                 switch operation {
                 case .addItem(let item):
                     print("SettlementView02: 執行添加操作 - \(item.title)")
@@ -2621,9 +2616,9 @@ extension SettlementView02 {
 
     /// 執行所有暫存操作並在完成時調用回調
     private func executeAllPendingOperationsWithCompletion(completion: @escaping () -> Void) {
-        print("SettlementView02: 開始執行 \(pendingOperations.count) 個暫存操作（帶完成回調）")
+        print("SettlementView02: 開始執行 \(stateManager.pendingOperations.count) 個暫存操作（帶完成回調）")
 
-        guard !pendingOperations.isEmpty else {
+        guard !stateManager.pendingOperations.isEmpty else {
             print("SettlementView02: 沒有暫存操作需要執行，直接完成")
             DispatchQueue.main.async {
                 completion()
@@ -2634,7 +2629,7 @@ extension SettlementView02 {
         Task {
             var hasErrors = false
 
-            for operation in pendingOperations {
+            for operation in stateManager.pendingOperations {
                 switch operation {
                 case .addItem(let item):
                     print("SettlementView02: 執行添加操作 - \(item.title)")

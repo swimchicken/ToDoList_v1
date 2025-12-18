@@ -96,6 +96,7 @@
 		EB967F8D2E95506C00F4D066 /* SettlementView02.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB967F8C2E95506C00F4D066 /* SettlementView02.swift */; };
 		EBD4252A2EBDD6A900FC68CC /* SettingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD425292EBDD66400FC68CC /* SettingView.swift */; };
 		EBD4252C2EBF2D2900FC68CC /* AboutUsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */; };
+		EBF1A5E62EF421FB00D5CE57 /* SettlementStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBF1A5E52EF421F900D5CE57 /* SettlementStateManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -228,6 +229,7 @@
 		EB967F8C2E95506C00F4D066 /* SettlementView02.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementView02.swift; sourceTree = "<group>"; };
 		EBD425292EBDD66400FC68CC /* SettingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingView.swift; sourceTree = "<group>"; };
 		EBD4252B2EBF2D1D00FC68CC /* AboutUsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutUsView.swift; sourceTree = "<group>"; };
+		EBF1A5E52EF421F900D5CE57 /* SettlementStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettlementStateManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -364,6 +366,7 @@
 		7911CE132D6AF40F0034BEE6 /* model */ = {
 			isa = PBXGroup;
 			children = (
+				EBF1A5E52EF421F900D5CE57 /* SettlementStateManager.swift */,
 				5F2689D02ECFA1FD005137D3 /* APIModels.swift */,
 				5F9269332EAE631200E54B02 /* UserInfoManager.swift */,
 				5F9268CE2EA5171E00E54B02 /* AlarmAudioManager.swift */,
@@ -698,6 +701,7 @@
 				8DF757FB2E3FEC5600F1CDA9 /* WidgetDataManager.swift in Sources */,
 				790BFDC62DCF83ED00AFD044 /* LocalDataManager.swift in Sources */,
 				7911CE242D6B084A0034BEE6 /* Home.swift in Sources */,
+				EBF1A5E62EF421FB00D5CE57 /* SettlementStateManager.swift in Sources */,
 				793C4AAC2DA6789000C76125 /* ItemRow.swift in Sources */,
 				790DD1AC2DC6205600FDFC6D /* AddItem.swift in Sources */,
 				5F2689D12ECFA1FD005137D3 /* APIModels.swift in Sources */,

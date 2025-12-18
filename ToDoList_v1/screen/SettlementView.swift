@@ -41,6 +41,7 @@ struct SettlementView: View {
     @State private var uncompletedTasks: [TodoItem] = []
     @State private var moveUncompletedTasksToTomorrow: Bool = true
     @State private var navigateToSettlementView02: Bool = false // 導航到下一頁
+    @State private var hasNavigatedToNextPage: Bool = false
     
     // 延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
@@ -266,7 +267,8 @@ struct SettlementView: View {
                     moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow,
                     navigateToSettlementView02: $navigateToSettlementView02,
                     uncompletedTasks: uncompletedTasks,
-                    isSameDaySettlement: isSameDaySettlement
+                    isSameDaySettlement: isSameDaySettlement,
+                    hasNavigatedToNextPage: $hasNavigatedToNextPage
                 )
             }
             .padding(.horizontal, 12)
@@ -280,6 +282,12 @@ struct SettlementView: View {
 
             // 清除主動結算標記（一次性使用）
             UserDefaults.standard.removeObject(forKey: "isActiveEndDay")
+            
+            // ✅ 新增：如果是全新進入 (不是從下一頁返回)，則清空之前的快取
+            if !hasNavigatedToNextPage {
+                print("SettlementView: 全新進入，重置 SettlementStateManager")
+                SettlementStateManager.shared.reset()
+            }
 
             // 打印結算信息以便調試
             if let lastDate = delaySettlementManager.getLastSettlementDate() {
@@ -774,6 +782,8 @@ struct BottomControlsView: View {
     let isSameDaySettlement: Bool  // 從父視圖傳入的結算狀態
     @Environment(\.presentationMode) var presentationMode
     
+    @Binding var hasNavigatedToNextPage: Bool
+    
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
     
@@ -797,12 +807,8 @@ struct BottomControlsView: View {
             .cornerRadius(12)
             
             Button(action: {
-                /*
-                // 1. 如果使用者勾選了「移至明日」，則執行批次更新
-                if moveUncompletedTasksToTomorrow {
-                    moveUncompletedTasksToTomorrowData()
-                }
-                */
+                // 新增：標記我們即將前往下一頁
+                hasNavigatedToNextPage = true
                 
                 // 2. 導航到下一個頁面
                 navigateToSettlementView02 = true
