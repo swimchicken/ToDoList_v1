@@ -333,7 +333,6 @@ struct SettlementView: View {
         completedTasks = []
         uncompletedTasks = []
 
-        
         // 使用API獲取任務數據
         Task {
             do {
@@ -342,27 +341,43 @@ struct SettlementView: View {
                 
                 // 2. 轉換資料 (將 [APITodoItem] 轉成 [TodoItem])
                 let convertedItems = apiItems.map { apiItem in
-                    print("🔍 Debug - 任務: \(apiItem.title), 原始狀態: \(String(describing: apiItem.status))")
+                    // 🔍 Debug: 改印出 completionStatus 字串來確認
+                    // 👇👇👇 🔍 DEBUG: 列出所有欄位的數值與型別 👇👇👇
+                    print("\n========== 🔍 詳細檢查任務資料 (ID: \(apiItem.id)) ==========")
+                    print("1. [title]             值: \(apiItem.title), 型別: \(type(of: apiItem.title))")
+                    print("2. [completionStatus]  值: \(String(describing: apiItem.completionStatus)), 型別: \(type(of: apiItem.completionStatus))")
+                    print("3. [status]            值: \(String(describing: apiItem.status)), 型別: \(type(of: apiItem.status))")
+                    print("4. [taskDate]          值: \(String(describing: apiItem.taskDate)), 型別: \(type(of: apiItem.taskDate))")
+                    print("5. [taskType]          值: \(String(describing: apiItem.taskType)), 型別: \(type(of: apiItem.taskType))")
+                    print("6. [isPinned]          值: \(apiItem.isPinned), 型別: \(type(of: apiItem.isPinned))")
+                    print("============================================================\n")
+                    // 👆👆👆 --------------------------------------- 👆👆👆
+                    
+                    // ✅ 關鍵修改：判斷字串是否為 "completed"
+                    let isCompleted = (apiItem.completionStatus == "completed")
+                    
                     return TodoItem(
                         id: apiItem.id,
-                        userID: "",                      // 1. 補上 userID (API沒回傳，給空值)
+                        userID: "",
                         title: apiItem.title,
                         priority: apiItem.priority,
                         isPinned: apiItem.isPinned,
                         taskDate: apiItem.taskDate,
                         note: apiItem.note,
                         taskType: .scheduled,
-                        completionStatus: .completed,
-                        status: apiItem.status ?? .undone,
-                        createdAt: Date(),               // 補上: 建立時間 (API沒回傳，給當下)
-                        updatedAt: Date(),               // 補上: 更新時間 (給當下)
                         
-                        correspondingImageID: ""         // 補上: 圖片ID (API沒回傳，給空值)
+                        // ✅ 修正：根據字串判斷結果設定狀態
+                        completionStatus: isCompleted ? .completed : .pending,
+                        status: isCompleted ? .completed : .undone, // 同步更新 status 以防萬一
+                        
+                        createdAt: Date(),
+                        updatedAt: Date(),
+                        correspondingImageID: ""
                     )
                 }
                 
                 await MainActor.run {
-                    // 3. 傳入轉換後的資料 (現在型別是 [TodoItem] 了)
+                    // 3. 傳入轉換後的資料
                     self.processTasksData(convertedItems)
                     self.isLoading = false
                 }
@@ -374,7 +389,7 @@ struct SettlementView: View {
             }
         }
     }
-
+    
     // 處理任務數據的共用方法
     private func processTasksData(_ items: [TodoItem]) {
         let calendar = Calendar.current
@@ -782,13 +797,16 @@ struct BottomControlsView: View {
             .cornerRadius(12)
             
             Button(action: {
+                /*
                 // 1. 如果使用者勾選了「移至明日」，則執行批次更新
                 if moveUncompletedTasksToTomorrow {
                     moveUncompletedTasksToTomorrowData()
                 }
+                */
                 
                 // 2. 導航到下一個頁面
                 navigateToSettlementView02 = true
+                
             }) {
                 // 根據模式選擇不同文字
                 Text(isSameDaySettlement ? "開始設定明日計畫" : "開始設定今天的計畫")

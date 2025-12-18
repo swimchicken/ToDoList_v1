@@ -354,7 +354,7 @@ class APIManager {
         // 3. 建立請求
         // 關鍵點：使用您現有的 createRequest 方法！
         // 它會自動幫您處理 "Authorization: Bearer token" 和 "Content-Type"
-        let request = createRequest(url: url, method: .PATCH, body: requestData)
+        let request = createRequest(url: url, method: .PUT, body: requestData)
         
         // 4. 執行請求
         // 關鍵點：使用您現有的 performRequest 方法！

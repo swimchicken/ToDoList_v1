@@ -536,6 +536,7 @@ struct SettlementView02: View {
                      .padding(.leading)
                      Spacer()
                      Button(action: {
+                         /*
                          // 🔧 修復：根據結算類型決定後續流程
                          let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: UserDefaults.standard.bool(forKey: "isActiveEndDay"))
 
@@ -547,7 +548,10 @@ struct SettlementView02: View {
                              // 延期結算：直接完成結算流程，不需要鬧鐘設置
                              print("SettlementView02: 延期結算，直接完成結算流程")
                              executeDelayedSettlement()
-                         }
+                          */
+                         print("SettlementView02: 準備跳轉到 SettlementView03，傳遞 \(pendingOperations.count) 個暫存操作")
+                         navigateToSettlementView03 = true
+                         
                      }) {
                          let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: UserDefaults.standard.bool(forKey: "isActiveEndDay"))
                          Text(isSameDaySettlement ? "Next" : "完成結算")
