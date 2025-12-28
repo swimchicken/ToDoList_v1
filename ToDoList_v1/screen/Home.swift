@@ -274,7 +274,7 @@ struct Home: View {
                             Button {
                                 withAnimation { showToDoSheet.toggle() }
                             } label: {
-                                Text("待辦事項佇列")
+                                Text("settlement.todo_queue_title")
                                     .font(.custom("Inter", size: 14).weight(.semibold))
                                     .foregroundColor(.white)
                                     .padding(10)
@@ -757,12 +757,12 @@ struct Home: View {
                             .foregroundColor(.orange)
                         
                         // 標題
-                        Text("沒有事件清單")
+                        Text("home.no_event_list")
                             .font(.custom("Instrument Sans", size: 24).weight(.bold))
                             .foregroundColor(.white)
                         
                         // 說明文字
-                        Text("目前沒有任何待辦事項需要結算")
+                        Text("home.no_settlement_needed")
                             .font(.custom("Instrument Sans", size: 16))
                             .foregroundColor(.white.opacity(0.8))
                             .multilineTextAlignment(.center)
@@ -773,7 +773,7 @@ struct Home: View {
                                 showNoEventsAlert = false
                             }
                         }) {
-                            Text("知道了")
+                            Text("common.got_it")
                                 .font(.system(size: 17, weight: .semibold))
                                 .foregroundColor(.black)
                                 .frame(width: 120, height: 45)
@@ -983,7 +983,7 @@ struct Home: View {
                                     .scaleEffect(1.5)
                                     .padding(.bottom, 20)
                                 
-                                Text("載入待辦事項中...")
+                                Text("home.loading_todos")
                                     .foregroundColor(.white.opacity(0.8))
                             } else if let error = loadingError {
                                 Image(systemName: "exclamationmark.triangle")
@@ -994,7 +994,7 @@ struct Home: View {
                                     .foregroundColor(.white.opacity(0.8))
                                     .multilineTextAlignment(.center)
                             } else {
-                                Text("這一天沒有事項")
+                                Text("home.no_items_today")
                                     .foregroundColor(.white.opacity(0.6))
                             }
                         }

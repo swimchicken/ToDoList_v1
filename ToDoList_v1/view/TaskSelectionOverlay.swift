@@ -90,7 +90,7 @@ private extension TaskSelectionOverlay {
     var emptyStateView: some View {
         VStack {
             Spacer()
-            Text("沒有待辦事項")
+            Text("task_selection.no_todos")
                 .font(.title2)
                 .foregroundColor(.white.opacity(0.6))
             Spacer()
@@ -119,7 +119,7 @@ private extension TaskSelectionOverlay {
                 withAnimation(.spring(response: 0.3)) { appearing = false }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { onCancel() }
             }) {
-                Text("Cancel")
+                Text("common.cancel")
                     .font(.system(size: 17, weight: .medium))
                     .foregroundColor(.white.opacity(0.8))
                     .padding()
@@ -156,7 +156,7 @@ private extension TaskSelectionOverlay {
                 
                 if !tasks.isEmpty { onAdd(tasks) }
             }) {
-                Text("ADD")
+                Text("common.add")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.black)
                     .frame(width: 260, height: 60)
@@ -179,7 +179,7 @@ private struct TaskGroupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Add task to").font(.system(size: 13, weight: .regular)).foregroundColor(.white.opacity(0.7))
+                Text("add.title").font(.system(size: 13, weight: .regular)).foregroundStyle(.white.opacity(0.7))
                 Text(group.0).font(.system(size: 14, weight: .semibold)).foregroundColor(.white)
                 Spacer()
             }.padding(.horizontal, 16).padding(.vertical, 7)
@@ -229,7 +229,7 @@ struct TaskSelectionRow: View {
                         Text(task.title).font(.system(size: 16, weight: .medium)).foregroundColor(.white).lineLimit(1)
                         if task.note.isEmpty {
                             // 如果沒有備註，顯示 "note" 佔位符
-                            Text("note")
+                            Text("common.note")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.white.opacity(0.5))
                         } else {

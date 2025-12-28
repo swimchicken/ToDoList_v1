@@ -12,7 +12,7 @@ struct TestPage: View {
                 
                 VStack(spacing: 40) {
                     // 標題
-                    Text("測試頁面")
+                    Text("test_page.title")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -25,7 +25,7 @@ struct TestPage: View {
                             Image(systemName: "rectangle.portrait.and.arrow.right")
                                 .font(.title2)
                             
-                            Text("登出")
+                            Text("common.logout")
                                 .font(.title2)
                                 .fontWeight(.semibold)
                         }
@@ -58,7 +58,7 @@ struct TestPage: View {
                     performLogout()
                 }
             } message: {
-                Text("確定要登出嗎？這將會清除您的登入狀態。")
+                Text("test_page.logout_confirmation")
             }
         }
     }
