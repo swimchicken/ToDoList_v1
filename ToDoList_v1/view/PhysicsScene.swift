@@ -1,10 +1,12 @@
 import SwiftUI
 import SpriteKit
 import CryptoKit
+import CoreMotion
 
 class PhysicsScene: SKScene {
     private let itemsCount: Int
     private let todoItems: [TodoItem]
+    private let motionManager = CMMotionManager()
     
     init(size: CGSize, todoItems: [TodoItem]) {
         self.todoItems = todoItems
@@ -25,11 +27,32 @@ class PhysicsScene: SKScene {
         let seedString = seed.isEmpty ? UUID().uuidString : seed
         return SeededRandomGenerator(seed: seedString)
     }
+    override func willMove(from view: SKView) {
+        super.willMove(from: view)
+        motionManager.stopAccelerometerUpdates()
+    }
     
     override func didMove(to view: SKView) {
-        // 1. 設定重力 - 進一步減小重力以確保球體不會快速下沉或彈跳過高
-        physicsWorld.gravity = CGVector(dx: 0, dy: -3.5)  // 降低重力加速度
-        
+        // 1. 設定重力 (修改為陀螺儀/加速度計控制)
+        if motionManager.isAccelerometerAvailable {
+            motionManager.accelerometerUpdateInterval = 1.0 / 60.0 // 60Hz 更新率
+            motionManager.startAccelerometerUpdates(to: .main) { [weak self] (data, error) in
+                guard let self = self, let data = data else { return }
+                        
+                // 重力倍率：數字越大，球對手機傾斜的反應越靈敏、掉落越快
+                // 如果覺得球太輕，可以把 15.0 改成 20.0 或更高
+                let gravityMultiplier: Double = 15.0
+                        
+                // 將手機的傾斜數據轉換為遊戲世界的重力向量
+                let dx = data.acceleration.x * gravityMultiplier
+                let dy = data.acceleration.y * gravityMultiplier
+                        
+                self.physicsWorld.gravity = CGVector(dx: dx, dy: dy)
+            }
+        } else {
+            // 如果是模擬器或裝置不支援，使用預設重力
+            physicsWorld.gravity = CGVector(dx: 0, dy: -3.5)
+        }
         // 設置物理世界的其他屬性
         physicsWorld.speed = 0.8 // 降低模擬速度，使運動更加穩定
         
@@ -213,6 +236,51 @@ class PhysicsScene: SKScene {
             
             // 打印調試信息
             print("創建球體 \(i): ID=\(todoItem.id), 直徑=\(diameter), 位置=(\(node.position.x), \(node.position.y))")
+        }
+    }
+    // 當手指觸碰開始
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for touch in touches {
+            applyRepulsion(at: touch.location(in: self))
+        }
+    }
+    
+    // 當手指移動時 (讓你可以像撥開水一樣撥開球)
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        for touch in touches {
+            applyRepulsion(at: touch.location(in: self))
+        }
+    }
+    
+    // 計算並施加斥力的核心函式
+    private func applyRepulsion(at touchLocation: CGPoint) {
+        // 參數設定 (你可以依手感調整這裡)
+        let repulsionRadius: CGFloat = 150.0 // 影響半徑：手指周圍多大範圍內的球會被推開
+        let maxForce: CGFloat = 100.0        // 最大推力：手指正中心的推力有多強
+        
+        for node in children {
+            // 只對有物理實體的球做反應 (跳過邊界節點)
+            guard let body = node.physicsBody, body.isDynamic else { continue }
+            
+            // 1. 計算球與手指的距離
+            let dx = node.position.x - touchLocation.x
+            let dy = node.position.y - touchLocation.y
+            let distance = sqrt(dx*dx + dy*dy)
+            
+            // 2. 如果球在影響範圍內
+            if distance < repulsionRadius && distance > 0 {
+                // 3. 計算推力強度 (越靠近手指，推力越強；越邊緣越弱)
+                // (repulsionRadius - distance) / repulsionRadius 會產生一個 0.0 到 1.0 的數值
+                let forceFactor = (repulsionRadius - distance) / repulsionRadius
+                let strength = forceFactor * maxForce
+                
+                // 4. 計算推力方向 (標準化向量)
+                let impulseX = (dx / distance) * strength
+                let impulseY = (dy / distance) * strength
+                
+                // 5. 施加瞬間推力
+                body.applyImpulse(CGVector(dx: impulseX, dy: impulseY))
+            }
         }
     }
 }
