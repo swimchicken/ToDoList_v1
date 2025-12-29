@@ -57,6 +57,11 @@ class APIManager {
 
     private func performRequest<T: Codable>(_ request: URLRequest, responseType: T.Type) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
+        
+        // 👇👇👇 加入這段 Debug 程式碼 👇👇👇
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📦 API 原始回傳資料: \(jsonString)")
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -329,6 +334,34 @@ class APIManager {
 
         return try await performRequest(request, responseType: HealthResponse.self)
     }
+    
+    // MARK: - 新增的批量更新功能 (支援部分更新)
+
+    /// 直接接收 BatchUpdateItem 列表進行更新 (用於 SettlementView 的日期遷移)
+    func batchUpdateTasks(items: [BatchUpdateItem]) async throws -> BatchOperationResponse {
+        // 1. 設定 URL
+        // 注意：這裡使用您類別原本定義好的 baseURL
+        // 根據您的現有結構，批量接口通常是 /todos/batch
+        // 請確認後端：如果是部分更新 (Partial Update)，通常用 PATCH；如果後端只開了 POST/PUT 則改之
+        let url = URL(string: "\(baseURL)/todos/batch")!
+        
+        // 2. 準備 Request Body
+        let batchRequest = BatchUpdateRequest(items: items)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601 // 保持日期格式一致
+        let requestData = try encoder.encode(batchRequest)
+        
+        // 3. 建立請求
+        // 關鍵點：使用您現有的 createRequest 方法！
+        // 它會自動幫您處理 "Authorization: Bearer token" 和 "Content-Type"
+        let request = createRequest(url: url, method: .PUT, body: requestData)
+        
+        // 4. 執行請求
+        // 關鍵點：使用您現有的 performRequest 方法！
+        // 它會自動處理錯誤碼 (404, 500) 和 JSON 解碼
+        return try await performRequest(request, responseType: BatchOperationResponse.self)
+    }
+
 }
 
 // MARK: - 輔助類型
@@ -366,3 +399,4 @@ enum APIError: LocalizedError {
 
 // MARK: - 空響應類型
 struct EmptyResponse: Codable {}
+

@@ -41,12 +41,14 @@ struct SettlementView: View {
     @State private var uncompletedTasks: [TodoItem] = []
     @State private var moveUncompletedTasksToTomorrow: Bool = true
     @State private var navigateToSettlementView02: Bool = false // 導航到下一頁
+    @State private var hasNavigatedToNextPage: Bool = false
     
     // 延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
 
     // API 數據管理器
-    private let apiDataManager = APIDataManager.shared
+    // private let apiDataManager = APIDataManager.shared
+    private let apiManager = APIManager.shared
     
     // 判斷是否為當天結算
     @State private var isSameDaySettlement: Bool = false
@@ -265,7 +267,8 @@ struct SettlementView: View {
                     moveUncompletedTasksToTomorrow: $moveUncompletedTasksToTomorrow,
                     navigateToSettlementView02: $navigateToSettlementView02,
                     uncompletedTasks: uncompletedTasks,
-                    isSameDaySettlement: isSameDaySettlement
+                    isSameDaySettlement: isSameDaySettlement,
+                    hasNavigatedToNextPage: $hasNavigatedToNextPage
                 )
             }
             .padding(.horizontal, 12)
@@ -279,6 +282,12 @@ struct SettlementView: View {
 
             // 清除主動結算標記（一次性使用）
             UserDefaults.standard.removeObject(forKey: "isActiveEndDay")
+            
+            // ✅ 新增：如果是全新進入 (不是從下一頁返回)，則清空之前的快取
+            if !hasNavigatedToNextPage {
+                print("SettlementView: 全新進入，重置 SettlementStateManager")
+                SettlementStateManager.shared.reset()
+            }
 
             // 打印結算信息以便調試
             if let lastDate = delaySettlementManager.getLastSettlementDate() {
@@ -332,15 +341,52 @@ struct SettlementView: View {
         completedTasks = []
         uncompletedTasks = []
 
-        // 🧹 移除本地刪除項目追蹤 - 現在完全依賴 API 數據
-        // API 返回的數據已經是最新且正確的，不需要本地過濾
-        
         // 使用API獲取任務數據
         Task {
             do {
-                let apiItems = try await apiDataManager.getAllTodoItems()
+                // 1. 取得 API 資料 (型別是 [APITodoItem])
+                let apiItems = try await APIManager.shared.fetchTodos()
+                
+                // 2. 轉換資料 (將 [APITodoItem] 轉成 [TodoItem])
+                let convertedItems = apiItems.map { apiItem in
+                    // 🔍 Debug: 改印出 completionStatus 字串來確認
+                    // 👇👇👇 🔍 DEBUG: 列出所有欄位的數值與型別 👇👇👇
+                    print("\n========== 🔍 詳細檢查任務資料 (ID: \(apiItem.id)) ==========")
+                    print("1. [title]             值: \(apiItem.title), 型別: \(type(of: apiItem.title))")
+                    print("2. [completionStatus]  值: \(String(describing: apiItem.completionStatus)), 型別: \(type(of: apiItem.completionStatus))")
+                    print("3. [status]            值: \(String(describing: apiItem.status)), 型別: \(type(of: apiItem.status))")
+                    print("4. [taskDate]          值: \(String(describing: apiItem.taskDate)), 型別: \(type(of: apiItem.taskDate))")
+                    print("5. [taskType]          值: \(String(describing: apiItem.taskType)), 型別: \(type(of: apiItem.taskType))")
+                    print("6. [isPinned]          值: \(apiItem.isPinned), 型別: \(type(of: apiItem.isPinned))")
+                    print("============================================================\n")
+                    // 👆👆👆 --------------------------------------- 👆👆👆
+                    
+                    // ✅ 關鍵修改：判斷字串是否為 "completed"
+                    let isCompleted = (apiItem.completionStatus == "completed")
+                    
+                    return TodoItem(
+                        id: apiItem.id,
+                        userID: "",
+                        title: apiItem.title,
+                        priority: apiItem.priority,
+                        isPinned: apiItem.isPinned,
+                        taskDate: apiItem.taskDate,
+                        note: apiItem.note,
+                        taskType: .scheduled,
+                        
+                        // ✅ 修正：根據字串判斷結果設定狀態
+                        completionStatus: isCompleted ? .completed : .pending,
+                        status: isCompleted ? .completed : .undone, // 同步更新 status 以防萬一
+                        
+                        createdAt: Date(),
+                        updatedAt: Date(),
+                        correspondingImageID: ""
+                    )
+                }
+                
                 await MainActor.run {
-                    self.processTasksData(apiItems)
+                    // 3. 傳入轉換後的資料
+                    self.processTasksData(convertedItems)
                     self.isLoading = false
                 }
             } catch {
@@ -350,9 +396,8 @@ struct SettlementView: View {
                 }
             }
         }
-        
     }
-
+    
     // 處理任務數據的共用方法
     private func processTasksData(_ items: [TodoItem]) {
         let calendar = Calendar.current
@@ -474,15 +519,41 @@ struct SettlementView: View {
         dataRefreshToken = UUID() // 更新令牌以強制視圖刷新
 
         // 使用API重新獲取數據（靜默模式）
+        // 使用API獲取任務數據
         Task {
             do {
-                let apiItems = try await apiDataManager.getAllTodoItems()
+                // 1. 取得 API 資料 (型別是 [APITodoItem])
+                let apiItems = try await APIManager.shared.fetchTodos()
+                
+                // 2. 轉換資料 (將 [APITodoItem] 轉成 [TodoItem])
+                let convertedItems = apiItems.map { apiItem in
+                    return TodoItem(
+                        id: apiItem.id,
+                        userID: "",                      // 1. 補上 userID (API沒回傳，給空值)
+                        title: apiItem.title,
+                        priority: apiItem.priority,
+                        isPinned: apiItem.isPinned,
+                        taskDate: apiItem.taskDate,
+                        note: apiItem.note,
+                        taskType: .scheduled,
+                        completionStatus: .completed,
+                        status: apiItem.status ?? .undone,
+                        createdAt: Date(),               // 補上: 建立時間 (API沒回傳，給當下)
+                        updatedAt: Date(),               // 補上: 更新時間 (給當下)
+                        
+                        correspondingImageID: ""         // 補上: 圖片ID (API沒回傳，給空值)
+                    )
+                }
+                
                 await MainActor.run {
-                    self.processTasksData(apiItems)
+                    // 3. 傳入轉換後的資料 (現在型別是 [TodoItem] 了)
+                    self.processTasksData(convertedItems)
+                    self.isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    print("❌ SettlementView刷新失敗: \(error.localizedDescription)")
+                    print("SettlementView - 從API加載任務失敗: \(error.localizedDescription)")
+                    self.isLoading = false
                 }
             }
         }
@@ -710,10 +781,12 @@ struct BottomControlsView: View {
     let uncompletedTasks: [TodoItem]  // 添加未完成任務參數
     let isSameDaySettlement: Bool  // 從父視圖傳入的結算狀態
     @Environment(\.presentationMode) var presentationMode
-
+    
+    @Binding var hasNavigatedToNextPage: Bool
+    
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
-
+    
     // API數據管理器
     private let apiDataManager = APIDataManager.shared
     
@@ -732,12 +805,15 @@ struct BottomControlsView: View {
             .padding(.vertical, 15)
             .background(Color.white.opacity(0.1))
             .cornerRadius(12)
-
+            
             Button(action: {
-                // 不在這裡執行移動邏輯，只傳遞設定到下一個視圖
-                // 移動邏輯將在結算流程完成時執行
+                // 新增：標記我們即將前往下一頁
+                hasNavigatedToNextPage = true
+                
+                // 2. 導航到下一個頁面
                 navigateToSettlementView02 = true
-                }) {
+                
+            }) {
                 // 根據模式選擇不同文字
                 Text(isSameDaySettlement ? "開始設定明日計畫" : "開始設定今天的計畫")
                     .font(.system(size: 17, weight: .semibold))
@@ -766,71 +842,148 @@ struct BottomControlsView: View {
         }
     }
     
-    // 將未完成任務移至明日的數據處理
+    // MARK: - 修改位置：BottomControlsView 內部
+    
     func moveUncompletedTasksToTomorrowData() {
+        // 1. 準備時間數據 (計算明天)
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
         let calendar = Calendar.current
         let tomorrowStart = calendar.startOfDay(for: tomorrow)
-
-        for task in uncompletedTasks {
-            // 決定新的任務時間
+        
+        // 2. 構建 BatchUpdateItem 陣列
+        // 我們使用 map 將 [TodoItem] 轉換為後端需要的 [BatchUpdateItem] 格式
+        let batchItems: [BatchUpdateItem] = uncompletedTasks.map { task in
+            
+            // --- 日期計算邏輯 (保持原本邏輯不變) ---
             let newTaskDate: Date?
-
             if let originalTaskDate = task.taskDate {
-                // 如果原本有時間，檢查是否為 00:00:00
                 let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalTaskDate)
                 let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
-
+                
                 if isTimeZero {
-                    // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
                     newTaskDate = tomorrowStart
                 } else {
-                    // 原本有具體時間的事件，保留時間但改日期為明天
                     var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
                     tomorrowComponents.hour = timeComponents.hour
                     tomorrowComponents.minute = timeComponents.minute
                     tomorrowComponents.second = timeComponents.second
-
                     newTaskDate = calendar.date(from: tomorrowComponents)
                 }
             } else {
-                // 原本就沒有時間（備忘錄），保持沒有時間
                 newTaskDate = nil
             }
-
-            // 創建更新後的任務
-            let updatedTask = TodoItem(
+            // -------------------------------------
+            
+            // 3. 創建批次項目
+            // 這裡只設定需要修改的 `task_date`，其他欄位設為 nil (部分更新)
+            return BatchUpdateItem(
                 id: task.id,
-                userID: task.userID,
-                title: task.title,
-                priority: task.priority,
-                isPinned: task.isPinned,
-                taskDate: newTaskDate,
-                note: task.note,
-                taskType: task.taskType,
-                completionStatus: task.completionStatus,
-                status: task.status,
-                createdAt: task.createdAt,
-                updatedAt: Date(),
-                correspondingImageID: task.correspondingImageID
+                title: nil,       // 不改標題
+                status: nil,      // 不改狀態
+                task_date: newTaskDate, // 🆕 修改為明天
+                priority: nil,
+                is_pinned: nil,
+                note: nil,
+                corresponding_image_id: nil
             )
-
-            // 使用API更新任務
-            Task {
-                do {
-                    let _ = try await apiDataManager.updateTodoItem(updatedTask)
-                } catch {
-                    print("❌ 移動任務失敗: \(task.title) - \(error.localizedDescription)")
+        }
+        
+        // 如果沒有任務需要移動，直接返回
+        guard !batchItems.isEmpty else { return }
+        
+        // 4. 呼叫 API (只需一次請求)
+        Task {
+            do {
+                print("🚀 開始批量移動 \(batchItems.count) 個任務至明天...")
+                
+                // 呼叫我們剛在 APIManager 寫好的新函式
+                let _ = try await APIManager.shared.batchUpdateTasks(items: batchItems)
+                
+                print("✅ 批量移動成功！")
+                
+                // 5. 發送通知讓 UI 更新
+                // 這會通知首頁和其他頁面重新拉取最新資料
+                await MainActor.run {
+                    NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
+                }
+                
+            } catch {
+                await MainActor.run {
+                    print("❌ 批量移動任務失敗: \(error.localizedDescription)")
                 }
             }
         }
     }
-}
-
-// MARK: - Preview
-struct SettlementView_Previews: PreviewProvider {
-    static var previews: some View {
-        SettlementView()
-            .environmentObject(AlarmStateManager())
+    
+    
+    
+    /*
+     // 將未完成任務移至明日的數據處理
+     func moveUncompletedTasksToTomorrowData() {
+     let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+     let calendar = Calendar.current
+     let tomorrowStart = calendar.startOfDay(for: tomorrow)
+     
+     for task in uncompletedTasks {
+     // 決定新的任務時間
+     let newTaskDate: Date?
+     
+     if let originalTaskDate = task.taskDate {
+     // 如果原本有時間，檢查是否為 00:00:00
+     let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalTaskDate)
+     let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
+     
+     if isTimeZero {
+     // 原本是 00:00:00 的事件（日期無時間），移至明天的 00:00:00
+     newTaskDate = tomorrowStart
+     } else {
+     // 原本有具體時間的事件，保留時間但改日期為明天
+     var tomorrowComponents = calendar.dateComponents([.year, .month, .day], from: tomorrow)
+     tomorrowComponents.hour = timeComponents.hour
+     tomorrowComponents.minute = timeComponents.minute
+     tomorrowComponents.second = timeComponents.second
+     
+     newTaskDate = calendar.date(from: tomorrowComponents)
+     }
+     } else {
+     // 原本就沒有時間（備忘錄），保持沒有時間
+     newTaskDate = nil
+     }
+     
+     // 創建更新後的任務
+     let updatedTask = TodoItem(
+     id: task.id,
+     userID: task.userID,
+     title: task.title,
+     priority: task.priority,
+     isPinned: task.isPinned,
+     taskDate: newTaskDate,
+     note: task.note,
+     taskType: task.taskType,
+     completionStatus: task.completionStatus,
+     status: task.status,
+     createdAt: task.createdAt,
+     updatedAt: Date(),
+     correspondingImageID: task.correspondingImageID
+     )
+     
+     // 使用API更新任務
+     Task {
+     do {
+     let _ = try await apiDataManager.updateTodoItem(updatedTask)
+     } catch {
+     print("❌ 移動任務失敗: \(task.title) - \(error.localizedDescription)")
+     }
+     }
+     }
+     }
+     }
+     */
+    // MARK: - Preview
+    struct SettlementView_Previews: PreviewProvider {
+        static var previews: some View {
+            SettlementView()
+                .environmentObject(AlarmStateManager())
+        }
     }
 }

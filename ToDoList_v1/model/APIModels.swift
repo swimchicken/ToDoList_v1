@@ -1,9 +1,3 @@
-//
-//  APIModels.swift
-//  ToDoList_v1
-//
-//  API數據模型定義
-//
 
 import Foundation
 
@@ -65,8 +59,8 @@ struct APITodoItem: Codable, Identifiable {
     let priority: Int
     let isPinned: Bool
     let taskDate: Date?
-    let taskType: TaskType? // 🆕 任務類型（可能為空，需要向後兼容）
-    let completionStatus: CompletionStatus? // 🆕 完成狀態（可能為空，需要向後兼容）
+    let taskType: String?
+    let completionStatus: String?
     let status: TodoStatus? // 🔄 舊狀態字段（後端已遷移，設為可選）
     let correspondingImageId: String
     let createdAt: Date
@@ -263,29 +257,46 @@ struct APIErrorResponse: Codable {
 extension APITodoItem {
     /// 轉換為本地TodoItem
     func toTodoItem() -> TodoItem {
-        // 🆕 處理後端完全遷移到新字段的情況
-        let finalTaskType: TaskType
+        
+        // 1. 處理 CompletionStatus (String -> Enum)
         let finalCompletionStatus: CompletionStatus
+        if let statusString = self.completionStatus {
+            // 根據字串手動判斷，最穩健的做法
+            if statusString == "completed" {
+                finalCompletionStatus = .completed
+            } else {
+                finalCompletionStatus = .pending // 或是 .undone，視您的 Enum 定義而定
+            }
+        } else {
+            // 如果 API 沒回傳，預設為 pending
+            finalCompletionStatus = .pending
+        }
+
+        // 2. 處理 TaskType (String -> Enum)
+        let finalTaskType: TaskType
+        if let typeString = self.taskType {
+            // 假設您的 TaskType 有 RawValue (String) 或者手動映射
+            // 這裡示範手動映射以防萬一
+            switch typeString {
+            case "scheduled": finalTaskType = .scheduled
+            case "memo": finalTaskType = .memo
+            default: finalTaskType = .scheduled // 預設值
+            }
+        } else {
+            finalTaskType = (taskDate != nil) ? .scheduled : .memo
+        }
+        
+        // 3. 處理舊 Status (向下兼容邏輯)
         let finalStatus: TodoStatus
-
-        if let apiTaskType = self.taskType, let apiCompletionStatus = self.completionStatus {
-            // 後端已提供新字段，優先使用
-            finalTaskType = apiTaskType
-            finalCompletionStatus = apiCompletionStatus
-
-            // 從新字段推導舊狀態（向後兼容）
-            finalStatus = self.status ?? derivedStatusFromNewFields(taskType: apiTaskType, completionStatus: apiCompletionStatus, taskDate: taskDate)
-        } else if let oldStatus = self.status {
-            // 回退到舊狀態，推導新字段
-            let (derivedTaskType, derivedCompletionStatus) = TodoItem.deriveNewFields(from: oldStatus, taskDate: taskDate)
-            finalTaskType = derivedTaskType
-            finalCompletionStatus = derivedCompletionStatus
+        if let oldStatus = self.status {
             finalStatus = oldStatus
         } else {
-            // 極端情況：既沒有新字段也沒有舊狀態，使用預設值
-            finalTaskType = taskDate != nil ? .scheduled : .memo
-            finalCompletionStatus = .pending
-            finalStatus = .toBeStarted
+            // 如果沒有舊 status，根據新的 completionStatus 推導
+            if finalCompletionStatus == .completed {
+                finalStatus = .completed
+            } else {
+                finalStatus = (finalTaskType == .memo) ? .toDoList : .toBeStarted
+            }
         }
 
         return TodoItem(
@@ -296,27 +307,13 @@ extension APITodoItem {
             isPinned: isPinned,
             taskDate: taskDate,
             note: note,
-            taskType: finalTaskType,
-            completionStatus: finalCompletionStatus,
+            taskType: finalTaskType,            // ✅ 使用轉換後的 Enum
+            completionStatus: finalCompletionStatus, // ✅ 使用轉換後的 Enum
             status: finalStatus,
             createdAt: createdAt,
             updatedAt: updatedAt,
             correspondingImageID: correspondingImageId
         )
-    }
-
-    // 🆕 從新字段推導舊狀態的輔助方法
-    private func derivedStatusFromNewFields(taskType: TaskType, completionStatus: CompletionStatus, taskDate: Date?) -> TodoStatus {
-        switch (taskType, completionStatus) {
-        case (.memo, .pending):
-            return .toDoList
-        case (.scheduled, .pending):
-            return .toBeStarted
-        case (.uncompleted, .pending):
-            return .undone
-        case (_, .completed):
-            return .completed
-        }
     }
 }
 
@@ -351,3 +348,4 @@ extension TodoItem {
         )
     }
 }
+

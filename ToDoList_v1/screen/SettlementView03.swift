@@ -11,7 +11,7 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
     private let segmentWidth: CGFloat = 165
     private let segmentHeight: CGFloat = 11
     private let segmentCornerRadius: CGFloat = 29
-
+    
     var body: some View {
         if isActive {
             Rectangle()
@@ -42,27 +42,32 @@ struct SettlementView03: View {
     @State private var selectedAmPm: Int = 1
     @State private var isAlarmDisabled: Bool = false
     // 由 Home 端負責關閉整個結算導覽鏈（透過通知），不在此再推一個 Home
-
+    
+    // ✅ 新增：Loading 狀態，防止重複點擊
+    @State private var isProcessing: Bool = false
+    
     // 接收從SettlementView02傳遞的任務信息
     let uncompletedTasks: [TodoItem]
     let moveTasksToTomorrow: Bool
-    let pendingOperations: [SettlementOperation]  // 新增：接收暫存操作
-
+  
+    @ObservedObject private var stateManager = SettlementStateManager.shared
+    
     // 默認初始化方法（用於preview或無任務情況）
-    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false, pendingOperations: [SettlementOperation] = []) {
+    init(uncompletedTasks: [TodoItem] = [], moveTasksToTomorrow: Bool = false) {
         self.uncompletedTasks = uncompletedTasks
         self.moveTasksToTomorrow = moveTasksToTomorrow
-        self.pendingOperations = pendingOperations
     }
-
+    
     // 引用已完成日期數據管理器
     private let completeDayDataManager = CompleteDayDataManager.shared
     
     // 引用延遲結算管理器
     private let delaySettlementManager = DelaySettlementManager.shared
-
+    
     // 數據同步管理器
-    private let dataSyncManager = DataSyncManager.shared
+    // private let dataSyncManager = DataSyncManager.shared ❌ 移除舊的
+    private let apiManager = APIManager.shared
+    
     
     // 用於將設置傳遞給 Home 視圖
     class SleepSettings: ObservableObject {
@@ -70,7 +75,7 @@ struct SettlementView03: View {
         @Published var isSleepMode: Bool = false
         @Published var alarmTime: String = "9:00 AM"
     }
-
+    
     private var tomorrow: Date {
         return Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     }
@@ -113,7 +118,7 @@ struct SettlementView03: View {
             }
         }
     }
-
+    
     private func formatDateForDisplay(_ date: Date) -> (monthDay: String, weekday: String) {
         let dateFormatterMonthDay = DateFormatter()
         dateFormatterMonthDay.locale = Locale(identifier: "en_US_POSIX")
@@ -123,11 +128,11 @@ struct SettlementView03: View {
         dateFormatterWeekday.dateFormat = "EEEE"
         return (dateFormatterMonthDay.string(from: date), dateFormatterWeekday.string(from: date))
     }
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             topHeaderSection // 使用分解後的子視圖
-
+            
             MultiComponentPicker(
                 hour: $selectedHour,
                 minute: $selectedMinute,
@@ -138,11 +143,11 @@ struct SettlementView03: View {
             .opacity(isAlarmDisabled ? 0.3 : 1.0)
             .disabled(isAlarmDisabled)
             .padding(.vertical, 20)
-
+            
             alarmToggleSection
-
+            
             Spacer()
-
+            
             bottomNavigationButtons
         }
         .padding(.horizontal, 12)
@@ -157,14 +162,14 @@ struct SettlementView03: View {
                 destination: Home()
                     .navigationBarHidden(true)
                     .navigationBarBackButtonHidden(true)
-                    .toolbar(.hidden, for: .navigationBar), 
+                    .toolbar(.hidden, for: .navigationBar),
                 isActive: $navigateToHome,
                 label: { EmptyView() }
             )
             .isDetailLink(false) // 這會重置導航堆疊
         )
     }
-
+    
     // MARK: - Sub-views for SettlementView03
     private var topHeaderSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -176,12 +181,12 @@ struct SettlementView03: View {
             greenLineImageView
         }
     }
-
+    
     private var progressAndCheckmarkView: some View {
         // *** 修改此處佈局以避免重疊 ***
         HStack {
-//            Spacer() // 左邊 Spacer，用於輔助居中進度條
-
+            //            Spacer() // 左邊 Spacer，用於輔助居中進度條
+            
             // 進度條組
             HStack(spacing: 8) {
                 Page03ProgressBarSegment(isActive: true) // SettlementView03 使用自己的進度條定義
@@ -189,7 +194,7 @@ struct SettlementView03: View {
             }
             
             Spacer() // 中間 Spacer，將打勾圖示推到最右邊
-
+            
             Image(systemName: "checkmark")
                 .foregroundColor(.gray)
                 .padding(5)
@@ -198,14 +203,14 @@ struct SettlementView03: View {
         }
         .padding(.top, 0)
     }
-
+    
     private var grayDivider: some View {
         Rectangle()
             .frame(height: 1)
             .foregroundColor(Color(red: 0.34, green: 0.34, blue: 0.34))
             .padding(.vertical, 4)
     }
-
+    
     private var whatToDoText: some View {
         HStack {
             Text("What do you want to at")
@@ -214,7 +219,7 @@ struct SettlementView03: View {
             Spacer()
         }
     }
-
+    
     private var dateDisplayView: some View {
         let tomorrowParts = formatDateForDisplay(tomorrow)
         return HStack(alignment: .bottom) {
@@ -233,7 +238,7 @@ struct SettlementView03: View {
             }
         }
     }
-
+    
     private var sunAndTempView: some View {
         HStack {
             Image(systemName: "sun.max.fill")
@@ -245,7 +250,7 @@ struct SettlementView03: View {
         }
         .padding(.top, 2)
     }
-
+    
     private var greenLineImageView: some View {
         Image("Vector 81")
             .resizable()
@@ -253,7 +258,7 @@ struct SettlementView03: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 5)
     }
-
+    
     private var alarmToggleSection: some View {
         HStack {
             Text("不使用鬧鐘")
@@ -268,7 +273,7 @@ struct SettlementView03: View {
         .background(Color(white: 0.15))
         .cornerRadius(10)
     }
-
+    
     private var bottomNavigationButtons: some View {
         HStack {
             Button(action: {
@@ -278,253 +283,251 @@ struct SettlementView03: View {
                 Text("返回")
                     .font(Font.custom("Inria Sans", size: 20))
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊
+                    .frame(maxWidth: .infinity, alignment: .center)
             }.padding()
             Spacer()
+            
             Button(action: {
-                // 首先執行暫存操作
-                executeAllPendingOperations()
-
-                // 標記今天為已完成
-                completeDayDataManager.markTodayAsCompleted()
-                print("已標記今天為已完成的一天")
-
-                // 標記結算流程完成 - 這是整個結算流程的最後一步
-                delaySettlementManager.markSettlementCompleted()
-                print("已標記結算流程完成")
-
-                // 保存鬧鐘設置
-                let hourToSave = selectedHour
-                let minuteToSave = selectedMinute
-                let ampmToSave = selectedAmPm == 0 ? "AM" : "PM"
-                let alarmEnabled = !isAlarmDisabled
-
-                // 格式化時間字符串，確保分鐘有兩位數字
-                let formattedMinute = String(format: "%02d", minuteToSave)
-                let alarmTimeFormatted = "\(hourToSave):\(formattedMinute) \(ampmToSave)"
-
-                print("保存設置: \(alarmTimeFormatted), 啟用鬧鐘: \(alarmEnabled)")
-
-                // 如果用戶選擇移動任務到明天，先執行移動（無論是否啟用鬧鐘）
-                if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
-                    moveUncompletedTasksToTomorrow()
-                }
-
-                if alarmEnabled {
-                    // 啟用鬧鐘：設定鬧鐘並進入睡眠模式
-
-                    // 請求通知權限
-                    requestNotificationPermission()
-
-                    // 取消現有的鬧鐘
-                    cancelExistingAlarms()
-
-                    // 設定新的鬧鐘
-                    setAlarm(hour: hourToSave, minute: minuteToSave, ampm: ampmToSave)
-
-                    // 保存到 UserDefaults，啟動睡眠模式
-                    UserDefaults.standard.set(true, forKey: "isSleepMode")
-                    UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
-
-                    // 使用 AlarmStateManager 啟動睡眠模式
-                    alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
-
-                    // 保存到共享設置
-                    SleepSettings.shared.isSleepMode = true
-                    SleepSettings.shared.alarmTime = alarmTimeFormatted
-
-                    print("已設定鬧鐘並啟動睡眠模式: \(alarmTimeFormatted)")
-                } else {
-                    // 不啟用鬧鐘：只完成結算，不進入睡眠模式
-
-                    // 取消所有現有鬧鐘
-                    cancelExistingAlarms()
-
-                    // 確保睡眠模式為關閉狀態
-                    UserDefaults.standard.set(false, forKey: "isSleepMode")
-                    UserDefaults.standard.removeObject(forKey: "alarmTimeString")
-
-                    // 確保 AlarmStateManager 不在睡眠模式
-                    if alarmStateManager.isSleepModeActive {
-                        alarmStateManager.endSleepMode()
-                    }
-
-                    // 重置共享設置
-                    SleepSettings.shared.isSleepMode = false
-                    SleepSettings.shared.alarmTime = ""
-
-                    print("已完成結算但不啟動睡眠模式（用戶選擇不使用鬧鐘）")
-                }
-
-                // 完成設置並回到 Home 頁面
-                navigateToHome = true
+                // MARK: - 修改處 (Modification Here)
+                // ✅ 呼叫統一的處理函式，執行所有 API 請求與結算邏輯
+                handleFinalSettlement()
             }) {
                 Text(isAlarmDisabled ? "完成結算" : "進入睡眠模式")
                     .font(Font.custom("Inria Sans", size: 20).weight(.bold))
                     .multilineTextAlignment(.center)
                     .foregroundColor(.black)
-                    .frame(maxWidth: .infinity, alignment: .center) // 使整個按鈕區域可點擊
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
             .frame(width: 279, height: 60).background(.white).cornerRadius(40.5)
         }
         .padding(.bottom, 20)
     }
-
-    // MARK: - Pending Operations Execution
-    /// 執行所有暫存操作
-    private func executeAllPendingOperations() {
-        print("SettlementView03: 開始執行 \(pendingOperations.count) 個暫存操作")
-
-        for operation in pendingOperations {
-            switch operation {
-            case .addItem(let item):
-                print("SettlementView03: 執行添加操作 - \(item.title)")
-                dataSyncManager.addTodoItem(item) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView03: 成功執行添加操作 - \(item.title)")
-                        case .failure(let error):
-                            print("SettlementView03: 添加操作失敗 - \(item.title): \(error.localizedDescription)")
-                        }
-                    }
+    
+    
+    
+    
+    
+    // MARK: - 核心執行邏輯 (Master Commit)
+    private func handleFinalSettlement() {
+        guard !isProcessing else { return }
+        isProcessing = true
+        
+        print("🚀 [SettlementView03] 開始執行最終結算流程...")
+        
+        Task {
+            do {
+                // 1. 執行 Page 2 的暫存操作
+                // ✅ 修正：加上 'try'，因為此函式會拋出錯誤
+                try await executePendingOperations()
+                
+                // 2. 執行 Page 1 的移動任務邏輯
+                if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
+                    await performMoveTasksToTomorrow()
                 }
-
-            case .deleteItem(let itemId):
-                print("SettlementView03: 執行刪除操作 - ID: \(itemId)")
-                dataSyncManager.deleteTodoItem(withID: itemId) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView03: 成功執行刪除操作 - ID: \(itemId)")
-                        case .failure(let error):
-                            print("SettlementView03: 刪除操作失敗 - ID: \(itemId): \(error.localizedDescription)")
-                        }
+                
+                // 3. 標記今天完成
+                completeDayDataManager.markTodayAsCompleted()
+                
+                // 4. 標記結算流程完成
+                delaySettlementManager.markSettlementCompleted()
+                
+                // 5. 全部成功！回到主線程更新 UI 並清空資料
+                await MainActor.run {
+                    if !isAlarmDisabled {
+                        setupAlarmAndSleepMode()
+                    } else {
+                        clearAlarmAndSleepMode()
                     }
+                    
+                    print("🧹 結算成功，清空暫存資料")
+                    // ✅ 只有在這裡才清空資料
+                    stateManager.reset()
+                    
+                    // 發送通知刷新首頁
+                    NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
+                    NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
+                    
+                    isProcessing = false
+                    navigateToHome = true
                 }
-
-            case .updateItem(let item):
-                print("SettlementView03: 執行更新操作 - \(item.title)")
-                dataSyncManager.updateTodoItem(item) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            print("SettlementView03: 成功執行更新操作 - \(item.title)")
-                        case .failure(let error):
-                            print("SettlementView03: 更新操作失敗 - \(item.title): \(error.localizedDescription)")
-                        }
-                    }
+                
+            } catch {
+                // ✅ 錯誤處理：如果有任何一步失敗 (throw error)，就會跳到這裡
+                await MainActor.run {
+                    print("❌ 結算流程失敗: \(error.localizedDescription)")
+                    print("⚠️ 暫存資料未清空，請檢查網路或 API 狀態")
+                    
+                    isProcessing = false
+                    // 這裡不導航回首頁，讓用戶可以重試
                 }
             }
         }
-
-        print("SettlementView03: 所有暫存操作已提交執行")
     }
-
-    // MARK: - Task Movement Logic
-
+    
+    private func executePendingOperations() async throws {
+            guard !stateManager.pendingOperations.isEmpty else { return }
+            print("⚡️ [API] 開始執行 \(stateManager.pendingOperations.count) 個暫存操作")
+            
+            // 依序執行每個操作，如果有一個失敗就 throw error
+            for operation in stateManager.pendingOperations {
+                switch operation {
+                case .addItem(let item):
+                    // ✅ 修正：呼叫 createTodo，並進行資料轉換
+                    print("➕ 執行新增 API (Create): \(item.title)")
+                    
+                    // 將 TodoItem 轉換為 CreateTodoRequest
+                    let request = CreateTodoRequest(
+                        title: item.title,
+                        note: item.note,
+                        priority: item.priority,
+                        isPinned: item.isPinned,
+                        taskDate: item.taskDate,
+                        taskType: TaskType (rawValue: item.taskType.rawValue)!,
+                        completionStatus: item.completionStatus,
+                        status: item.status,
+                        correspondingImageId: item.correspondingImageID
+                    )
+                    
+                    // 呼叫正確的方法名稱：createTodo
+                    let _ = try await apiManager.createTodo(request)
+                    
+                    print("✅ 新增成功: \(item.title)")
+                    
+                case .deleteItem(let id):
+                    try await apiManager.deleteTodo(id: id)
+                    print("✅ 刪除成功: \(id)")
+                    
+                case .updateItem(let item):
+                    let request = UpdateTodoRequest(
+                        title: item.title,
+                        note: item.note,
+                        priority: item.priority,
+                        isPinned: item.isPinned,
+                        taskDate: item.taskDate,
+                        taskType: item.taskType,
+                        completionStatus: item.completionStatus,
+                        status: item.status,
+                        correspondingImageId: item.correspondingImageID.isEmpty ? "" : item.correspondingImageID
+                    )
+                    let _ = try await apiManager.updateTodo(id: item.id, request)
+                    print("✅ 更新成功: \(item.title)")
+                }
+            }
+            print("🎉 所有暫存操作執行完畢！")
+        
+    }
+    
+    // 執行任務批量移動
+    // MARK: - Task Movement Logic (修正版)
+    
     /// 將未完成任務移至明日的數據處理
-    private func moveUncompletedTasksToTomorrow() {
+    private func performMoveTasksToTomorrow() async {
+        print("🚀 [Logic] 開始執行任務日期移動邏輯 (使用 Batch API)...")
+        
         let calendar = Calendar.current
         let now = Date()
-
-        // 檢查是否在凌晨0:00-6:00時間段
-        let currentHour = calendar.component(.hour, from: now)
-        let isEarlyMorning = currentHour >= 0 && currentHour < 6
-
-        // 根據時間段決定移動邏輯
-        let sourceDay: Date
-        let targetDay: Date
-
-        if isEarlyMorning {
-            // 凌晨0:00-6:00：昨天的任務移到今天
-            let today = calendar.startOfDay(for: now)
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
-            sourceDay = yesterday
-            targetDay = today
-            print("凌晨時段(\(currentHour):xx)：將昨天(\(yesterday))的未完成任務移至今天(\(today))")
-        } else {
-            // 其他時間：今天的任務移到明天
-            let today = calendar.startOfDay(for: now)
-            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
-            sourceDay = today
-            targetDay = tomorrow
-            print("一般時段(\(currentHour):xx)：將今天(\(today))的未完成任務移至明天(\(tomorrow))")
+        
+        // 1. 設定目標日期 (明天)
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return }
+        let targetDayStart = calendar.startOfDay(for: tomorrow)
+        
+        // 2. 建立排除清單 (如果在 Page 2 刪除了，就不移動)
+        let deletedIds = stateManager.pendingOperations.compactMap { operation -> UUID? in
+            if case .deleteItem(let id) = operation { return id }
+            return nil
         }
-
-        print("結算開始將 \(uncompletedTasks.count) 個未完成任務從源日期移動")
-
-        // 篩選要移動的任務：符合源日期的未完成事項（排除備忘錄）
-        let tasksToMove = uncompletedTasks.filter { task in
-            guard let taskDate = task.taskDate else {
-                // 沒有日期的任務（備忘錄）不應該被移動
-                return false
-            }
-            let taskDay = calendar.startOfDay(for: taskDate)
-            return taskDay == sourceDay
-        }
-
-        print("實際將移動的任務: \(tasksToMove.count) 個（從總計 \(uncompletedTasks.count) 個中篩選）")
-
-        for task in tasksToMove {
-            // 決定新的任務時間
-            let newTaskDate: Date?
-
-            if let originalTaskDate = task.taskDate {
-                // 如果原本有時間，檢查是否為 00:00:00
-                let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalTaskDate)
+        let deletedSet = Set(deletedIds)
+        
+        // 3. 準備批量更新資料
+        var batchItems: [BatchUpdateItem] = []
+        
+        for task in uncompletedTasks {
+            if deletedSet.contains(task.id) { continue }
+            
+            var newTaskDate: Date?
+            if let originalDate = task.taskDate {
+                let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalDate)
                 let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
-
+                
                 if isTimeZero {
-                    // 原本是 00:00:00 的事件（日期無時間），移至目標日期的 00:00:00
-                    newTaskDate = calendar.startOfDay(for: targetDay)
-                    print("任務 '\(task.title)' 原本是日期無時間，移至目標日期的 00:00:00")
+                    newTaskDate = targetDayStart
                 } else {
-                    // 原本有具體時間的事件，保留時間但改為目標日期
-                    var targetComponents = calendar.dateComponents([.year, .month, .day], from: targetDay)
-                    targetComponents.hour = timeComponents.hour
-                    targetComponents.minute = timeComponents.minute
-                    targetComponents.second = timeComponents.second
-
-                    newTaskDate = calendar.date(from: targetComponents)
-                    print("任務 '\(task.title)' 保留原時間 \(timeComponents.hour ?? 0):\(timeComponents.minute ?? 0)，移至目標日期")
+                    var targetComps = calendar.dateComponents([.year, .month, .day], from: targetDayStart)
+                    targetComps.hour = timeComponents.hour
+                    targetComps.minute = timeComponents.minute
+                    targetComps.second = timeComponents.second
+                    newTaskDate = calendar.date(from: targetComps)
                 }
+                
+                // 加入列表
+                // 注意：根據 Swagger，後端接受部分欄位。我們只傳送需要修改的 task_date
+                let batchItem = BatchUpdateItem(
+                    id: task.id,
+                    title: nil,
+                    status: nil,
+                    task_date: newTaskDate, // ✅ 核心：只改這個
+                    priority: nil,
+                    is_pinned: nil,
+                    note: nil,
+                    corresponding_image_id: nil
+                )
+                batchItems.append(batchItem)
+                
             } else {
-                // 原本就沒有時間（備忘錄），保持沒有時間
-                newTaskDate = nil
-                print("任務 '\(task.title)' 原本是備忘錄，移動後保持為備忘錄")
-            }
-
-            // 創建更新後的任務
-            let updatedTask = TodoItem(
-                id: task.id,
-                userID: task.userID,
-                title: task.title,
-                priority: task.priority,
-                isPinned: task.isPinned,
-                taskDate: newTaskDate,
-                note: task.note,
-                taskType: task.taskType,
-                completionStatus: task.completionStatus,
-                status: task.status,
-                createdAt: task.createdAt,
-                updatedAt: Date(),
-                correspondingImageID: task.correspondingImageID
-            )
-
-            // 使用 DataSyncManager 更新任務
-            dataSyncManager.updateTodoItem(updatedTask) { result in
-                switch result {
-                case .success:
-                    print("成功將任務 '\(task.title)' 移至明日")
-                case .failure(let error):
-                    print("移動任務 '\(task.title)' 失敗: \(error.localizedDescription)")
-                }
+                continue // 跳過備忘錄
             }
         }
-
-        print("完成任務移動處理")
+        
+        guard !batchItems.isEmpty else {
+            print("⚠️ 沒有需要移動的任務")
+            return
+        }
+        
+        // 4. 發送 API
+        print("⚡️ [API] 發送 Batch PUT 請求，包含 \(batchItems.count) 個任務")
+        do {
+            // 這裡會呼叫我們剛修正為 PUT 的方法
+            let response = try await apiManager.batchUpdateTasks(items: batchItems)
+            print("✅ 批量移動成功! API 回應: \(response)")
+        } catch {
+            print("❌ 批量移動失敗: \(error.localizedDescription)")
+        }
     }
+    
+    // 設定鬧鐘與睡眠模式
+    private func setupAlarmAndSleepMode() {
+        let hourToSave = selectedHour
+        let minuteToSave = selectedMinute
+        let ampmToSave = selectedAmPm == 0 ? "AM" : "PM"
+        
+        let formattedMinute = String(format: "%02d", minuteToSave)
+        let alarmTimeFormatted = "\(hourToSave):\(formattedMinute) \(ampmToSave)"
+        
+        requestNotificationPermission()
+        cancelExistingAlarms()
+        setAlarm(hour: hourToSave, minute: minuteToSave, ampm: ampmToSave)
+        
+        UserDefaults.standard.set(true, forKey: "isSleepMode")
+        UserDefaults.standard.set(alarmTimeFormatted, forKey: "alarmTimeString")
+        
+        alarmStateManager.startSleepMode(alarmTime: alarmTimeFormatted)
+        SleepSettings.shared.isSleepMode = true
+        SleepSettings.shared.alarmTime = alarmTimeFormatted
+    }
+    
+    // 清除鬧鐘與睡眠模式
+    private func clearAlarmAndSleepMode() {
+        cancelExistingAlarms()
+        UserDefaults.standard.set(false, forKey: "isSleepMode")
+        UserDefaults.standard.removeObject(forKey: "alarmTimeString")
+        
+        if alarmStateManager.isSleepModeActive {
+            alarmStateManager.endSleepMode()
+        }
+        SleepSettings.shared.isSleepMode = false
+        SleepSettings.shared.alarmTime = ""
+    }
+    
 }
 
 #Preview {
