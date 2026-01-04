@@ -99,7 +99,6 @@ struct TodoSheetItemRow: View {
                         do {
                             // 第一步：添加到日程
                             let addedItem = try await APIDataManager.shared.addTodoItem(homeItem)
-                            print("🚀 成功添加到日程: \(homeItem.title)")
 
                             // 第二步：更新原始備忘錄狀態 - 使用備忘錄的服務器 ID
                             var updatedMemo = item
@@ -109,40 +108,24 @@ struct TodoSheetItemRow: View {
                             // 💡 關鍵：確保備忘錄項目有有效的服務器 ID 才進行更新
                             // 如果備忘錄是通過 Add.swift 創建的，它應該已經有服務器 ID
                             let _ = try await APIDataManager.shared.updateTodoItem(updatedMemo)
-                            print("✅ 成功更新原始備忘錄狀態: \(item.title)")
 
                             await MainActor.run {
                                 // 更新本地狀態
-                                print("🔍 [TodoSheetItemRow] 更新前 - \(item.title): completionStatus=\(item.completionStatus), status=\(item.status)")
-
                                 item.completionStatus = .completed
                                 item.status = .completed
-
-                                print("🔍 [TodoSheetItemRow] 更新後 - \(item.title): completionStatus=\(item.completionStatus), status=\(item.status)")
 
                                 // 🔧 直接替換樂觀更新項目，不使用通知機制
                                 // 這樣可以避免通知時序問題和重複更新
                                 onReplaceOptimisticItem?(homeItem.id, addedItem)
-                                print("✅ 直接替換樂觀更新項目為真實項目: \(addedItem.title)")
 
                                 // 🆕 刷新待辦佇列，讓已完成的備忘錄從列表中消失
-                                print("🔍 [TodoSheetItemRow] 準備調用 onRefreshQueue")
                                 onRefreshQueue?()
-                                print("🔄 刷新待辦佇列 - 移除已完成的備忘錄: \(item.title)")
 
                                 // 🔧 移除 onAddToHome 調用，避免重複操作
                                 // onAddToHome 可能會導致額外的 UI 更新
                             }
                         } catch {
-                            // 🔍 詳細錯誤分析
-                            print("❌ 操作失敗: \(error.localizedDescription)")
-
-                            if let urlError = error as? URLError, urlError.code == .badURL {
-                                print("🔍 可能是 URL 格式問題")
-                            } else if error.localizedDescription.contains("404") {
-                                print("🔍 備忘錄項目可能未同步到服務器，ID: \(item.id)")
-                                print("🔍 這可能是因為該備忘錄項目還沒有完成 API 同步")
-                            }
+                            // 詳細錯誤分析 - 操作失敗
 
                             await MainActor.run {
                                 // 🔧 直接通過回調移除失敗的樂觀更新項目
@@ -166,7 +149,7 @@ struct TodoSheetItemRow: View {
                                     )
                                     onReplaceOptimisticItem(homeItem.id, emptyItem)
                                 }
-                                print("🔄 回滾失敗的樂觀更新項目")
+                                // 回滾失敗的樂觀更新項目
                             }
                         }
                     }
@@ -190,7 +173,6 @@ struct TodoSheetItemRow: View {
     private func toggleTaskStatus() {
         // 🛡️ 防止重複點擊
         guard !isUpdating else {
-            print("⚠️ TodoSheetItemRow 任務更新中，忽略重複操作: \(item.title)")
             return
         }
 
@@ -217,7 +199,6 @@ struct TodoSheetItemRow: View {
         Task {
             do {
                 let _ = try await APIDataManager.shared.updateTodoItem(updatedTask)
-                print("✅ TodoSheetItemRow - 任務狀態更新成功: \(item.title)")
 
                 // 發送狀態變更通知
                 NotificationCenter.default.post(
@@ -227,8 +208,7 @@ struct TodoSheetItemRow: View {
                 )
             } catch {
                 await MainActor.run {
-                    print("❌ TodoSheetItemRow - 任務狀態更新失敗: \(error.localizedDescription)")
-                    // 回滾到原來的狀態
+                    // 任務狀態更新失敗 - 回滾到原來的狀態
                     withAnimation(.easeInOut(duration: 0.2)) {
                         item.status = originalStatus
                         item.completionStatus = originalCompletionStatus // 🆕 同時回滾新字段

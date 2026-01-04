@@ -210,9 +210,6 @@ class PhysicsScene: SKScene {
             node.userData?.setValue(todoItem.id.uuidString, forKey: "todoID")
             
             addChild(node)
-            
-            // 減少視覺效果日誌輸出
-            // print("創建球體 \(i): ID=\(todoItem.id), 直徑=\(diameter), 位置=(\(node.position.x), \(node.position.y))")
         }
     }
 }

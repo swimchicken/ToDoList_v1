@@ -13,10 +13,8 @@ struct CloudKitHelper {
         let modifyZonesOp = CKModifyRecordZonesOperation(recordZonesToSave: [zone], recordZoneIDsToDelete: nil)
         modifyZonesOp.modifyRecordZonesCompletionBlock = { savedZones, deletedZoneIDs, error in
             if let error = error {
-                print("Custom zone creation error: \(error.localizedDescription)")
                 completion(false)
             } else {
-                print("Custom zone ensured: \(zoneID.zoneName)")
                 completion(true)
             }
         }

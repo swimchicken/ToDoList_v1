@@ -200,14 +200,11 @@ class HomeViewModel: ObservableObject {
     // MARK: - Event Handlers
     
     func handleEndTodayTapped() {
-        print("🔥 用戶點擊 end today 按鈕")
         guard !isSyncing else {
-            print("🔥 正在同步中，無法執行結算")
             return
         }
-        
+
         let isSameDay = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
-        print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDay) (主動結算)")
         UserDefaults.standard.set(true, forKey: "isActiveEndDay")
         
         NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
@@ -234,7 +231,7 @@ class HomeViewModel: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
-                    print("🔥 載入項目失敗: \(error.localizedDescription)")
+                    // 載入項目失敗
                 }
             }
         }
@@ -285,7 +282,6 @@ class HomeViewModel: ObservableObject {
     }
 
     func handleSleepButtonTapped() {
-        print("Sleep button tapped, current navigateToSleep01View: \(navigateToSleep01View)")
         if navigateToSleep01View {
             navigateToSleep01View = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -367,7 +363,7 @@ class HomeViewModel: ObservableObject {
                 do {
                     _ = try await self.apiDataManager.addTodoItem(item)
                 } catch {
-                    print("保存任務失敗: \(error.localizedDescription)")
+                    // 保存任務失敗
                 }
             }
         }
@@ -415,7 +411,7 @@ class HomeViewModel: ObservableObject {
                 try await apiDataManager.deleteTodoItem(withID: deletedItemID)
                 await MainActor.run { self.loadTodoItems() }
             } catch {
-                await MainActor.run { print("刪除失敗: \(error.localizedDescription)") }
+                await MainActor.run { /* 刪除失敗 */ }
             }
         }
     }
@@ -450,7 +446,7 @@ class HomeViewModel: ObservableObject {
                 try await apiDataManager.deleteTodoItem(withID: deletedItemID)
                 await MainActor.run { self.loadTodoItems() }
             } catch {
-                await MainActor.run { print("移動到佇列失敗: \(error.localizedDescription)") }
+                await MainActor.run { /* 移動到佇列失敗 */ }
             }
         }
     }
@@ -468,12 +464,12 @@ class HomeViewModel: ObservableObject {
                         if !allItems.isEmpty {
                             navigateToSettlementView = true
                         } else {
-                            print("自動結算檢測但沒有任何事件，跳過結算流程")
+                            // 自動結算檢測但沒有任何事件，跳過結算流程
                         }
                     }
                 } catch {
                     await MainActor.run {
-                        print("自動結算載入項目失敗: \(error.localizedDescription)")
+                        // 自動結算載入項目失敗
                     }
                 }
             }
@@ -545,13 +541,11 @@ class HomeViewModel: ObservableObject {
     }
     
     @objc private func handleAlarmTriggered() {
-        print("收到鬧鐘觸發通知，準備導航到 Sleep01")
         alarmStateManager.triggerAlarm()
         navigateToSleep01View = true
     }
     
     @objc private func handleSleepModeChanged() {
-        print("收到睡眠模式狀態變更通知")
         checkSleepMode()
     }
 

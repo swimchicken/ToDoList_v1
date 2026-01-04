@@ -21,6 +21,5 @@ class SettlementStateManager: ObservableObject {
         pendingOperations = []
         tempAddedItems = []
         tempDeletedItemIDs = []
-        print("🗑️ SettlementStateManager 已重置 (暫存清空)")
     }
 }

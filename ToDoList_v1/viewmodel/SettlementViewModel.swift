@@ -42,7 +42,6 @@ class SettlementViewModel {
             processTasksData(apiItems)
             isLoading = false
         } catch {
-            print("❌ SettlementViewModel載入任務失敗: \(error.localizedDescription)")
             isLoading = false
         }
     }
@@ -110,19 +109,16 @@ class SettlementViewModel {
     func toggleTaskStatus(_ task: TodoItem) async {
         // 防止重複點擊
         guard !ongoingUpdates.contains(task.id) else {
-            print("🛑 重複點擊被阻止: \(task.title)")
             return
         }
 
         ongoingUpdates.insert(task.id)
-        print("🎯 SettlementViewModel開始切換狀態: \(task.title)")
 
         // 獲取當前實際狀態 (來自ViewModel中的陣列，不是傳入的task參數)
         let currentTask = getCurrentTask(id: task.id)
         let currentStatus = currentTask?.status ?? task.status
         let newStatus: TodoStatus = currentStatus == .completed ? .undone : .completed
 
-        print("📊 任務狀態檢查: \(task.title) - 原始狀態:\(task.status), 當前狀態:\(currentStatus), 新狀態:\(newStatus)")
 
         // 樂觀更新UI - @Observable自動觸發重新渲染
         updateTaskStatusOptimistically(taskId: task.id, newStatus: newStatus)
@@ -132,9 +128,7 @@ class SettlementViewModel {
             var updatedTask = currentTask ?? task
             updatedTask.status = newStatus
             let _ = try await apiDataManager.updateTodoItem(updatedTask)
-            print("✅ API更新成功: \(task.title)")
         } catch {
-            print("❌ API更新失敗: \(task.title) - \(error.localizedDescription)")
             // 檢查是否是重複請求錯誤
             let nsError = error as NSError
             if !(nsError.domain == "APIDataManager" && nsError.code == 409) {
@@ -149,7 +143,6 @@ class SettlementViewModel {
 
     // MARK: - 樂觀更新邏輯
     private func updateTaskStatusOptimistically(taskId: UUID, newStatus: TodoStatus) {
-        print("🔄 執行樂觀更新: \(taskId) -> \(newStatus)")
 
         // 這裡的 withAnimation 負責的是「列表項目的移動/消失/出現」
         // 而不是「球球顏色的變化」(那是 View 層負責的)
@@ -161,7 +154,6 @@ class SettlementViewModel {
                 if newStatus != .completed {
                     uncompletedTasks.append(task)
                 }
-                print("➡️ 任務從已完成移到未完成")
                 return
             }
 
@@ -174,11 +166,10 @@ class SettlementViewModel {
                 } else {
                     uncompletedTasks.append(task)
                 }
-                print("➡️ 任務從未完成移到已完成")
                 return
             }
 
-            print("⚠️ 找不到要更新的任務: \(taskId)")
+            // 找不到要更新的任務
         }
 
         // @Observable會自動觸發UI更新，不需要手動調用

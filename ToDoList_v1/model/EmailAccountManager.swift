@@ -39,10 +39,8 @@ class EmailAccountManager {
         
         privateDatabase.save(record) { savedRecord, error in
             if let error = error {
-                print("Error creating email account: \(error.localizedDescription)")
                 completion(false, error)
             } else {
-                print("Email account created successfully!")
                 completion(true, nil)
             }
         }
@@ -57,7 +55,6 @@ class EmailAccountManager {
             switch result {
             case .success(let queryResult):
                 guard let record = queryResult.matchResults.compactMap({ try? $0.1.get() }).first else {
-                    print("No account found for email \(email)")
                     completion(false, nil)
                     return
                 }
@@ -66,19 +63,15 @@ class EmailAccountManager {
                     record["updatedAt"]  = Date() as CKRecordValue
                     self.privateDatabase.save(record) { _, error in
                         if let error = error {
-                            print("Error verifying email account: \(error.localizedDescription)")
                             completion(false, error)
                         } else {
-                            print("Email account verified successfully!")
                             completion(true, nil)
                         }
                     }
                 } else {
-                    print("Verification code incorrect")
                     completion(false, nil)
                 }
             case .failure(let error):
-                print("Error querying email account: \(error.localizedDescription)")
                 completion(false, error)
             }
         }
@@ -101,7 +94,6 @@ class EmailAccountManager {
                 let inputHash = self.hashPassword(password)
                 completion(inputHash == storedHash)
             case .failure(let error):
-                print("Error logging in with email: \(error.localizedDescription)")
                 completion(false)
             }
         }

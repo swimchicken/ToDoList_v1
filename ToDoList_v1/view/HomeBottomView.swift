@@ -464,8 +464,6 @@ struct HomeBottomView: View {
             // 現在 result 的 success case 直接就是 [TodoItem]
             switch result {
             case .success(let items):
-                print("✅ Gemini API 成功回傳!")
-                print("任務總數: \(items.count)")
                 
                 isSendingText = false
                 
@@ -478,7 +476,6 @@ struct HomeBottomView: View {
                 }
                 
             case .failure(let error):
-                print("❌ Gemini API 錯誤: \(error.localizedDescription)")
                 
                 // 呼叫 onError 閉包來顯示 Toast
                 onError("轉譯錯誤，請再試一次")

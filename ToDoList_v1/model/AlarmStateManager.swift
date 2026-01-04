@@ -40,7 +40,6 @@ class AlarmStateManager: ObservableObject {
     func triggerAlarm() {
         // 防止重複觸發
         guard !hasTriggeredAlarmToday else {
-            print("⏰ 今天已經觸發過鬧鐘，跳過重複觸發")
             return
         }
 
@@ -53,25 +52,16 @@ class AlarmStateManager: ObservableObject {
 
         // 先檢查並請求通知權限，然後發送通知
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            print("=== 通知權限狀態 ===")
-            print("授權狀態: \(settings.authorizationStatus.rawValue)")
-            print("聲音權限: \(settings.soundSetting.rawValue)")
-            print("橫幅權限: \(settings.alertSetting.rawValue)")
-            print("==================")
             
             if settings.authorizationStatus == .notDetermined {
                 // 如果權限未確定，先請求權限
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
                     if granted {
-                        print("✅ 通知權限已獲得")
                     } else {
-                        print("❌ 通知權限被拒絕: \(error?.localizedDescription ?? "未知原因")")
                     }
                 }
             } else if settings.authorizationStatus == .authorized {
-                print("✅ 已有通知權限")
             } else {
-                print("❌ 通知權限被拒絕或受限，狀態: \(settings.authorizationStatus)")
             }
         }
     }
@@ -99,7 +89,6 @@ class AlarmStateManager: ObservableObject {
             }
             
             if !alarmRequests.isEmpty {
-                print("發現待處理的鬧鐘通知: \(alarmRequests.count) 個")
             }
         }
     }
@@ -126,9 +115,7 @@ class AlarmStateManager: ObservableObject {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("設定鬧鐘失敗: \(error)")
             } else {
-                print("鬧鐘已設定為 \(time)")
             }
         }
     }
@@ -136,7 +123,6 @@ class AlarmStateManager: ObservableObject {
     // 取消所有鬧鐘
     func cancelAllAlarms() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
-        print("已取消所有鬧鐘")
     }
     
     // MARK: - 睡眠模式管理
@@ -156,12 +142,6 @@ class AlarmStateManager: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
 
-        print("AlarmStateManager初始化: sleepModeExists=\(sleepModeExists), isSleepModeActive=\(isSleepModeActive), alarmTime=\(alarmTimeString)")
-        if let sleepStartTime = sleepStartTime {
-            print("已保存的睡眠開始時間: \(formatter.string(from: sleepStartTime))")
-        } else {
-            print("未找到睡眠開始時間")
-        }
         
         if isSleepModeActive {
             updateSleepProgress()
@@ -182,7 +162,6 @@ class AlarmStateManager: ObservableObject {
             // 立即更新進度
             self.updateSleepProgress()
             
-            print("睡眠模式已啟動，鬧鐘時間: \(alarmTime)")
             
             // 發送狀態變更通知
             NotificationCenter.default.post(name: Notification.Name("SleepModeStateChanged"), object: nil)
@@ -204,7 +183,6 @@ class AlarmStateManager: ObservableObject {
             UserDefaults.standard.removeObject(forKey: "sleepStartTime")
             UserDefaults.standard.removeObject(forKey: "alarmTimeString")
             
-            print("睡眠模式已結束，所有設定已清除")
             
             // 發送狀態變更通知
             NotificationCenter.default.post(name: Notification.Name("SleepModeStateChanged"), object: nil)
@@ -247,7 +225,6 @@ class AlarmStateManager: ObservableObject {
         // 獲取睡眠設定的開始時間（鬧鐘設定的瞬間）
         // 這個時間應該在睡眠模式啟動時就已經設定好，不應該在這裡重新設定
         guard let sleepStartTime = UserDefaults.standard.object(forKey: "sleepStartTime") as? Date else {
-            print("警告：沒有找到睡眠開始時間，進度條無法計算")
             DispatchQueue.main.async {
                 self.sleepProgress = 0.0
             }
@@ -288,7 +265,6 @@ class AlarmStateManager: ObservableObject {
         if currentTime >= targetAlarmTime {
             // 如果已經到了或過了鬧鐘時間，進度設為100%
             newProgress = 1.0
-            print("⏰ 鬧鐘時間已到，設定進度為100%")
         } else {
             // 如果還沒到鬧鐘時間，計算正常進度
             let totalCycleDuration = targetAlarmTime.timeIntervalSince(sleepStartTime)
@@ -307,21 +283,6 @@ class AlarmStateManager: ObservableObject {
             formatter.dateFormat = "HH:mm:ss"
             formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
 
-            print("=== 統一進度條邏輯 - AlarmStateManager ===")
-            print("當前時間: \(formatter.string(from: currentTime))")
-            print("睡眠開始: \(formatter.string(from: sleepStartTime))")
-            print("目標鬧鐘: \(formatter.string(from: targetAlarmTime))")
-
-            if currentTime >= targetAlarmTime {
-                print("鬧鐘已響起，進度: 100%")
-            } else {
-                let totalDuration = targetAlarmTime.timeIntervalSince(sleepStartTime)
-                let elapsed = currentTime.timeIntervalSince(sleepStartTime)
-                print("總時長: \(String(format: "%.1f", totalDuration/3600))小時")
-                print("已過時間: \(String(format: "%.1f", elapsed/3600))小時")
-                print("進度: \(String(format: "%.1f", self.sleepProgress * 100))%")
-            }
-            print("===============================")
         }
     }
     

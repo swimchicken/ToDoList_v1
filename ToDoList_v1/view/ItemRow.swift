@@ -130,7 +130,6 @@ struct ItemRow: View {
     private func toggleTaskStatus() {
         // 🛡️ 防止重複點擊
         guard !isUpdating else {
-            print("⚠️ 任務更新中，忽略重複操作: \(item.title)")
             return
         }
 
@@ -157,7 +156,6 @@ struct ItemRow: View {
         Task {
             do {
                 let _ = try await APIDataManager.shared.updateTodoItem(updatedTask)
-                print("✅ ItemRow - 任務狀態更新成功: \(item.title)")
 
                 // 發送狀態變更通知
                 NotificationCenter.default.post(
@@ -167,8 +165,7 @@ struct ItemRow: View {
                 )
             } catch {
                 await MainActor.run {
-                    print("❌ ItemRow - 任務狀態更新失敗: \(error.localizedDescription)")
-                    // 回滾到原來的狀態
+                    // 任務狀態更新失敗 - 回滾到原來的狀態
                     withAnimation(.easeInOut(duration: 0.2)) {
                         item.status = originalStatus
                         item.completionStatus = originalCompletionStatus // 🆕 同時回滾新字段

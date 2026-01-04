@@ -109,7 +109,7 @@ struct TobestartedView_Previews: PreviewProvider {
             VStack {
                 // 在 Preview 中，我們需要提供一個空的 collapseAction
                 TobestartedView(items: $previewItems, selectedFilter: $previewFilter, collapseAction: {
-                    print("Preview collapse action triggered")
+                    // Preview collapse action triggered
                 })
             }
             .padding()

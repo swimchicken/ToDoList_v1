@@ -17,7 +17,6 @@ class CloudKitManager {
         // 使用預設的 zoneID 進行查詢
         privateDatabase.perform(query, inZoneWith: CKRecordZone.default().zoneID) { records, error in
             if let error = error {
-                print("查詢資料錯誤: \(error.localizedDescription)")
                 completion(false, error)
                 return
             }
@@ -29,10 +28,8 @@ class CloudKitManager {
                 }
                 self.privateDatabase.save(record) { savedRecord, error in
                     if let error = error {
-                        print("更新資料錯誤: \(error.localizedDescription)")
                         completion(false, error)
                     } else {
-                        print("資料更新成功!")
                         completion(true, nil)
                     }
                 }
@@ -48,10 +45,8 @@ class CloudKitManager {
                 }
                 self.privateDatabase.save(record) { savedRecord, error in
                     if let error = error {
-                        print("建立新資料錯誤: \(error.localizedDescription)")
                         completion(false, error)
                     } else {
-                        print("建立新資料成功!")
                         completion(true, nil)
                     }
                 }

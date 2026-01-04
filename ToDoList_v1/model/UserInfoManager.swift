@@ -27,7 +27,6 @@ class UserInfoManager: ObservableObject {
 
     // MARK: - 載入用戶信息
     func loadUserInfo() {
-        print("[UserInfoManager] 開始載入用戶信息...")
         isLoading = true
 
         // 先嘗試從本地 UserDefaults 載入基本信息
@@ -45,7 +44,6 @@ class UserInfoManager: ObservableObject {
         if let name = storedName, let email = storedEmail {
             DispatchQueue.main.async {
                 self.userInfo = UserInfo(name: name, email: email)
-                print("[UserInfoManager] 從 UserDefaults 載入用戶信息: \(name), \(email)")
             }
         }
     }
@@ -54,14 +52,12 @@ class UserInfoManager: ObservableObject {
     private func fetchFromCloudKit() {
         // 獲取用戶 ID（Apple 或 Google 登入）
         guard let userID = getCurrentUserID() else {
-            print("[UserInfoManager] 無法獲取用戶 ID")
             DispatchQueue.main.async {
                 self.isLoading = false
             }
             return
         }
 
-        print("[UserInfoManager] 使用用戶 ID 從 CloudKit 獲取信息: \(userID)")
 
         // 從 ApiUser 表獲取用戶信息
         fetchFromApiUser(userID: userID) { [weak self] success in
@@ -104,7 +100,6 @@ class UserInfoManager: ObservableObject {
 
         privateDatabase.perform(query, inZoneWith: CKRecordZone.default().zoneID) { [weak self] records, error in
             if let error = error {
-                print("[UserInfoManager] ApiUser 查詢失敗: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     completion(false)
                 }
@@ -112,7 +107,6 @@ class UserInfoManager: ObservableObject {
             }
 
             guard let record = records?.first else {
-                print("[UserInfoManager] ApiUser 中未找到用戶記錄")
                 DispatchQueue.main.async {
                     completion(false)
                 }
@@ -125,7 +119,6 @@ class UserInfoManager: ObservableObject {
             DispatchQueue.main.async {
                 self?.userInfo = UserInfo(name: name, email: email)
                 self?.saveToUserDefaults(name: name, email: email)
-                print("[UserInfoManager] 從 ApiUser 更新用戶信息: \(name), \(email)")
                 completion(true)
             }
         }
@@ -145,12 +138,10 @@ class UserInfoManager: ObservableObject {
             }
 
             if let error = error {
-                print("[UserInfoManager] PersonalData 查詢失敗: \(error.localizedDescription)")
                 return
             }
 
             guard let record = records?.first else {
-                print("[UserInfoManager] PersonalData 中未找到用戶記錄")
                 return
             }
 
@@ -162,7 +153,6 @@ class UserInfoManager: ObservableObject {
             DispatchQueue.main.async {
                 self?.userInfo = UserInfo(name: name, email: email)
                 self?.saveToUserDefaults(name: name, email: email)
-                print("[UserInfoManager] 從 PersonalData 更新用戶信息: \(name), \(email)")
             }
         }
     }
@@ -182,7 +172,6 @@ class UserInfoManager: ObservableObject {
     private func saveToUserDefaults(name: String, email: String) {
         UserDefaults.standard.set(name, forKey: "userName")
         UserDefaults.standard.set(email, forKey: "userEmail")
-        print("[UserInfoManager] 用戶信息已保存到 UserDefaults")
     }
 
     // MARK: - 更新用戶名稱
@@ -224,7 +213,6 @@ class UserInfoManager: ObservableObject {
 
         privateDatabase.perform(query, inZoneWith: CKRecordZone.default().zoneID) { records, error in
             if let error = error {
-                print("[UserInfoManager] 更新 ApiUser 名稱失敗: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     completion(false)
                 }
@@ -232,7 +220,6 @@ class UserInfoManager: ObservableObject {
             }
 
             guard let record = records?.first else {
-                print("[UserInfoManager] ApiUser 中未找到用戶記錄")
                 DispatchQueue.main.async {
                     completion(false)
                 }
@@ -243,12 +230,10 @@ class UserInfoManager: ObservableObject {
 
             privateDatabase.save(record) { savedRecord, error in
                 if let error = error {
-                    print("[UserInfoManager] 保存 ApiUser 名稱失敗: \(error.localizedDescription)")
                     DispatchQueue.main.async {
                         completion(false)
                     }
                 } else {
-                    print("[UserInfoManager] ApiUser 名稱更新成功")
                     DispatchQueue.main.async {
                         completion(true)
                     }
@@ -265,10 +250,8 @@ class UserInfoManager: ObservableObject {
 
         CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
             if success {
-                print("[UserInfoManager] PersonalData 名稱更新成功")
                 completion(true)
             } else if let error = error {
-                print("[UserInfoManager] PersonalData 名稱更新失敗: \(error.localizedDescription)")
                 completion(false)
             }
         }
@@ -276,7 +259,6 @@ class UserInfoManager: ObservableObject {
 
     // MARK: - 刷新用戶信息
     func refreshUserInfo() {
-        print("[UserInfoManager] 手動刷新用戶信息")
         loadUserInfo()
     }
 
@@ -289,6 +271,5 @@ class UserInfoManager: ObservableObject {
 
         UserDefaults.standard.removeObject(forKey: "userName")
         UserDefaults.standard.removeObject(forKey: "userEmail")
-        print("[UserInfoManager] 用戶信息已清除")
     }
 }

@@ -24,7 +24,6 @@ class WidgetDataManager {
         // 修正：使用正確的 UserDefaults 初始化方式
         let sharedDefaults = UserDefaults(suiteName: appGroupID)
         guard let defaults = sharedDefaults else {
-            print("❌ 無法訪問 App Group UserDefaults")
             return
         }
         
@@ -48,32 +47,25 @@ class WidgetDataManager {
             // 強制同步到磁盤
             defaults.synchronize()
             
-            print("✅ 已保存 \(todayTasks.count) 個今日任務給 Widget")
             
             // 驗證保存
             if let savedData = defaults.data(forKey: todayTasksKey) {
-                print("✅ 驗證：數據已成功保存，大小: \(savedData.count) bytes")
                 
                 // 通知 Widget 更新
                 WidgetCenter.shared.reloadAllTimelines()
-                print("✅ 已通知 Widget 更新")
             } else {
-                print("❌ 驗證：數據保存失敗")
             }
         } catch {
-            print("❌ 編碼任務失敗: \(error)")
         }
     }
     
     /// 從 Widget 中載入今日任務
     func loadTodayTasksFromWidget() -> [TodoItem] {
         guard let sharedDefaults = UserDefaults(suiteName: appGroupID) else {
-            print("❌ 無法訪問 App Group UserDefaults")
             return []
         }
         
         guard let data = sharedDefaults.data(forKey: todayTasksKey) else {
-            print("⚠️ 沒有找到 Widget 任務數據")
             return []
         }
         
@@ -81,10 +73,8 @@ class WidgetDataManager {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let tasks = try decoder.decode([TodoItem].self, from: data)
-            print("✅ 從 Widget 載入了 \(tasks.count) 個任務")
             return tasks
         } catch {
-            print("❌ 解碼任務失敗: \(error)")
             return []
         }
     }
@@ -96,6 +86,5 @@ class WidgetDataManager {
         }
         
         sharedDefaults.removeObject(forKey: todayTasksKey)
-        print("✅ 已清除 Widget 數據")
     }
 }
