@@ -887,7 +887,7 @@ struct Home: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $navigateToSettlementView) {
-            SettlementView()
+            SettlementView(allItems: self.toDoItems)
                 .onAppear {
                 }
                 .onDisappear {

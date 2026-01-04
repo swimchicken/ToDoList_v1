@@ -303,137 +303,70 @@ struct SettlementView03: View {
         guard !isProcessing else { return }
         isProcessing = true
         
-        print("🚀 [SettlementView03] 開始執行最終結算流程...")
+        print("🚀 [SettlementView03] 立即導航，背景執行結算...")
+
+        // 1. 同步計算樂觀更新所需的數據
+        let moved = calculateMovedTasks()
         
-        Task {
+        // 2. 在主線程上立即準備數據並觸發導航
+        DispatchQueue.main.async {
+            // 將操作結果存入 state manager 以便 Home 進行樂觀更新
+            stateManager.movedItems = moved
+            stateManager.reset() // 這會將 pendingOperations 移至 completedOperations
+
+            // 立即發送通知，觸發 Home 的導航和樂觀更新
+            NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
+            
+            // 如果需要，處理鬧鐘（這是快速的本地操作）
+            if !isAlarmDisabled {
+                setupAlarmAndSleepMode()
+            } else {
+                clearAlarmAndSleepMode()
+            }
+        }
+        
+        // 3. 在背景執行耗時的網絡操作
+        Task.detached(priority: .background) {
+            print(" Background Task: 開始執行 API 操作...")
             do {
-                // 1. 執行 Page 2 的暫存操作
                 try await executePendingOperations()
                 
-                // 2. 執行 Page 1 的移動任務邏輯
-                var movedTasks: [TodoItem] = []
                 if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
-                    movedTasks = await performMoveTasksToTomorrow()
+                    // 這裡的 performMoveTasksToTomorrow 僅執行網絡請求
+                    await performMoveTasksToTomorrowAPICall(moved)
                 }
                 
-                // 3. 標記今天完成
+                // 本地標記操作（這些是快速的，可以在背景完成）
                 completeDayDataManager.markTodayAsCompleted()
-                
-                // 4. 標記結算流程完成
                 delaySettlementManager.markSettlementCompleted()
                 
-                // 5. 全部成功！回到主線程更新 UI 並清空資料
-                await MainActor.run {
-                    if !isAlarmDisabled {
-                        setupAlarmAndSleepMode()
-                    } else {
-                        clearAlarmAndSleepMode()
-                    }
-                    
-                    print("🧹 結算成功，準備清空暫存資料並發送通知...")
-                    
-                    // ✅ 在 reset 前，將 movedTasks 存入 state manager
-                    stateManager.movedItems = movedTasks
-                    stateManager.reset()
-                    
-                    // 發送通知刷新首頁
-                    NotificationCenter.default.post(name: Notification.Name("SettlementCompleted"), object: nil)
-                    NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
-                    
-                    isProcessing = false
-                }
+                print(" Background Task: API 操作完成。")
+                
+                // 如果需要在背景任務完成後在主線程執行某些操作，可以這樣寫：
+                // await MainActor.run {
+                //     // 例如：顯示一個小小的成功提示
+                // }
                 
             } catch {
-                // ✅ 錯誤處理：如果有任何一步失敗 (throw error)，就會跳到這裡
-                await MainActor.run {
-                    print("❌ 結算流程失敗: \(error.localizedDescription)")
-                    print("⚠️ 暫存資料未清空，請檢查網路或 API 狀態")
-                    
-                    isProcessing = false
-                    // 這裡不導航回首頁，讓用戶可以重試
-                }
+                print("❌ Background Task: 結算流程中的 API 操作失敗: \(error.localizedDescription)")
+                // 這裡可以加入錯誤處理邏輯，例如設置一個狀態，讓 App 下次啟動時重試
             }
         }
     }
-    
-    private func executePendingOperations() async throws {
-            guard !stateManager.pendingOperations.isEmpty else { return }
-            print("⚡️ [API] 開始執行 \(stateManager.pendingOperations.count) 個暫存操作")
-            
-            // 依序執行每個操作，如果有一個失敗就 throw error
-            for operation in stateManager.pendingOperations {
-                switch operation {
-                case .addItem(let item):
-                    // ✅ 修正：呼叫 createTodo，並進行資料轉換
-                    print("➕ 執行新增 API (Create): \(item.title)")
-                    
-                    // 將 TodoItem 轉換為 CreateTodoRequest
-                    let request = CreateTodoRequest(
-                        title: item.title,
-                        note: item.note,
-                        priority: item.priority,
-                        isPinned: item.isPinned,
-                        taskDate: item.taskDate,
-                        taskType: TaskType (rawValue: item.taskType.rawValue)!,
-                        completionStatus: item.completionStatus,
-                        status: item.status,
-                        correspondingImageId: item.correspondingImageID
-                    )
-                    
-                    // 呼叫正確的方法名稱：createTodo
-                    let _ = try await apiManager.createTodo(request)
-                    
-                    print("✅ 新增成功: \(item.title)")
-                    
-                case .deleteItem(let id):
-                    try await apiManager.deleteTodo(id: id)
-                    print("✅ 刪除成功: \(id)")
-                    
-                case .updateItem(let item):
-                    let request = UpdateTodoRequest(
-                        title: item.title,
-                        note: item.note,
-                        priority: item.priority,
-                        isPinned: item.isPinned,
-                        taskDate: item.taskDate,
-                        taskType: item.taskType,
-                        completionStatus: item.completionStatus,
-                        status: item.status,
-                        correspondingImageId: item.correspondingImageID.isEmpty ? "" : item.correspondingImageID
-                    )
-                    let _ = try await apiManager.updateTodo(id: item.id, request)
-                    print("✅ 更新成功: \(item.title)")
-                }
-            }
-            print("🎉 所有暫存操作執行完畢！")
-        
-    }
-    
-    // 執行任務批量移動
-    // MARK: - Task Movement Logic (修正版)
-    
-    /// 將未完成任務移至明日的數據處理
-    private func performMoveTasksToTomorrow() async -> [TodoItem] {
-        print("🚀 [Logic] 開始執行任務日期移動邏輯 (使用 Batch API)...")
-        
+
+    /// 僅計算將要移動的任務，返回更新後的本地模型 (同步)
+    private func calculateMovedTasks() -> [TodoItem] {
         let calendar = Calendar.current
-        let now = Date()
-        
-        // 1. 設定目標日期 (明天)
-        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return [] }
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: Date()) else { return [] }
         let targetDayStart = calendar.startOfDay(for: tomorrow)
         
-        // 2. 建立排除清單 (如果在 Page 2 刪除了，就不移動)
         let deletedIds = stateManager.pendingOperations.compactMap { operation -> UUID? in
             if case .deleteItem(let id) = operation { return id }
             return nil
         }
         let deletedSet = Set(deletedIds)
         
-        // 3. 準備批量更新資料
-        var batchItems: [BatchUpdateItem] = []
-        var movedTasks: [TodoItem] = [] // 用於樂觀更新的返回陣列
-
+        var movedTasks: [TodoItem] = []
         for task in uncompletedTasks {
             if deletedSet.contains(task.id) { continue }
             
@@ -455,39 +388,70 @@ struct SettlementView03: View {
                 
                 updatedTask.taskDate = newTaskDate
                 movedTasks.append(updatedTask)
-
-                let batchItem = BatchUpdateItem(
-                    id: task.id,
-                    title: nil,
-                    status: nil,
-                    task_date: newTaskDate,
-                    priority: nil,
-                    is_pinned: nil,
-                    note: nil,
-                    corresponding_image_id: nil
-                )
-                batchItems.append(batchItem)
-                
-            } else {
-                continue // 跳過備忘錄
             }
         }
-        
-        guard !batchItems.isEmpty else {
-            print("⚠️ 沒有需要移動的任務")
-            return []
+        return movedTasks
+    }
+    
+    /// 僅執行移動任務的 API 調用 (異步)
+    private func performMoveTasksToTomorrowAPICall(_ movedTasks: [TodoItem]) async {
+        guard !movedTasks.isEmpty else {
+            print("⚠️ 沒有需要移動到明日的任務(API Call)。")
+            return
+        }
+
+        let batchItems = movedTasks.map { task in
+            return BatchUpdateItem(
+                id: task.id, title: nil, status: nil, task_date: task.taskDate,
+                priority: nil, is_pinned: nil, note: nil, corresponding_image_id: nil
+            )
         }
         
-        // 4. 發送 API
-        print("⚡️ [API] 發送 Batch PUT 請求，包含 \(batchItems.count) 個任務")
+        print("⚡️ [API] Background: 發送 Batch PUT 請求，包含 \(batchItems.count) 個任務")
         do {
             let response = try await apiManager.batchUpdateTasks(items: batchItems)
-            print("✅ 批量移動成功! API 回應: \(response)")
-            return movedTasks // 成功後返回已移動的任務
+            print("✅ Background: 批量移動成功! API 回應: \(response)")
         } catch {
-            print("❌ 批量移動失敗: \(error.localizedDescription)")
-            return [] // 失敗時返回空陣列
+            print("❌ Background: 批量移動失敗: \(error.localizedDescription)")
         }
+    }
+    
+    private func executePendingOperations() async throws {
+            guard !stateManager.pendingOperations.isEmpty else { return }
+            print("⚡️ [API] Background: 開始執行 \(stateManager.pendingOperations.count) 個暫存操作")
+            
+            // 依序執行每個操作，如果有一個失敗就 throw error
+            for operation in stateManager.pendingOperations {
+                switch operation {
+                case .addItem(let item):
+                    print("➕ Background: 執行新增 API (Create): \(item.title)")
+                    let request = item.toCreateRequest()
+                    let _ = try await apiManager.createTodo(request)
+                    print("✅ Background: 新增成功: \(item.title)")
+                    
+                case .deleteItem(let id):
+                    try await apiManager.deleteTodo(id: id)
+                    print("✅ Background: 刪除成功: \(id)")
+                    
+                case .updateItem(let item):
+                    let request = item.toUpdateRequest()
+                    let _ = try await apiManager.updateTodo(id: item.id, request)
+                    print("✅ Background: 更新成功: \(item.title)")
+                }
+            }
+            print("🎉 Background: 所有暫存操作執行完畢！")
+        
+    }
+    
+    // 執行任務批量移動
+    // MARK: - Task Movement Logic (修正版)
+    
+    /// 將未完成任務移至明日的數據處理 - 這個方法現在被分解了
+    private func performMoveTasksToTomorrow() async -> [TodoItem] {
+        // 這個函數的邏輯已被分解為 calculateMovedTasks 和 performMoveTasksToTomorrowAPICall
+        // 為了安全起見保留一個空的實現，但它不應該被直接調用
+        print("⚠️ performMoveTasksToTomorrow() is deprecated. Use calculate and APICall functions instead.")
+        return []
     }
     
     // 設定鬧鐘與睡眠模式

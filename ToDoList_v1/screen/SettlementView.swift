@@ -65,6 +65,12 @@ struct SettlementView: View {
     // 防止重複樂觀更新
     @State private var recentlyUpdatedTasks: Set<UUID> = []
     
+    let allItems: [TodoItem]
+
+    init(allItems: [TodoItem] = []) {
+        self.allItems = allItems
+    }
+    
     // 日期相關
     private var currentDate: Date {
         return Date()
@@ -301,14 +307,14 @@ struct SettlementView: View {
             // 設置數據變更監聽
             setupDataChangeObservers()
 
-            // 🎯 優化：只有第一次進入或需要刷新時才調用API
+            // 只有第一次進入時才處理數據
             if !hasInitializedData {
-                print("SettlementView - 第一次進入，調用API加載數據")
-                loadTasks()
+                print("SettlementView - 第一次進入，使用傳入的數據")
+                processTasksData(self.allItems)
+                self.isLoading = false
                 hasInitializedData = true
             } else {
                 print("SettlementView - 頁面返回，保持現有數據，無需API調用")
-                // 如果已經有數據，直接設置為非加載狀態
                 isLoading = false
             }
         }
@@ -331,71 +337,6 @@ struct SettlementView: View {
             )
             .hidden()
         )
-    }
-
-    // 加載任務數據 (只在第一次進入時調用)
-    func loadTasks() {
-        isLoading = true
-
-        // 清空數據，準備載入新數據
-        completedTasks = []
-        uncompletedTasks = []
-
-        // 使用API獲取任務數據
-        Task {
-            do {
-                // 1. 取得 API 資料 (型別是 [APITodoItem])
-                let apiItems = try await APIManager.shared.fetchTodos()
-                
-                // 2. 轉換資料 (將 [APITodoItem] 轉成 [TodoItem])
-                let convertedItems = apiItems.map { apiItem in
-                    // 🔍 Debug: 改印出 completionStatus 字串來確認
-                    // 👇👇👇 🔍 DEBUG: 列出所有欄位的數值與型別 👇👇👇
-                    print("\n========== 🔍 詳細檢查任務資料 (ID: \(apiItem.id)) ==========")
-                    print("1. [title]             值: \(apiItem.title), 型別: \(type(of: apiItem.title))")
-                    print("2. [completionStatus]  值: \(String(describing: apiItem.completionStatus)), 型別: \(type(of: apiItem.completionStatus))")
-                    print("3. [status]            值: \(String(describing: apiItem.status)), 型別: \(type(of: apiItem.status))")
-                    print("4. [taskDate]          值: \(String(describing: apiItem.taskDate)), 型別: \(type(of: apiItem.taskDate))")
-                    print("5. [taskType]          值: \(String(describing: apiItem.taskType)), 型別: \(type(of: apiItem.taskType))")
-                    print("6. [isPinned]          值: \(apiItem.isPinned), 型別: \(type(of: apiItem.isPinned))")
-                    print("============================================================\n")
-                    // 👆👆👆 --------------------------------------- 👆👆👆
-                    
-                    // ✅ 關鍵修改：判斷字串是否為 "completed"
-                    let isCompleted = (apiItem.completionStatus == "completed")
-                    
-                    return TodoItem(
-                        id: apiItem.id,
-                        userID: "",
-                        title: apiItem.title,
-                        priority: apiItem.priority,
-                        isPinned: apiItem.isPinned,
-                        taskDate: apiItem.taskDate,
-                        note: apiItem.note,
-                        taskType: .scheduled,
-                        
-                        // ✅ 修正：根據字串判斷結果設定狀態
-                        completionStatus: isCompleted ? .completed : .pending,
-                        status: isCompleted ? .completed : .undone, // 同步更新 status 以防萬一
-                        
-                        createdAt: Date(),
-                        updatedAt: Date(),
-                        correspondingImageID: ""
-                    )
-                }
-                
-                await MainActor.run {
-                    // 3. 傳入轉換後的資料
-                    self.processTasksData(convertedItems)
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    print("SettlementView - 從API加載任務失敗: \(error.localizedDescription)")
-                    self.isLoading = false
-                }
-            }
-        }
     }
     
     // 處理任務數據的共用方法
