@@ -92,6 +92,12 @@ class GoogleSignInManager: NSObject {
                 let authResponse: AuthResponse = try await apiDataManager.loginWithGoogle(idToken: idToken)
 
                 await MainActor.run {
+                    // ✅ 新增：登入成功後，立即儲存包括頭像 URL 在內的所有用戶資訊
+                    UserInfoManager.shared.saveUserInfo(
+                        name: authResponse.user.name ?? "User",
+                        email: authResponse.user.email,
+                        avatarUrl: authResponse.user.avatarUrl
+                    )
 
                     // 儲存用戶信息
                     UserDefaults.standard.set(userId, forKey: "googleAuthorizedUserId")

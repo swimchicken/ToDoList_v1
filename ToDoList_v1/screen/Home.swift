@@ -245,8 +245,11 @@ struct Home: View {
 
     // 添加一個計算屬性來動態計算底部 padding
     private var bottomPaddingForTaskList: CGFloat {
-        // 當天顯示物理場景時需要更多間距
-        // 非當天只顯示按鈕時需要較少間距
+        // 睡眠模式下需要固定的較高邊距
+        if isSleepMode {
+            return 150
+        }
+        // 非睡眠模式下，根據是否為當天決定邊距
         return isCurrentDay ? 190 : 90
     }
     
@@ -264,7 +267,7 @@ struct Home: View {
                     // Header - 使用台灣時間
                     VStack(spacing: 0) {
                         UserInfoView(
-                            avatarImageName: "who",
+                            avatarUrl: UserInfoManager.shared.userInfo.avatarUrl,
                             dateText: taiwanTime.monthDay,
                             dateText2: taiwanTime.weekday,
                             statusText: taiwanTime.timeStatus,
@@ -277,6 +280,7 @@ struct Home: View {
                             }
                         )
                         .frame(maxWidth: .infinity, maxHeight: 0)
+                        .padding(.horizontal, 8) // 新增水平邊距
                     }
                     
                     VStack(alignment: .leading, spacing: 6) {

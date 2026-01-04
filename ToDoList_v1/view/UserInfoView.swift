@@ -4,7 +4,7 @@ import SwiftUI
 struct UserInfoView: View {
     
     // 範例中示範要顯示的資料，可根據需求自由增減
-    let avatarImageName: String
+    let avatarUrl: String?
     let dateText: String
     let dateText2: String
     let statusText: String
@@ -20,11 +20,33 @@ struct UserInfoView: View {
             HStack(spacing: 16) {
                 // 頭像 - 添加點擊功能
                 Button(action: onAvatarTapped) {
-                    Image(avatarImageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 45, height: 45)
-                        .clipShape(Circle())
+                    AsyncImage(url: URL(string: avatarUrl ?? "")) { phase in
+                        switch phase {
+                        case .empty:
+                            // 正在加載時，顯示佔位符
+                            Image("who")
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 45, height: 45)
+                                .clipShape(Circle())
+                        case .success(let image):
+                            // 加載成功，顯示網絡圖片
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 45, height: 45)
+                                .clipShape(Circle())
+                        case .failure:
+                            // 加載失敗或 URL 無效，顯示預設圖片
+                            Image("who")
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 45, height: 45)
+                                .clipShape(Circle())
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
                 }
                 
                 Spacer()

@@ -43,6 +43,7 @@ struct ProfileSidebarView: View {
                     .background(Color(hex: "1C1C1E"))
                     .offset(x: isPresented ? 0 : -min(geometry.size.width * 0.75, 320))
                     .offset(x: dragOffset)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isPresented) // ✅ 新增
                     .gesture(
                         DragGesture()
                             .onChanged { value in
@@ -83,11 +84,30 @@ struct ProfileSidebarView: View {
     private var userInfoView: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Image("who")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 48, height: 48)
-                    .clipShape(Circle())
+                AsyncImage(url: URL(string: userInfoManager.userInfo.avatarUrl ?? "")) { phase in
+                    switch phase {
+                    case .empty:
+                        Image("who")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 48, height: 48)
+                            .clipShape(Circle())
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 48, height: 48)
+                            .clipShape(Circle())
+                    case .failure:
+                        Image("who")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 48, height: 48)
+                            .clipShape(Circle())
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
