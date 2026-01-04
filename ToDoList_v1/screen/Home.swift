@@ -1323,6 +1323,11 @@ struct Home: View {
             dataRefreshToken = UUID()
         }
         
+        // 監聽結算完成通知，重置導航狀態
+        NotificationCenter.default.addObserver(forName: Notification.Name("SettlementCompleted"), object: nil, queue: .main) { _ in
+            self.navigateToSettlementView = false
+        }
+        
         // 監聽鬧鐘觸發通知
         NotificationCenter.default.addObserver(forName: Notification.Name("AlarmTriggered"), object: nil, queue: .main) { _ in
             alarmStateManager.triggerAlarm()

@@ -36,7 +36,6 @@ struct Page03ProgressBarSegment: View { // 此處使用之前為 S03 設計的�
 struct SettlementView03: View {
     @Environment(\.presentationMode) var presentationMode
     @EnvironmentObject var alarmStateManager: AlarmStateManager
-    @State private var navigateToHome: Bool = false
     @State private var selectedHour: Int = 8
     @State private var selectedMinute: Int = 0
     @State private var selectedAmPm: Int = 1
@@ -156,18 +155,10 @@ struct SettlementView03: View {
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .background(
-            // 使用 isDetailLink: false 可以讓導航回到根視圖
-            NavigationLink(
-                destination: Home()
-                    .navigationBarHidden(true)
-                    .navigationBarBackButtonHidden(true)
-                    .toolbar(.hidden, for: .navigationBar),
-                isActive: $navigateToHome,
-                label: { EmptyView() }
-            )
-            .isDetailLink(false) // 這會重置導航堆疊
-        )
+        .background(Color.black.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
     }
     
     // MARK: - Sub-views for SettlementView03
@@ -348,7 +339,6 @@ struct SettlementView03: View {
                     NotificationCenter.default.post(name: Notification.Name("TodoItemsDataRefreshed"), object: nil)
                     
                     isProcessing = false
-                    navigateToHome = true
                 }
                 
             } catch {
