@@ -891,10 +891,7 @@ struct Home: View {
                 .onAppear {
                 }
                 .onDisappear {
-                    // 結算完成返回時，重新載入數據以反映所有變更
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        loadTodoItems()
-                    }
+                    // 內容已清空，由樂觀更新處理
                 }
         }
         .navigationDestination(isPresented: $navigateToSleep01View) {
@@ -1221,6 +1218,50 @@ struct Home: View {
     
     
  // MARK: - Functions
+
+    private func applySettlementUpdates() {
+        let operations = SettlementStateManager.shared.completedOperations
+        let movedItems = SettlementStateManager.shared.movedItems
+        guard !operations.isEmpty || !movedItems.isEmpty else { return }
+
+        print("🏠 Home: Applying optimistic updates. Operations: \(operations.count), Moved: \(movedItems.count).")
+
+        var updatedItems = self.toDoItems
+
+        // 處理增、刪、改操作
+        for operation in operations {
+            switch operation {
+            case .addItem(let item):
+                updatedItems.append(item)
+                print("    ➕ Added: \(item.title)")
+            case .deleteItem(let id):
+                if let index = updatedItems.firstIndex(where: { $0.id == id }) {
+                    let removed = updatedItems.remove(at: index)
+                    print("    ➖ Deleted: \(removed.title)")
+                }
+            case .updateItem(let item):
+                if let index = updatedItems.firstIndex(where: { $0.id == item.id }) {
+                    updatedItems[index] = item
+                    print("    🔄 Updated: \(item.title)")
+                }
+            }
+        }
+        
+        // 處理被移動到明日的任務
+        for item in movedItems {
+            if let index = updatedItems.firstIndex(where: { $0.id == item.id }) {
+                updatedItems[index] = item
+                print("    ➡️ Moved to tomorrow: \(item.title)")
+            }
+        }
+
+        self.toDoItems = updatedItems
+        
+        // 清空已應用的操作，以防下次誤用
+        SettlementStateManager.shared.completedOperations = []
+        SettlementStateManager.shared.movedItems = []
+    }
+
     private func updateDayProgress(currentTime: Date) {
         // 統一進度條邏輯：使用與AlarmStateManager相同的邏輯
         // 直接同步AlarmStateManager的sleepProgress
@@ -1323,8 +1364,9 @@ struct Home: View {
             dataRefreshToken = UUID()
         }
         
-        // 監聽結算完成通知，重置導航狀態
+        // 監聽結算完成通知，重置導航狀態並應用樂觀更新
         NotificationCenter.default.addObserver(forName: Notification.Name("SettlementCompleted"), object: nil, queue: .main) { _ in
+            self.applySettlementUpdates()
             self.navigateToSettlementView = false
         }
         

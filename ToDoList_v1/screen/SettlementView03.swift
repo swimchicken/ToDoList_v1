@@ -308,12 +308,12 @@ struct SettlementView03: View {
         Task {
             do {
                 // 1. 執行 Page 2 的暫存操作
-                // ✅ 修正：加上 'try'，因為此函式會拋出錯誤
                 try await executePendingOperations()
                 
                 // 2. 執行 Page 1 的移動任務邏輯
+                var movedTasks: [TodoItem] = []
                 if moveTasksToTomorrow && !uncompletedTasks.isEmpty {
-                    await performMoveTasksToTomorrow()
+                    movedTasks = await performMoveTasksToTomorrow()
                 }
                 
                 // 3. 標記今天完成
@@ -330,8 +330,10 @@ struct SettlementView03: View {
                         clearAlarmAndSleepMode()
                     }
                     
-                    print("🧹 結算成功，清空暫存資料")
-                    // ✅ 只有在這裡才清空資料
+                    print("🧹 結算成功，準備清空暫存資料並發送通知...")
+                    
+                    // ✅ 在 reset 前，將 movedTasks 存入 state manager
+                    stateManager.movedItems = movedTasks
                     stateManager.reset()
                     
                     // 發送通知刷新首頁
@@ -411,14 +413,14 @@ struct SettlementView03: View {
     // MARK: - Task Movement Logic (修正版)
     
     /// 將未完成任務移至明日的數據處理
-    private func performMoveTasksToTomorrow() async {
+    private func performMoveTasksToTomorrow() async -> [TodoItem] {
         print("🚀 [Logic] 開始執行任務日期移動邏輯 (使用 Batch API)...")
         
         let calendar = Calendar.current
         let now = Date()
         
         // 1. 設定目標日期 (明天)
-        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return }
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return [] }
         let targetDayStart = calendar.startOfDay(for: tomorrow)
         
         // 2. 建立排除清單 (如果在 Page 2 刪除了，就不移動)
@@ -430,15 +432,17 @@ struct SettlementView03: View {
         
         // 3. 準備批量更新資料
         var batchItems: [BatchUpdateItem] = []
-        
+        var movedTasks: [TodoItem] = [] // 用於樂觀更新的返回陣列
+
         for task in uncompletedTasks {
             if deletedSet.contains(task.id) { continue }
             
-            var newTaskDate: Date?
+            var updatedTask = task
             if let originalDate = task.taskDate {
                 let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: originalDate)
                 let isTimeZero = (timeComponents.hour == 0 && timeComponents.minute == 0 && timeComponents.second == 0)
                 
+                let newTaskDate: Date?
                 if isTimeZero {
                     newTaskDate = targetDayStart
                 } else {
@@ -449,13 +453,14 @@ struct SettlementView03: View {
                     newTaskDate = calendar.date(from: targetComps)
                 }
                 
-                // 加入列表
-                // 注意：根據 Swagger，後端接受部分欄位。我們只傳送需要修改的 task_date
+                updatedTask.taskDate = newTaskDate
+                movedTasks.append(updatedTask)
+
                 let batchItem = BatchUpdateItem(
                     id: task.id,
                     title: nil,
                     status: nil,
-                    task_date: newTaskDate, // ✅ 核心：只改這個
+                    task_date: newTaskDate,
                     priority: nil,
                     is_pinned: nil,
                     note: nil,
@@ -470,17 +475,18 @@ struct SettlementView03: View {
         
         guard !batchItems.isEmpty else {
             print("⚠️ 沒有需要移動的任務")
-            return
+            return []
         }
         
         // 4. 發送 API
         print("⚡️ [API] 發送 Batch PUT 請求，包含 \(batchItems.count) 個任務")
         do {
-            // 這裡會呼叫我們剛修正為 PUT 的方法
             let response = try await apiManager.batchUpdateTasks(items: batchItems)
             print("✅ 批量移動成功! API 回應: \(response)")
+            return movedTasks // 成功後返回已移動的任務
         } catch {
             print("❌ 批量移動失敗: \(error.localizedDescription)")
+            return [] // 失敗時返回空陣列
         }
     }
     
