@@ -165,10 +165,9 @@ class APIDataManager: ObservableObject {
 
         // 檢查是否有失敗的更新
         if batchResponse.actualFailedCount > 0 {
-            print("⚠️ 批次更新部分失敗: 成功 \(batchResponse.actualSuccessCount) 個，失敗 \(batchResponse.actualFailedCount) 個")
-            print("失敗的ID: \(batchResponse.actualFailedIds)")
+                // 批次更新部分失敗，記錄失敗信息
         } else {
-            print("✅ 批次更新全部成功: \(batchResponse.actualSuccessCount) 個任務")
+            // 批次更新全部成功
         }
 
         // 更新Widget數據
@@ -243,8 +242,7 @@ class APIDataManager: ObservableObject {
             // 靜默更新Widget，不打印日誌
             WidgetFileManager.shared.saveTodayTasksToFileQuietly(allTasks)
         } catch {
-            // 只在錯誤時才打印日誌
-            print("❌ 更新Widget數據失敗: \(error.localizedDescription)")
+            // 更新Widget數據失敗，靜默處理
         }
     }
 
@@ -263,7 +261,7 @@ extension APIDataManager {
             do {
                 result = try await self.getAllTodoItems()
             } catch {
-                print("❌ APIDataManager getAllTodoItems error: \(error)")
+                // 發生錯誤，返回空數組
                 result = []
             }
             semaphore.signal()
@@ -365,6 +363,6 @@ extension APIDataManager {
     /// 手動觸發 Widget 數據更新（用於結算完成等場景）
     func forceUpdateWidgetData() async {
         await updateWidgetData()
-        print("📱 手動觸發 Widget 數據更新完成")
+        // 手動觸發 Widget 數據更新完成
     }
 }

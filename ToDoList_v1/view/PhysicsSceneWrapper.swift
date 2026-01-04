@@ -11,8 +11,6 @@ struct PhysicsSceneWrapper: View {
     
     // 創建物理場景實例
     private var physicsScene: PhysicsScene {
-        // 減少日誌輸出 - 只在項目數量變化時輸出
-        // print("PhysicsSceneWrapper - 創建場景: 項目數量=\(todoItems.count)")
         return PhysicsScene(
             size: CGSize(width: 369, height: 100),
             todoItems: todoItems

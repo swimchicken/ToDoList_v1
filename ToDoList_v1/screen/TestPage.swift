@@ -76,8 +76,6 @@ struct TestPage: View {
         
         // 4. 返回上一頁
         presentationMode.wrappedValue.dismiss()
-        
-        print("用戶已登出，應用程式狀態已重置")
     }
 }
 

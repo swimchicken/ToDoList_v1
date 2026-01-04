@@ -11,7 +11,7 @@ struct Home: View {
     @State private var currentDate: Date = Date()  // 添加當前時間狀態
     @State private var navigateToSettlementView: Bool = false // 導航到結算頁面
     @State private var navigateToSleep01View: Bool = false // 導航到Sleep01視圖
-    @State private var navigateToTestPage: Bool = false // 導航到測試頁面
+    @State private var navigateToTestPage: Bool = false
     @State private var navigationViewID = UUID()
     @State private var isSleepMode: Bool = false // 睡眠模式狀態
     @State private var alarmTimeString: String = "9:00 AM" // 鬧鐘時間，默認為9:00 AM
@@ -212,7 +212,6 @@ struct Home: View {
 
                     // 1. 立即樂觀更新本地狀態
                     self.toDoItems[index] = newValue
-                    print("✅ ItemRow樂觀更新項目: \(newValue.title)")
 
                     // 2. 在背景使用 API 伺服器更新項目
                     Task {
@@ -223,15 +222,12 @@ struct Home: View {
                                 if let currentIndex = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
                                     self.toDoItems[currentIndex] = updatedItem
                                 }
-                                print("✅ ItemRow成功同步到API: \(updatedItem.title)")
                             }
                         } catch {
                             await MainActor.run {
-                                print("❌ ItemRow API更新失敗，回滾樂觀更新: \(error.localizedDescription)")
                                 // 4. 回滾樂觀更新：恢復原始值
                                 if let currentIndex = self.toDoItems.firstIndex(where: { $0.id == newValue.id }) {
                                     self.toDoItems[currentIndex] = originalValue
-                                    print("🔄 ItemRow已回滾到原始數據: \(originalValue.title)")
                                 }
 
                                 // 5. 顯示錯誤提示
@@ -302,10 +298,7 @@ struct Home: View {
                                 let displayedDayStart = calendar.startOfDay(for: offsetDate)
 
 
-                                // 使用標準 Calendar 進行對比測試
                                 let systemToday = Calendar.current.startOfDay(for: currentDate)
-
-                                // 測試不使用 startOfDay 的日期
 
                                 withAnimation { showToDoSheet.toggle() }
                             } label: {
@@ -346,11 +339,8 @@ struct Home: View {
                         isCurrentDay: isCurrentDay,
                         isSyncing: isSyncing,
                         onEndTodayTapped: {
-                            print("🔥 用戶點擊 end today 按鈕")
-                            print("🔥 當前 isSyncing 狀態: \(isSyncing)")
                             if !isSyncing {
                                 let isSameDaySettlement = delaySettlementManager.isSameDaySettlement(isActiveEndDay: true)
-                                print("用戶點擊結算按鈕，進入結算流程，是否為當天結算 = \(isSameDaySettlement) (主動結算)")
                                 UserDefaults.standard.set(true, forKey: "isActiveEndDay")
                                 // 🔧 移除不必要的數據重新拉取
                                 // 結束一天的操作不需要重新拉取所有數據
@@ -366,35 +356,27 @@ struct Home: View {
                                 let today = currentDate
                                 let calendar = taipeiCalendar
                                 let startOfToday = calendar.startOfDay(for: today)
-                                print("🔥 使用當前項目數量: \(toDoItems.count)")
                                 let endOfToday = calendar.date(byAdding: .day, value: 1, to: startOfToday)!
 
                                 // 過濾今天的項目（有日期且在今天範圍內）
                                 let todayItems = toDoItems.filter { item in
                                     // 只包含有日期且在今天的項目
                                     guard let taskDate = item.taskDate else {
-                                        print("🔥 跳過沒有日期的項目（備忘錄）: \(item.title)")
                                         return false
                                     }
 
                                     let isToday = taskDate >= startOfToday && taskDate < endOfToday
-                                    print("🔥 項目 '\(item.title)' 是否為今天: \(isToday)")
                                     return isToday
                                 }
 
-                                print("🔥 今天的項目數量: \(todayItems.count)")
 
                                 // 檢查今天是否有事件
                                 if todayItems.isEmpty {
-                                    print("🔥 今天沒有任何事件，顯示提示彈窗")
                                     showNoEventsAlert = true
                                 } else {
                                     // 【修改點】直接設置為 true 即可，不再需要延遲或重置
-                                    print("🔥 今天有 \(todayItems.count) 個事件，準備跳轉到結算頁面")
                                     self.navigateToSettlementView = true
                                 }
-                            } else {
-                                print("🔥 正在同步中，無法執行結算")
                             }
                         },
                         onReturnToTodayTapped: {
@@ -451,18 +433,15 @@ struct Home: View {
                         alarmTimeString: alarmTimeString,
                         dayProgress: dayProgress,
                         onSleepButtonTapped: {
-                            print("Sleep button tapped, current navigateToSleep01View: \(navigateToSleep01View)")
 
                             // 先重置為 false，然後再設為 true 以確保觸發導航
                             if navigateToSleep01View {
                                 navigateToSleep01View = false
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     navigateToSleep01View = true
-                                    print("Force navigation to Sleep01View")
                                 }
                             } else {
                                 navigateToSleep01View = true
-                                print("Direct navigation to Sleep01View")
                             }
                         }
                     )
@@ -513,7 +492,6 @@ struct Home: View {
                                     }
                                 },
                                 onAddButtonPressed: {
-                                    print("🚨 Home - onAddButtonPressed 被觸發，設置模式為 memo")
                                     addTaskMode = .memo
                                     isFromTodoSheet = true
                                     withAnimation(.easeInOut) {
@@ -525,7 +503,6 @@ struct Home: View {
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         toDoItems.append(newItem)
                                     }
-                                    print("🚀 樂觀更新：立即添加任務到 Home - \(newItem.title)")
                                 },
                                 onReplaceOptimistic: { tempId, realItem in
                                     // 替換或移除樂觀添加的項目
@@ -534,15 +511,11 @@ struct Home: View {
                                             if realItem.correspondingImageID == "REMOVE" {
                                                 // 移除失敗的樂觀更新項目
                                                 toDoItems.remove(at: index)
-                                                print("🔄 移除失敗的樂觀更新項目")
                                             } else {
                                                 // 替換為真實項目
                                                 toDoItems[index] = realItem
-                                                print("🔄 直接替換樂觀項目成功: \(realItem.title)")
                                             }
                                         }
-                                    } else {
-                                        print("⚠️ 找不到要替換的樂觀項目，tempId: \(tempId)")
                                     }
                                 },
                                 selectedDate: selectedDate
@@ -674,7 +647,6 @@ struct Home: View {
                                         try await apiDataManager.deleteTodoItem(withID: deletedItemID)
                                     } catch {
                                         await MainActor.run {
-                                            print("❌ API刪除失敗，回滾樂觀更新: \(error.localizedDescription)")
                                             // 回滾樂觀更新：重新添加項目
                                             withAnimation(.easeInOut(duration: 0.3)) {
                                                 // 按照原來的位置重新插入（或添加到末尾）
@@ -750,7 +722,6 @@ struct Home: View {
                                         }
                                     } catch {
                                         await MainActor.run {
-                                            print("❌ API移動到佇列失敗，回滾樂觀更新: \(error.localizedDescription)")
                                             // 回滾樂觀更新
                                             withAnimation(.easeInOut(duration: 0.3)) {
                                                 // 移除樂觀添加的佇列項目
@@ -832,7 +803,6 @@ struct Home: View {
                                             self.toDoItems[index] = savedItem
                                         }
                                     }
-                                    print("成功保存任務: \(item.title)")
                                 } catch {
                                     // 5. API 失敗時回滾對應的樂觀更新
                                     DispatchQueue.main.async {
@@ -840,7 +810,6 @@ struct Home: View {
                                             self.toDoItems.removeAll { $0.id == item.id }
                                         }
                                     }
-                                    print("保存任務失敗: \(error.localizedDescription)")
                                 }
                             }
                         }
@@ -920,10 +889,8 @@ struct Home: View {
         .navigationDestination(isPresented: $navigateToSettlementView) {
             SettlementView()
                 .onAppear {
-                    print("🔥 SettlementView onAppear 被觸發")
                 }
                 .onDisappear {
-                    print("🔥 SettlementView onDisappear 被觸發")
                     // 結算完成返回時，重新載入數據以反映所有變更
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         loadTodoItems()
@@ -933,10 +900,8 @@ struct Home: View {
         .navigationDestination(isPresented: $navigateToSleep01View) {
             Sleep01View()
                 .onAppear {
-                    print("Sleep01View appeared, resetting navigation flag")
                 }
                 .onDisappear {
-                    print("Sleep01View disappeared")
                     // 當從 Sleep01 返回時，重置導航狀態並重新載入數據
                     navigateToSleep01View = false
                     // 重新載入事件數據，反映結算時的所有變更
@@ -959,10 +924,6 @@ struct Home: View {
     .onAppear {
         // 確保 currentDate 是最新的
         currentDate = Date()
-        print("🏠 Home onAppear - 初始化")
-        print("   📅 currentDate: \(currentDate)")
-        print("   📅 currentDateOffset: \(currentDateOffset)")
-        print("   📅 實際顯示日期: \(taipeiCalendar.date(byAdding: .day, value: currentDateOffset, to: currentDate) ?? currentDate)")
 
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             currentDate = Date()
@@ -999,10 +960,8 @@ struct Home: View {
             NavigationLink(destination:
                 SettlementView()
                     .onAppear {
-                        print("🔥 SettlementView onAppear 被觸發")
                     }
                     .onDisappear {
-                        print("🔥 SettlementView onDisappear 被觸發")
                         // 當 SettlementView 消失時，重置導航狀態並重新載入數據
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             navigateToSettlementView = false
@@ -1012,14 +971,7 @@ struct Home: View {
                 , isActive: $navigateToSettlementView) {
                 EmptyView()
             }
-            .onAppear {
-                print("🔥 NavigationLink to SettlementView appeared")
-            }
             .onChange(of: navigateToSettlementView) { newValue in
-                print("🔥 navigateToSettlementView 變更為: \(newValue)")
-                if newValue {
-                    print("🔥 NavigationLink 應該觸發跳轉")
-                }
             }
             // 移除舊式 NavigationLink，只使用新的 navigationDestination
         }
@@ -1218,7 +1170,6 @@ struct Home: View {
                         }
                 )
                 .onAppear {
-                    print("🔄 ScrollView onAppear - scrollTo currentDateOffset: \(currentDateOffset)")
                     DispatchQueue.main.async {
                         proxy.scrollTo(currentDateOffset, anchor: .center)
                     }
@@ -1226,7 +1177,6 @@ struct Home: View {
                 .onChange(of: showToDoSheet) { isShowing in
                     // 當ToDoSheet狀態改變時，確保ScrollView位置正確
                     if !isShowing { // 當ToDoSheet關閉時
-                        print("🔄 ToDoSheet關閉 - 重新同步ScrollView到 currentDateOffset: \(currentDateOffset)")
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             proxy.scrollTo(currentDateOffset, anchor: .center)
                         }
@@ -1275,10 +1225,6 @@ struct Home: View {
         // 統一進度條邏輯：使用與AlarmStateManager相同的邏輯
         // 直接同步AlarmStateManager的sleepProgress
         self.dayProgress = alarmStateManager.sleepProgress
-
-        print("=== 統一進度條邏輯 - Home.swift ===")
-        print("同步AlarmStateManager進度: \(String(format: "%.1f", self.dayProgress * 100))%")
-        print("==============================")
     }
     
     private func setupDataChangeObservers() {
@@ -1361,7 +1307,6 @@ struct Home: View {
                 withAnimation(.easeOut(duration: 0.3)) {
                     toDoItems.removeAll { $0.id == tempId }
                 }
-                print("🔄 樂觀更新回滾：移除臨時項目 ID - \(tempIdString)")
 
                 // 顯示錯誤提示
                 toastMessage = "添加任務失敗，請重試"
@@ -1380,7 +1325,6 @@ struct Home: View {
         
         // 監聽鬧鐘觸發通知
         NotificationCenter.default.addObserver(forName: Notification.Name("AlarmTriggered"), object: nil, queue: .main) { _ in
-            print("收到鬧鐘觸發通知，準備導航到 Sleep01")
             alarmStateManager.triggerAlarm()
             navigateToSleep01View = true
         }
@@ -1389,7 +1333,6 @@ struct Home: View {
 
         // 監聽睡眠模式狀態變更通知
         NotificationCenter.default.addObserver(forName: Notification.Name("SleepModeStateChanged"), object: nil, queue: .main) { _ in
-            print("收到睡眠模式狀態變更通知")
             // 重新檢查睡眠模式狀態
             if UserDefaults.standard.bool(forKey: "isSleepMode") {
                 isSleepMode = true
@@ -1400,7 +1343,6 @@ struct Home: View {
             } else {
                 isSleepMode = false
                 dayProgress = 0.0
-                print("睡眠模式已關閉，UI 狀態已重置")
             }
         }
     }
@@ -1414,13 +1356,11 @@ struct Home: View {
                 let items = try await apiDataManager.getAllTodoItems()
                 await MainActor.run {
                     isSyncing = false
-                    print("手動同步完成! 載入了 \(items.count) 個項目")
                     self.toDoItems = items
                 }
             } catch {
                 await MainActor.run {
                     isSyncing = false
-                    print("手動同步失敗: \(error.localizedDescription)")
                     loadingError = "同步失敗: \(error.localizedDescription)"
                     // 移除不必要的備用 API 調用：如果手動同步失敗，loadTodoItems 可能也會失敗
                 }

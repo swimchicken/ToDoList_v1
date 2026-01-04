@@ -100,21 +100,18 @@ struct guide3: View {
     // 使用API更新用戶名稱
     private func updateUserName(userName: String) {
         guard !userName.isEmpty else {
-            print("guide3: 用戶名稱為空，跳過更新")
             return
         }
 
-        print("guide3: 開始更新用戶名稱: \(userName)")
 
         Task {
             do {
                 let updatedUser = try await apiDataManager.updateUserProfile(name: userName)
                 await MainActor.run {
-                    print("guide3: 成功更新用戶名稱: \(updatedUser.name ?? "Unknown")")
                 }
             } catch {
                 await MainActor.run {
-                    print("guide3: 更新用戶名稱失敗: \(error.localizedDescription)")
+                    // 更新用戶名稱失敗
                 }
             }
         }

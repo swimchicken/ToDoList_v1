@@ -26,28 +26,28 @@ struct AboutUsView: View {
                         SettingsSection(title: "Help") {
                             // what's new
                             SettingRow(title: "What's new", isToggle: false, hasChevron: true) {
-                                print("What's new")
+                                // What's new action
                             }
                             
                             Divider().background(Color.gray.opacity(0.3)).padding(.horizontal, 20)
                             
                             // How to use
                             SettingRow(title: "How to use", isToggle: false, hasChevron: true) {
-                                print("How to use")
+                                // How to use action
                             }
                             
                             Divider().background(Color.gray.opacity(0.3)).padding(.horizontal, 20)
                             
                             // Contact us
                             SettingRow(title: "Contact us", isToggle: false, hasChevron: true) {
-                                print("Contact us")
+                                // Contact us action
                             }
                             
                             Divider().background(Color.gray.opacity(0.3)).padding(.horizontal, 20)
                             
                             // Terms of Service
                             SettingRow(title: "Terms of Service", isToggle: false, hasChevron: true) {
-                                print("Terms of Service")
+                                // Terms of Service action
                             }
                         }
                         
@@ -55,21 +55,21 @@ struct AboutUsView: View {
                         SettingsSection(title: "Communities") {
                             // Follow us on Instagram
                             SettingRow(title: "Follow us on Instagram", isToggle: false, hasChevron: true) {
-                                print("Follow us on Instagram")
+                                // Follow us on Instagram action
                             }
                             
                             Divider().background(Color.gray.opacity(0.3)).padding(.horizontal, 20)
                             
                             // Join us Discord
                             SettingRow(title: "Join us Discord", isToggle: false, hasChevron: true) {
-                                print("Join us Discord")
+                                // Join us Discord action
                             }
                             
                             Divider().background(Color.gray.opacity(0.3)).padding(.horizontal, 20)
                             
                             // Share to your friend
                             SettingRow(title: "Share to your friend", isToggle: false, hasChevron: true) {
-                                print("Share to your friend")
+                                // Share to your friend action
                             }
                             
                         }

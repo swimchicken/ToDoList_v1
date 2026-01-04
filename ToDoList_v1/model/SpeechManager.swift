@@ -25,14 +25,12 @@ class SpeechManager: ObservableObject {
         SFSpeechRecognizer.requestAuthorization { authStatus in
             DispatchQueue.main.async {
                 if authStatus != .authorized {
-                    print("語音辨識權限未被授予")
                 }
             }
         }
         AVAudioSession.sharedInstance().requestRecordPermission { granted in
             DispatchQueue.main.async {
                 if !granted {
-                    print("麥克風權限未被授予")
                 }
             }
         }
@@ -43,7 +41,6 @@ class SpeechManager: ObservableObject {
         guard !isRecording else { return }
         
         guard let recognizer = speechRecognizer, recognizer.isAvailable else {
-            print("語音辨識器不可用")
             return
         }
 
@@ -77,7 +74,6 @@ class SpeechManager: ObservableObject {
             let recordingFormat = inputNode.outputFormat(forBus: 0)
             // 確保有音訊格式可用，否則模擬器可能會崩潰
             guard recordingFormat.sampleRate > 0 else {
-                print("錯誤：無法取得有效的音訊格式。請檢查模擬器或實體設備的麥克風設定。")
                 self.cancel()
                 return
             }
@@ -99,7 +95,6 @@ class SpeechManager: ObservableObject {
             isRecording = true
             
         } catch {
-            print("Audio engine 或辨識任務無法啟動: \(error.localizedDescription)")
             self.cancel()
         }
     }
@@ -136,7 +131,6 @@ class SpeechManager: ObservableObject {
         if let error = error {
             let nsError = error as NSError
             if !(nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 216) {
-                print("語音辨識錯誤: \(error.localizedDescription)")
             }
         }
         

@@ -143,8 +143,6 @@ struct AddNote: View {
     
     // 用於點擊處理的函數，強制隱藏鍵盤
     func dismissKeyboard() {
-        print("嘗試隱藏鍵盤") // 調試用
-        
         // 確保當前不處於重新獲取焦點的過程中
         guard isTextEditorFocused else { return }
         

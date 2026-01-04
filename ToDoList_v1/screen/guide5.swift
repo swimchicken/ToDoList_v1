@@ -106,8 +106,6 @@ struct guide5: View {
 
     // 完成引導流程
     private func completeOnboarding() {
-        print("guide5: 引導流程完成，發送通知導向 Home")
-
         // 發送引導完成通知
         NotificationCenter.default.post(
             name: .didLogin,
@@ -139,14 +137,12 @@ struct guide5: View {
     // 儲存用戶睡眠時間到 CloudKit 的 PersonalData 資料表，key 使用 "sleeptime"
     private func saveSleepTimeToCloudKit(hour: Int, minute: Int, ampm: Int) {
         guard let sleepDate = dateFromTime(hour: hour, minute: minute, ampm: ampm) else {
-            print("Failed to create sleep date")
             return
         }
         let appleUserID = UserDefaults.standard.string(forKey: "appleAuthorizedUserId")
         let googleUserID = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
 
         guard let userID = appleUserID ?? googleUserID else {
-            print("沒有找到 Apple 或 Google 用戶 ID")
             return
         }
         
@@ -156,9 +152,9 @@ struct guide5: View {
         
         CloudKitManager.shared.saveOrUpdateUserData(recordType: "PersonalData", userID: userID, data: data) { success, error in
             if success {
-                print("Sleep time saved/updated successfully!")
+                // Sleep time saved/updated successfully
             } else if let error = error {
-                print("Error saving sleep time: \(error.localizedDescription)")
+                // Error saving sleep time
             }
         }
     }

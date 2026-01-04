@@ -30,7 +30,6 @@ class DelaySettlementManager {
         UserDefaults.standard.set(dateString, forKey: lastSettlementDateKey)
         UserDefaults.standard.set(false, forKey: shouldShowSettlementKey) // 剛結算完，設為不需顯示
         
-        print("保存最後結算日期: \(dateString)")
     }
     
     /// 獲取最後一次結算日期
@@ -49,7 +48,6 @@ class DelaySettlementManager {
     func shouldShowSettlement() -> Bool {
         // 如果已經標記為需要顯示，直接返回true
         if UserDefaults.standard.bool(forKey: shouldShowSettlementKey) {
-            print("已經標記為需要顯示結算")
             return true
         }
         
@@ -57,7 +55,6 @@ class DelaySettlementManager {
         guard let lastDate = getLastSettlementDate() else {
             // 沒有保存過日期，表示這是首次使用應用
             // 首次使用不需要顯示結算頁面
-            print("首次使用應用，沒有上次結算記錄，不需要顯示結算頁面")
             return false
         }
         
@@ -83,13 +80,10 @@ class DelaySettlementManager {
         
         if needToShow {
             UserDefaults.standard.set(true, forKey: shouldShowSettlementKey)
-            print("檢查是否需要顯示結算畫面: 距離上次結算 \(differenceInDays) 天, 需要顯示: true (超過1天)")
             return true
         } else if isYesterday {
-            print("檢查是否需要顯示結算畫面: 距離上次結算剛好1天(昨天), 不需要顯示")
             return false
         } else {
-            print("檢查是否需要顯示結算畫面: 距離上次結算 \(differenceInDays) 天, 不需要顯示")
             return false
         }
     }
@@ -143,6 +137,5 @@ class DelaySettlementManager {
     /// 當用戶取消睡眠模式時調用，避免延期結算邏輯被誤觸發
     func clearSettlementState() {
         UserDefaults.standard.set(false, forKey: shouldShowSettlementKey)
-        print("DelaySettlementManager: 已清除結算狀態，shouldShowSettlement = false")
     }
 }

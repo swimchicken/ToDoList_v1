@@ -17,21 +17,17 @@ class AlarmAudioManager: ObservableObject {
             // 設置音頻會話為播放模式，確保能覆蓋靜音模式
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.defaultToSpeaker])
             try AVAudioSession.sharedInstance().setActive(true)
-            print("✅ 音頻會話設置成功")
         } catch {
-            print("❌ 音頻會話設置失敗: \(error)")
         }
     }
 
     func playAlarmSound() {
         guard !isPlaying else {
-            print("⚠️ 鬧鐘聲音已在播放中")
             return
         }
 
         // 優先使用 MP3 格式
         guard let soundURL = Bundle.main.url(forResource: "alarm_sound", withExtension: "mp3") else {
-            print("❌ 找不到鬧鐘音頻文件")
             return
         }
 
@@ -47,22 +43,18 @@ class AlarmAudioManager: ObservableObject {
             // 開始播放
             if audioPlayer?.play() == true {
                 isPlaying = true
-                print("🔊 鬧鐘聲音開始播放")
 
                 // 設置鎖屏媒體信息
                 setupNowPlayingInfo()
             } else {
-                print("❌ 鬧鐘聲音播放失敗")
             }
 
         } catch {
-            print("❌ 創建音頻播放器失敗: \(error)")
         }
     }
 
     func stopAlarmSound() {
         guard isPlaying else {
-            print("⚠️ 鬧鐘聲音未在播放")
             return
         }
 
@@ -73,7 +65,6 @@ class AlarmAudioManager: ObservableObject {
         // 清除鎖屏媒體信息
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
 
-        print("🔇 鬧鐘聲音已停止")
     }
 
     private func setSystemVolume(to volume: Float) {

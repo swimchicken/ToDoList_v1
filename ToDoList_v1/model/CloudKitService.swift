@@ -44,7 +44,6 @@ class CloudKitService {
             self.performAuthentication()
         }
         
-        print("DEBUG: CloudKitService已初始化，將在1秒後自動進行認證")
     }
     
     // MARK: - Authentication Management
@@ -52,12 +51,10 @@ class CloudKitService {
     /// 執行認證檢查和用戶ID獲取
     private func performAuthentication() {
         guard !authenticationInProgress else {
-            print("DEBUG: 認證已在進行中，跳過重複請求")
             return
         }
         
         authenticationInProgress = true
-        print("DEBUG: 開始執行 CloudKit 認證檢查")
         
         // 檢查 iCloud 狀態
         container.accountStatus { [weak self] (status, error) in
@@ -67,12 +64,10 @@ class CloudKitService {
                 self.authenticationInProgress = false
                 
                 if let error = error {
-                    print("ERROR: 無法獲取 iCloud 帳戶狀態: \(error.localizedDescription)")
                     self.consecutiveFailures += 1
                     
                     // 如果連續失敗，標記 CloudKit 為不可用並切換到本地模式
                     if self.consecutiveFailures >= self.maxConsecutiveFailures {
-                        print("WARNING: 連續認證失敗 \(self.consecutiveFailures) 次，切換到本地存儲模式")
                         self.isCloudKitAvailable = false
                         self.isAuthenticated = false
                         self.handleAuthenticationResult(false)
@@ -85,24 +80,18 @@ class CloudKitService {
                 
                 switch status {
                 case .available:
-                    print("INFO: iCloud 帳戶可用，獲取用戶ID")
                     self.fetchAndSaveCurrentUserID { success in
                         self.handleAuthenticationResult(success)
                     }
                 case .noAccount:
-                    print("WARNING: 未登入 iCloud 帳戶")
                     self.handleAuthenticationResult(false)
                 case .restricted:
-                    print("WARNING: iCloud 帳戶受限")
                     self.handleAuthenticationResult(false)
                 case .couldNotDetermine:
-                    print("WARNING: 無法確定 iCloud 帳戶狀態")
                     self.handleAuthenticationResult(false)
                 case .temporarilyUnavailable:
-                    print("WARNING: iCloud 帳戶暫時不可用")
                     self.handleAuthenticationResult(false)
                 @unknown default:
-                    print("WARNING: 未知的 iCloud 帳戶狀態")
                     self.handleAuthenticationResult(false)
                 }
             }
@@ -114,10 +103,8 @@ class CloudKitService {
         isAuthenticated = success
         
         if success {
-            print("INFO: CloudKit 認證成功")
             consecutiveFailures = 0 // 重置失敗計數
         } else {
-            print("WARNING: CloudKit 認證失敗")
         }
         
         // 執行所有等待中的操作
@@ -150,14 +137,12 @@ class CloudKitService {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            print("NOTICE: 檢測到 iCloud 帳號變化")
             self?.handleAccountChange()
         }
     }
     
     // 處理 iCloud 帳號變化
     private func handleAccountChange() {
-        print("INFO: iCloud 帳號發生變化，重置認證狀態")
         
         // 重置認證狀態
         isAuthenticated = false
@@ -170,16 +155,13 @@ class CloudKitService {
             guard let self = self else { return }
             
             if let error = error {
-                print("ERROR: 帳號變化後無法獲取 iCloud 帳戶狀態: \(error.localizedDescription)")
                 return
             }
             
             if status == .available {
-                print("INFO: 帳號變化後 iCloud 帳戶可用，檢查是否為新用戶")
                 // 獲取新用戶ID並與舊ID比較
                 self.checkIfUserChanged()
             } else {
-                print("WARNING: 帳號變化後 iCloud 不可用，狀態: \(status)")
                 // 當帳號不可用時，通知清除本地數據
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(
@@ -196,7 +178,6 @@ class CloudKitService {
         container.fetchUserRecordID { (recordID, error) in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("ERROR: 無法獲取 iCloud 用戶ID: \(error.localizedDescription)")
                     completion(false)
                     return
                 }
@@ -205,7 +186,6 @@ class CloudKitService {
                     let userID = recordID.recordName
                     let oldUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID")
 
-                    print("INFO: 當前 iCloud 用戶ID: \(userID)")
 
                     // 檢查是否為重新安裝或用戶變更的情況
                     let isUserChange = oldUserID != userID
@@ -217,9 +197,7 @@ class CloudKitService {
                     // 如果是重新安裝或用戶變更，觸發資料同步
                     if isUserChange || isReinstall {
                         if isReinstall {
-                            print("INFO: 檢測到應用重新安裝，觸發CloudKit資料同步")
                         } else {
-                            print("INFO: 檢測到用戶變更，觸發CloudKit資料同步")
                         }
 
                         // 延遲3秒後觸發同步，確保認證狀態完全穩定
@@ -243,7 +221,6 @@ class CloudKitService {
 
                     completion(true)
                 } else {
-                    print("WARNING: 無法獲取有效的用戶記錄ID")
                     completion(false)
                 }
             }
@@ -254,7 +231,6 @@ class CloudKitService {
     private func checkIfUserChanged() {
         container.fetchUserRecordID { (recordID, error) in
             if let error = error {
-                print("ERROR: 帳號變化後無法獲取用戶ID: \(error.localizedDescription)")
                 return
             }
             
@@ -263,7 +239,6 @@ class CloudKitService {
                 let oldUserID = UserDefaults.standard.string(forKey: "currentCloudKitUserID")
                 
                 if oldUserID != newUserID {
-                    print("NOTICE: 檢測到新的 iCloud 用戶 (Old: \(oldUserID ?? "無"), New: \(newUserID))")
                     
                     // 保存新用戶ID
                     UserDefaults.standard.set(newUserID, forKey: "currentCloudKitUserID")
@@ -275,7 +250,6 @@ class CloudKitService {
                         userInfo: ["newUserID": newUserID]
                     )
                 } else {
-                    print("INFO: iCloud 用戶未變更")
                 }
             }
         }
@@ -291,33 +265,25 @@ class CloudKitService {
         if nsError.domain == CKErrorDomain {
             switch nsError.code {
             case CKError.networkFailure.rawValue, CKError.networkUnavailable.rawValue:
-                print("WARNING: 網路錯誤，建議重試 - \(error.localizedDescription)")
                 completion(.failure(error))
             case CKError.notAuthenticated.rawValue:
-                print("WARNING: 認證失效，嘗試重新認證 - \(error.localizedDescription)")
                 // 標記為未認證並觸發重新認證
                 self.isAuthenticated = false
                 self.performAuthentication()
                 completion(.failure(error))
             case CKError.quotaExceeded.rawValue:
-                print("ERROR: 超出 CloudKit 配額")
                 completion(.failure(error))
             case CKError.serverRecordChanged.rawValue:
-                print("WARNING: 伺服器記錄已變更，需要處理衝突")
                 completion(.failure(error))
             case CKError.badContainer.rawValue:
-                print("ERROR: CloudKit 容器配置錯誤")
                 completion(.failure(error))
             case CKError.serviceUnavailable.rawValue:
-                print("WARNING: CloudKit 服務暫時不可用")
                 completion(.failure(error))
             default:
-                print("ERROR: CloudKit 錯誤 - 代碼: \(nsError.code), 描述: \(error.localizedDescription)")
                 
                 // 檢查錯誤描述中是否包含 auth token 相關錯誤
                 if error.localizedDescription.contains("auth token") || 
                    error.localizedDescription.contains("bad or missing auth token") {
-                    print("INFO: 檢測到認證 token 錯誤，觸發重新認證")
                     self.isAuthenticated = false
                     self.performAuthentication()
                 }
@@ -333,14 +299,12 @@ class CloudKitService {
     
     /// 手動觸發重新認證（當遇到認證錯誤時可調用）
     func refreshAuthentication() {
-        print("INFO: 手動觸發 CloudKit 重新認證")
         isAuthenticated = false
         performAuthentication()
     }
     
     /// 強制重置所有認證狀態並重新開始（適用於嚴重認證問題）
     func forceResetAuthentication() {
-        print("WARNING: 強制重置 CloudKit 認證狀態")
         
         // 重置所有狀態
         isAuthenticated = false
@@ -357,7 +321,6 @@ class CloudKitService {
         
         // 延遲更長時間後重新嘗試認證
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-            print("INFO: 強制重置後重新嘗試認證")
             self.performAuthentication()
         }
     }
@@ -369,29 +332,22 @@ class CloudKitService {
     
     /// 測試基本的 CloudKit 連接（用於診斷）
     func testBasicCloudKitConnection() {
-        print("DEBUG: 測試基本 CloudKit 連接")
         
         // 測試最基本的 container 操作
         container.accountStatus { status, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("TEST: 基本帳戶狀態檢查失敗 - \(error.localizedDescription)")
                     
                     // 嘗試等待更長時間後重試
-                    print("TEST: 將在 10 秒後重試基本連接")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
                         self.testBasicCloudKitConnection()
                     }
                 } else {
-                    print("TEST: 基本帳戶狀態檢查成功 - 狀態: \(status)")
                     
                     if status == .available {
-                        print("TEST: iCloud 帳戶可用，嘗試獲取用戶記錄")
                         self.container.fetchUserRecordID { recordID, error in
                             if let error = error {
-                                print("TEST: 獲取用戶記錄失敗 - \(error.localizedDescription)")
                             } else if let recordID = recordID {
-                                print("TEST: 成功獲取用戶記錄 - ID: \(recordID.recordName)")
                             }
                         }
                     }
@@ -407,11 +363,9 @@ class CloudKitService {
     ///   - todoItem: 待儲存的待辦事項
     ///   - completion: 完成後的回調，返回結果或錯誤
     func saveTodoItem(_ todoItem: TodoItem, completion: @escaping (Result<TodoItem, Error>) -> Void) {
-        print("DEBUG: 開始儲存待辦事項 - ID: \(todoItem.id.uuidString), 標題: \(todoItem.title)")
         
         // 如果 CloudKit 不可用，直接返回成功（只使用本地存儲）
         if !isCloudKitAvailable {
-            print("INFO: CloudKit 不可用，使用本地存儲模式")
             completion(.success(todoItem))
             return
         }
@@ -421,7 +375,6 @@ class CloudKitService {
             guard let self = self else { return }
             
             guard isAuthenticated else {
-                print("WARNING: CloudKit 認證失敗，切換到本地存儲模式")
                 completion(.success(todoItem))
                 return
             }
@@ -445,15 +398,12 @@ class CloudKitService {
             
             if let existingRecord = existingRecord {
                 // 記錄已存在，使用現有記錄進行更新
-                print("DEBUG: 找到已存在記錄，執行更新操作 - ID: \(recordID.recordName)")
                 record = existingRecord
             } else if let error = error as NSError?, error.domain == CKErrorDomain && error.code == CKError.unknownItem.rawValue {
                 // 記錄不存在，創建新記錄
-                print("DEBUG: 記錄不存在，創建新記錄 - ID: \(recordID.recordName)")
                 record = CKRecord(recordType: "TodoItem", recordID: recordID)
             } else {
                 // 其他錯誤
-                print("ERROR: 獲取記錄時發生錯誤: \(error?.localizedDescription ?? "未知錯誤")")
                 DispatchQueue.main.async {
                     completion(.failure(error ?? NSError(domain: "CloudKitService", code: 500, userInfo: [NSLocalizedDescriptionKey: "獲取記錄失敗"])))
                 }
@@ -466,7 +416,6 @@ class CloudKitService {
     }
     
     private func updateRecordFields(record: CKRecord, todoItem: TodoItem, currentUserID: String) {
-        print("DEBUG: 更新記錄欄位 - recordName: \(record.recordID.recordName)")
         
         // 設置記錄欄位
         record.setValue(todoItem.id.uuidString, forKey: "id")
@@ -489,29 +438,24 @@ class CloudKitService {
         record.setValue(todoItem.updatedAt, forKey: "updatedAt")
         record.setValue(todoItem.correspondingImageID, forKey: "correspondingImageID")
         
-        print("DEBUG: CKRecord 已設置完所有欄位，準備儲存到 CloudKit")
     }
     
     private func saveRecordToCloudKit(record: CKRecord, completion: @escaping (Result<TodoItem, Error>) -> Void) {
-        print("DEBUG: CloudKit container identifier: \(container.containerIdentifier ?? "未知")")
         
         // 儲存到 CloudKit
         privateDatabase.save(record) { (savedRecord, error) in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("ERROR: 儲存待辦事項失敗 - \(error.localizedDescription)")
                     self.handleCloudKitError(error, completion: completion)
                     return
                 }
                 
                 guard let savedRecord = savedRecord else {
                     let error = NSError(domain: "CloudKitService", code: 500, userInfo: [NSLocalizedDescriptionKey: "無法儲存記錄"])
-                    print("ERROR: 儲存成功但返回的記錄為空")
                     completion(.failure(error))
                     return
                 }
                 
-                print("SUCCESS: 待辦事項已成功儲存到 CloudKit - ID: \(savedRecord.recordID.recordName)")
                 
                 // 從已儲存的記錄重新創建 TodoItem
                 let savedTodoItem = self.todoItemFromRecord(savedRecord)
@@ -566,11 +510,9 @@ class CloudKitService {
     /// 從 CloudKit 獲取所有待辦事項
     /// - Parameter completion: 完成後的回調，返回結果或錯誤
     func fetchAllTodoItems(completion: @escaping (Result<[TodoItem], Error>) -> Void) {
-        print("DEBUG: 開始從 CloudKit 獲取所有待辦事項")
         
         // 如果 CloudKit 不可用，返回空數組（只使用本地存儲）
         if !isCloudKitAvailable {
-            print("INFO: CloudKit 不可用，返回空數組（本地存儲模式）")
             completion(.success([]))
             return
         }
@@ -580,7 +522,6 @@ class CloudKitService {
             guard let self = self else { return }
             
             guard isAuthenticated else {
-                print("WARNING: CloudKit 認證失敗，返回空數組（本地存儲模式）")
                 completion(.success([]))
                 return
             }
@@ -599,24 +540,20 @@ class CloudKitService {
         let query = CKQuery(recordType: "TodoItem", predicate: predicate)
         query.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         
-        print("DEBUG: 查詢當前用戶數據: \(currentUserID)")
         
         // 統一使用 privateDatabase
         privateDatabase.perform(query, inZoneWith: defaultZoneID) { (records, error) in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("ERROR: 查詢失敗 - \(error.localizedDescription)")
                     self.handleCloudKitError(error, completion: completion)
                     return
                 }
                 
                 guard let records = records else {
-                    print("INFO: 沒有找到記錄")
                     completion(.success([]))
                     return
                 }
                 
-                print("SUCCESS: 查詢成功! 記錄數: \(records.count)")
                 
                 // 轉換記錄
                 let todoItems = records.compactMap { self.todoItemFromRecord($0) }
@@ -631,11 +568,9 @@ class CloudKitService {
     ///   - todoItemID: 待刪除的待辦事項 ID
     ///   - completion: 完成後的回調，返回成功或錯誤
     func deleteTodoItem(withID todoItemID: UUID, completion: @escaping (Result<Void, Error>) -> Void) {
-        print("DEBUG: 開始從 CloudKit 刪除待辦事項 - ID: \(todoItemID.uuidString)")
         
         // 如果 CloudKit 不可用，直接返回成功（只使用本地存儲）
         if !isCloudKitAvailable {
-            print("INFO: CloudKit 不可用，刪除操作僅限本地")
             completion(.success(()))
             return
         }
@@ -646,13 +581,11 @@ class CloudKitService {
         privateDatabase.delete(withRecordID: recordID) { (recordID, error) in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("WARNING: 從 CloudKit 刪除待辦事項失敗，但本地操作已完成: \(error.localizedDescription)")
                     // 即使 CloudKit 失敗，也返回成功，因為本地已經刪除
                     completion(.success(()))
                     return
                 }
                 
-                print("SUCCESS: 成功從 CloudKit 刪除待辦事項 - ID: \(todoItemID.uuidString)")
                 completion(.success(()))
             }
         }
@@ -663,11 +596,9 @@ class CloudKitService {
     ///   - todoItem: 待更新的待辦事項
     ///   - completion: 完成後的回調，返回結果或錯誤
     func updateTodoItem(_ todoItem: TodoItem, completion: @escaping (Result<TodoItem, Error>) -> Void) {
-        print("DEBUG: 開始更新 CloudKit 中的待辦事項 - ID: \(todoItem.id.uuidString)")
         
         // 如果 CloudKit 不可用，直接返回成功（只使用本地存儲）
         if !isCloudKitAvailable {
-            print("INFO: CloudKit 不可用，更新操作僅限本地")
             completion(.success(todoItem))
             return
         }
@@ -678,14 +609,12 @@ class CloudKitService {
         // 統一使用 privateDatabase 獲取現有記錄
         privateDatabase.fetch(withRecordID: recordID) { (record, error) in
             if let error = error {
-                print("WARNING: 從 CloudKit 獲取待辦事項失敗，但本地更新已完成: \(error.localizedDescription)")
                 // 即使 CloudKit 失敗，也返回成功，因為本地已經更新
                 completion(.success(todoItem))
                 return
             }
             
             guard var record = record else {
-                print("WARNING: 找不到要更新的記錄，但本地更新已完成")
                 // 即使找不到雲端記錄，也返回成功，因為本地已經更新
                 completion(.success(todoItem))
                 return
@@ -709,20 +638,17 @@ class CloudKitService {
             self.privateDatabase.save(record) { (savedRecord, error) in
                 DispatchQueue.main.async {
                     if let error = error {
-                        print("WARNING: 更新 CloudKit 中的待辦事項失敗，但本地更新已完成: \(error.localizedDescription)")
                         // 即使 CloudKit 失敗，也返回成功，因為本地已經更新
                         completion(.success(todoItem))
                         return
                     }
                     
                     guard let savedRecord = savedRecord else {
-                        print("WARNING: 無法儲存更新的記錄，但本地更新已完成")
                         // 即使保存失敗，也返回成功，因為本地已經更新
                         completion(.success(todoItem))
                         return
                     }
                     
-                    print("SUCCESS: 成功更新 CloudKit 中的待辦事項 - ID: \(todoItem.id.uuidString)")
                     // 返回更新後的 TodoItem
                     let updatedTodoItem = self.todoItemFromRecord(savedRecord)
                     completion(.success(updatedTodoItem))

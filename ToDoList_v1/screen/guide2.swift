@@ -99,7 +99,7 @@ struct guide2: View {
                                         if success {
                                             navigateToHome = true
                                         } else {
-                                            print("Verification failed: \(error?.localizedDescription ?? "Incorrect code")")
+                                            // Verification failed
                                         }
                                     }
                                 }

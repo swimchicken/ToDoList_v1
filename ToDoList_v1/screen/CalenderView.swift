@@ -38,7 +38,6 @@ struct CalendarView: View {
         self.onDateSelected = onDateSelected
         self.onNavigateToHome = onNavigateToHome
         
-        print("日曆視圖初始化，傳入了 \(toDoItems.wrappedValue.count) 個待辦事項")
         
         // 🧹 移除不必要的本地刪除項目追踪初始化
         // 現在完全依賴 API 數據，不需要本地過濾
@@ -63,13 +62,11 @@ struct CalendarView: View {
 
                 await MainActor.run {
                     self.toDoItems = apiItems
-                    print("從 API 載入了 \(apiItems.count) 個待辦事項")
                     self.isLoading = false
                 }
             } catch {
                 await MainActor.run {
                     self.loadingError = error.localizedDescription
-                    print("CalendarView - 從 API 加載失敗: \(error.localizedDescription)")
                     self.isLoading = false
                 }
             }
@@ -505,7 +502,6 @@ struct CalendarView: View {
                                             // 處理點擊日期的事件
                                             let date = Calendar.current.date(from: DateComponents(year: dayInfo.year, month: dayInfo.month, day: dayInfo.day))!
                                             selectedDate = date
-                                            print("選擇了日期: \(dayInfo.day)/\(dayInfo.month)/\(dayInfo.year)")
                                             
                                             // 修改：判斷是否再次點擊同一日期
                                             withAnimation(.easeInOut) {
@@ -515,16 +511,13 @@ struct CalendarView: View {
                                                     if sameDay {
                                                         // 再次點擊同一日期，重置到當週
                                                         clickedDate = nil
-                                                        print("重置到當週")
                                                     } else {
                                                         // 點擊不同日期，更新選擇的日期
                                                         clickedDate = date
-                                                        print("切換到 \(date) 所在的週")
                                                     }
                                                 } else {
                                                     // 第一次點擊，設置選擇的日期
                                                     clickedDate = date
-                                                    print("第一次選擇，切換到 \(date) 所在的週")
                                                 }
                                             }
                                             
@@ -538,7 +531,6 @@ struct CalendarView: View {
                                                 
                                                 // 獲取偏移量（天數差）
                                                 if let dayOffset = components.day {
-                                                    print("日期偏移量: \(dayOffset)天")
                                                     
                                                     // 優先使用導航回調
                                                     if let onNavigateToHome = self.onNavigateToHome {
@@ -686,7 +678,6 @@ struct CalendarView: View {
                 queue: .main
             ) { _ in
                 // 強制更新視圖以顯示最新的完成狀態
-                print("CalendarView 收到已完成日期數據變更通知")
                 // 這裡不需要做什麼，因為視圖會自動刷新
             }
             
@@ -697,7 +688,6 @@ struct CalendarView: View {
                 queue: .main
             ) { _ in
                 // 檢查是否有項目刪除並刷新數據
-                print("CalendarView 收到數據刷新通知，重新加載數據")
                 if toDoItems.isEmpty {
                     self.loadFromAPI()
                 }
@@ -717,10 +707,10 @@ struct CalendarView_Previews: PreviewProvider {
         CalendarView(
             toDoItems: .constant([]),
             onDateSelected: { offset in
-                print("預覽模式中選擇了日期偏移: \(offset)")
+                // 預覽模式中選擇了日期偏移
             },
             onNavigateToHome: {
-                print("預覽模式中導航到 Home")
+                // 預覽模式中導航到 Home
             }
         )
     }

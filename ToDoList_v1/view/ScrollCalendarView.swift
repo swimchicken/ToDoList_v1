@@ -49,7 +49,6 @@ struct ScrollCalendarView: View {
             .scrollPosition(id: scrollableID) // 雙向綁定 currentDisplayingIndex
             .onAppear {
                 let targetIndex = currentDisplayingIndex // 捕獲初始目標值
-                // print("📜 ScrollCalendarView onAppear: currentDisplayingIndex is \(targetIndex). 將使用 proxy.scrollTo 強制滾動到 ID \(targetIndex) with .leading anchor。")
                 DispatchQueue.main.async {
                     // 使用捕獲的 targetIndex，避免在異步塊執行時 currentDisplayingIndex 可能已被修改
                     proxy.scrollTo(targetIndex, anchor: .leading) // <--- 嘗試 .leading

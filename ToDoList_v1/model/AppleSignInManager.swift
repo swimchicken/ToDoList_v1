@@ -29,7 +29,6 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
         if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
             guard let identityToken = appleIDCredential.identityToken,
                   let identityTokenString = String(data: identityToken, encoding: .utf8) else {
-                print("AppleSignInManager: 無法獲取 identity token")
                 return
             }
 
@@ -37,7 +36,6 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
             let fullName = appleIDCredential.fullName
             let name = formatFullName(fullName)
 
-            print("AppleSignInManager: 開始API登入流程")
 
             // 使用API進行Apple登入
             Task {
@@ -48,7 +46,6 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                     )
 
                     await MainActor.run {
-                        print("AppleSignInManager: API登入成功，用戶: \(authResponse.user.name ?? "Unknown")")
 
                         // 儲存用戶信息
                         UserDefaults.standard.set(appleIDCredential.user, forKey: "appleAuthorizedUserId")
@@ -66,7 +63,6 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
                     }
                 } catch {
                     await MainActor.run {
-                        print("AppleSignInManager: API登入失敗: \(error.localizedDescription)")
                         // 登入失敗時可以顯示錯誤訊息給用戶
                     }
                 }
@@ -75,7 +71,6 @@ class AppleSignInManager: NSObject, ASAuthorizationControllerDelegate, ASAuthori
     }
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        print("Apple 登入失敗: \(error.localizedDescription)")
     }
 
     // MARK: - Helper Methods

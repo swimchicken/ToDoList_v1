@@ -40,40 +40,29 @@ struct WidgetTestButton: View {
         Task {
             do {
                 let addedTask = try await APIDataManager.shared.addTodoItem(testTask)
-                print("WidgetTestButton - 成功添加測試任務")
 
                 // 手動觸發 Widget 數據更新
                 let allTasks = try await APIDataManager.shared.getAllTodoItems()
                 WidgetDataManager.shared.saveTodayTasksForWidget(allTasks)
             } catch {
-                print("WidgetTestButton - 添加測試任務失敗: \(error.localizedDescription)")
+                // 添加測試任務失敗
             }
         }
         
         // 驗證 App Group
         if let sharedDefaults = UserDefaults(suiteName: "group.com.fcu.ToDolist") {
-            print("✅ App Group 配置正確")
-            
+
             if let data = sharedDefaults.data(forKey: "widget_today_tasks") {
-                print("✅ Widget 數據已保存，大小: \(data.count) bytes")
-                
+
                 // 嘗試解碼驗證
                 do {
                     let decoder = JSONDecoder()
                     decoder.dateDecodingStrategy = .iso8601
                     let tasks = try decoder.decode([TodoItem].self, from: data)
-                    print("✅ 成功解碼 \(tasks.count) 個任務")
-                    for task in tasks {
-                        print("  - \(task.title)")
-                    }
                 } catch {
-                    print("❌ 解碼失敗: \(error)")
+                    // 解碼失敗
                 }
-            } else {
-                print("❌ 沒有找到 Widget 數據")
             }
-        } else {
-            print("❌ 無法訪問 App Group")
         }
     }
 }

@@ -891,9 +891,7 @@ struct Sleep01View: View {
                 Button(action: { timeOffset += 3600 }) { Label("時間+1小時", systemImage: "clock.arrow.circlepath") }
                 Button(action: { timeOffset += 60 }) { Label("時間+1分鐘", systemImage: "clock") }
                 Button(action: {
-                    print("⏰ 當前鬧鐘設定: \(alarmTimeString)")
-                    print("🛌 睡眠模式狀態: \(alarmStateManager.isSleepModeActive)")
-                    print("⏰ 鬧鐘觸發狀態: \(alarmStateManager.isAlarmTriggered)")
+                    // 檢查鬧鐘狀態 - 靜默模式
                 }) { Label("檢查鬧鐘狀態", systemImage: "info.circle") }
                 Button(action: { resetAnimationState() }) { Label("重置動畫狀態", systemImage: "arrow.clockwise") }
                 Divider()

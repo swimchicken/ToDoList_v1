@@ -79,7 +79,6 @@ struct guide: View {
                             // 建立帳號按鈕
                             Button(action: {
                                 guard password == confirmPassword else {
-                                    print("Passwords do not match")
                                     return
                                 }
                                 EmailAccountManager.shared.createEmailAccount(email: email, password: password) { success, error in
@@ -87,7 +86,7 @@ struct guide: View {
                                         if success {
                                             navigateToGuide2 = true
                                         } else {
-                                            print("Error creating account: \(error?.localizedDescription ?? "Unknown error")")
+                                            // Error creating account
                                         }
                                     }
                                 }

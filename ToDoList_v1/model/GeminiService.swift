@@ -23,11 +23,9 @@ enum AppSecrets {
     /// 一個統一的輔助函式，用來從 Info.plist 讀取值。
     private static func value(for key: String) -> String? {
         guard let rawValue = Bundle.main.object(forInfoDictionaryKey: key) as? String else {
-            print("❌ 讀取失敗：在 Info.plist 中找不到 Key 為 '\(key)' 的項目。")
             return nil
         }
         if rawValue.starts(with: "$(") {
-            print("❌ 設定錯誤：Key '\(key)' 的值 '\(rawValue)' 沒有被 .xcconfig 正確替換。請檢查 Build Settings 中的連結。")
             return nil
         }
         return rawValue.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
@@ -113,7 +111,6 @@ class GeminiService: ObservableObject {
         isCancelled = true
         currentTask?.cancel()
         currentTask = nil
-        print("🚫 API 請求已取消")
     }
     
     func analyzeText(_ text: String, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
@@ -127,7 +124,6 @@ class GeminiService: ObservableObject {
         attemptNumber: Int,
         completion: @escaping (Result<[TodoItem], Error>) -> Void
     ) {
-        print("🔄 嘗試第 \(attemptNumber) 次請求...")
         
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
@@ -199,7 +195,6 @@ class GeminiService: ObservableObject {
                 // 如果是可重試的錯誤且未達最大重試次數
                 if self.retryableStatusCodes.contains(statusCode) && attemptNumber < self.maxRetries {
                     let delay = self.calculateBackoffDelay(attemptNumber: attemptNumber)
-                    print("⚠️ 收到 \(statusCode) 錯誤，將在 \(delay) 秒後重試...")
                     
                     DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
                         self.performRequestWithRetry(text: text, attemptNumber: attemptNumber + 1, completion: completion)
@@ -209,7 +204,6 @@ class GeminiService: ObservableObject {
                 
                 // 達到最小重試次數但仍失敗
                 if self.retryableStatusCodes.contains(statusCode) && attemptNumber >= self.minRetries {
-                    print("❌ 已重試 \(attemptNumber) 次，仍然失敗（錯誤碼: \(statusCode)）")
                     DispatchQueue.main.async {
                         completion(.failure(NSError(
                             domain: "GeminiService",
@@ -226,21 +220,17 @@ class GeminiService: ObservableObject {
                 // 檢查是否為用戶主動取消
                 let nsError = error as NSError
                 if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                    print("🚫 請求已被用戶取消，不進行重試")
                     return
                 }
                 
                 // 檢查取消標記
                 if self.isCancelled {
-                    print("🚫 請求已被標記為取消，不進行重試")
                     return
                 }
                 
-                print("❌ 網絡錯誤: \(error.localizedDescription)")
                 
                 if attemptNumber < self.maxRetries {
                     let delay = self.calculateBackoffDelay(attemptNumber: attemptNumber)
-                    print("⚠️ 網絡錯誤，將在 \(delay) 秒後重試...")
                     
                     DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
                         self.performRequestWithRetry(text: text, attemptNumber: attemptNumber + 1, completion: completion)
@@ -261,12 +251,10 @@ class GeminiService: ObservableObject {
             
             // 檢查是否已被取消
             if self.isCancelled {
-                print("🚫 請求已取消，忽略回應")
                 return
             }
             
             // 成功收到資料
-            print("✅ 請求成功（第 \(attemptNumber) 次嘗試）")
             self.parseResponse(data: data, completion: completion)
             
         }
@@ -291,7 +279,6 @@ class GeminiService: ObservableObject {
     private func parseResponse(data: Data, completion: @escaping (Result<[TodoItem], Error>) -> Void) {
         // 最後檢查：即使收到資料，如果已取消就不處理
         guard !isCancelled else {
-            print("🚫 解析前檢查：請求已取消，不處理回應")
             return
         }
         
@@ -316,7 +303,6 @@ class GeminiService: ObservableObject {
                 }
             } else {
                 if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    print("❌ Gemini returned an error or unexpected structure: \(jsonObject)")
                 }
                 throw NSError(domain: "GeminiService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON structure from Gemini"])
             }

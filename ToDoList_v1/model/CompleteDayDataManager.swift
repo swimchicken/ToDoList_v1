@@ -36,21 +36,18 @@ class CompleteDayDataManager {
             // print("DEBUG: 從本地加載 \(completedDays.count) 個已完成日期")
         } else {
             completedDays = []
-            print("DEBUG: 本地無已完成日期數據")
         }
     }
     
     /// 保存已完成日期數據到本地
     private func saveCompletedDaysToLocal() {
         UserDefaults.standard.set(completedDays, forKey: completedDaysKey)
-        print("DEBUG: 已保存 \(completedDays.count) 個已完成日期到本地")
     }
     
     /// 清除本地已完成日期數據
     func clearCompletedDaysData() {
         completedDays = []
         UserDefaults.standard.removeObject(forKey: completedDaysKey)
-        print("DEBUG: 已清除本地已完成日期數據")
     }
     
     // MARK: - 公共方法
@@ -66,12 +63,10 @@ class CompleteDayDataManager {
         if !completedDays.contains(dateString) {
             completedDays.append(dateString)
             saveCompletedDaysToLocal()
-            print("INFO: 已標記日期 \(dateString) 為已完成")
             
             // 發送數據變更通知
             notifyDataChanged()
         } else {
-            print("INFO: 日期 \(dateString) 已經標記為完成")
         }
     }
     
@@ -85,12 +80,10 @@ class CompleteDayDataManager {
         if let index = completedDays.firstIndex(of: dateString) {
             completedDays.remove(at: index)
             saveCompletedDaysToLocal()
-            print("INFO: 已取消日期 \(dateString) 的完成標記")
             
             // 發送數據變更通知
             notifyDataChanged()
         } else {
-            print("INFO: 日期 \(dateString) 未被標記為完成，無需取消")
         }
     }
     

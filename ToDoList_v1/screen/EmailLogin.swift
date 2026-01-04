@@ -119,7 +119,7 @@ struct EmailLogin: View {
                     // -- 忘記密碼 (僅在密碼輸入時顯示) --
                     if showPassword {
                         Button(action: {
-                            print("忘記密碼")
+                            // 忘記密碼功能
                         }) {
                             Text("忘記密碼？")
                                 .font(Font.custom("Inter", size: 14))
@@ -160,7 +160,7 @@ struct EmailLogin: View {
                     navigateToHome = true
                 } else {
                     // 密碼錯誤或驗證失敗，顯示錯誤訊息
-                    print("Login failed. Please check your password.")
+                    // TODO: 顯示錯誤訊息給使用者
                 }
             }
         }

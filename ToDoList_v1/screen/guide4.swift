@@ -114,7 +114,6 @@ struct guide4: View {
         let googleUserID = UserDefaults.standard.string(forKey: "googleAuthorizedUserId")
 
         guard let userID = appleUserID ?? googleUserID else {
-            print("沒有找到 Apple 或 Google 用戶 ID")
             return
         }
         
@@ -126,9 +125,9 @@ struct guide4: View {
                                                     userID: userID,
                                                     data: data) { success, error in
             if success {
-                print("User age saved/updated successfully!")
+                // User age saved/updated successfully
             } else if let error = error {
-                print("Error saving user age: \(error.localizedDescription)")
+                // Error saving user age: \(error.localizedDescription)
             }
         }
     }

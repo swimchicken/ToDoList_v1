@@ -6,38 +6,29 @@ extension Notification.Name {
 }
 
 struct ContentView: View {
-    // 綠色光暈參數
     private let greenStages: [(width: CGFloat, height: CGFloat)] = [
         (411.6, 411.6),
         (522.6, 522.6),
         (693.85, 693.85)
     ]
     
-    // 灰色光暈參數
     private let grayStages: [(width: CGFloat, height: CGFloat, cornerRadius: CGFloat)] = [
         (235.3, 235.3, 298.78),
         (298.78, 298.78, 298.78),
         (396.66, 396.66, 396.66)
     ]
     
-    // 圖片＋文字資料
     private let stages: [(text: String, imageName: String)] = [
         ("計畫", "Tick01"),
         ("計畫-執行", "Tick02"),
         ("計畫-執行-回顧", "Tick03")
     ]
     
-    // 動畫頁面階段
     @State private var currentStageIndex = 0
-    // Splash 層透明度
     @State private var splashOpacity: Double = 1.0
-    // Login 頁面透明度
     @State private var loginOpacity: Double = 0.0
-    // Home 頁面透明度
     @State private var homeOpacity: Double = 0.0
-    // 控制是否顯示 Splash 層
     @State private var showSplash: Bool = false
-    // 登入狀態檢查
     @State private var isCheckingLogin = true
     @State private var shouldShowAnimation = false
     @State private var shouldShowHome = false
@@ -45,15 +36,11 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // 全螢幕黑色背景
             Color.black.ignoresSafeArea()
             
             if shouldShowAnimation && showSplash {
-                // Splash 層 (以 transition 平滑移除)
                 ZStack {
-                    // 背景動畫層
                     ZStack {
-                        // 綠色光暈
                         Rectangle()
                             .foregroundColor(.clear)
                             .frame(width: greenStages[currentStageIndex].width,
@@ -64,7 +51,6 @@ struct ContentView: View {
                             .blendMode(.screen)
                             .animation(.easeInOut(duration: 0.8), value: currentStageIndex)
                         
-                        // 灰色光暈（右下角）
                         Rectangle()
                             .foregroundColor(.clear)
                             .frame(width: grayStages[currentStageIndex].width,
@@ -81,7 +67,6 @@ struct ContentView: View {
                     .padding(.vertical, 60)
                     .opacity(splashOpacity)
                     
-                    // 文字搭配圖片 (依照 currentStageIndex 切換)
                     VStack {
                         Spacer()
                         if currentStageIndex == 0 {
@@ -160,7 +145,6 @@ struct ContentView: View {
         let delaySettlementManager = DelaySettlementManager.shared
 
         if delaySettlementManager.shouldShowSettlement() {
-            print("ContentView: 檢測到需要延遲結算，直接導向 SettlementView")
             shouldShowSettlement = true
             shouldShowHome = false
             shouldShowAnimation = false
@@ -169,7 +153,6 @@ struct ContentView: View {
                 loginOpacity = 0.0
             }
         } else {
-            print("ContentView: 不需要結算，導向 Home")
             shouldShowHome = true
             shouldShowSettlement = false
             shouldShowAnimation = false
@@ -213,7 +196,6 @@ struct ContentView: View {
             object: nil,
             queue: .main
         ) { _ in
-            print("收到登出通知，重新導向到登入頁面")
             // 重置所有狀態
             self.shouldShowHome = false
             self.shouldShowAnimation = true
@@ -237,30 +219,25 @@ struct ContentView: View {
             object: nil,
             queue: .main
         ) { notification in
-            print("ContentView: 收到登入成功通知")
-
             // 檢查當前登入狀態
             let apiDataManager = APIDataManager.shared
             let hasToken = apiDataManager.isLoggedIn()
             let savedToken = UserDefaults.standard.string(forKey: "api_auth_token")
-            print("ContentView: 登入通知時的狀態 - hasToken: \(hasToken), savedToken: \(savedToken ?? "nil")")
 
             if let userInfo = notification.userInfo,
                let destination = userInfo["destination"] as? String {
 
                 switch destination {
                 case "home":
-                    print("ContentView: 導向到 Home，檢查結算狀態")
                     self.checkSettlementAndNavigate()
 
                 case "onboarding":
-                    print("ContentView: 導向到引導頁面，保持在 Login 視圖")
                     // 新用戶進入引導，保持 Login 視圖顯示
                     // Login 頁面的 NavigationLink 會處理到 guide3 的導航
                     break
 
                 default:
-                    print("ContentView: 未知導向目標: \(destination)")
+                    break
                 }
             }
         }
@@ -271,7 +248,6 @@ struct ContentView: View {
             object: nil,
             queue: .main
         ) { _ in
-            print("ContentView: 收到結算完成通知，導向 Home")
             self.shouldShowSettlement = false
             self.shouldShowHome = true
         }

@@ -130,30 +130,6 @@ private extension TaskSelectionOverlay {
             Spacer()
             
             Button(action: {
-                print("--- 開始印出所有待辦事項參數 ---")
-                print("傳遞給 onAdd 的參數型別為：\(type(of: tasks))，共 \(tasks.count) 個項目。")
-                
-                for (index, task) in tasks.enumerated() {
-                    print("\n[項目 \(index + 1)]")
-                    print("  - id: \(task.id)")
-                    print("  - userID: \(task.userID)")
-                    print("  - title: \(task.title)")
-                    print("  - priority: \(task.priority)")
-                    print("  - isPinned: \(task.isPinned)")
-                    if let taskDate = task.taskDate {
-                        print("  - taskDate: \(taskDate)")
-                    } else {
-                        print("  - taskDate: nil")
-                    }
-                    print("  - note: \(task.note)")
-                    print("  - status: \(task.status)")
-                    print("  - createdAt: \(task.createdAt)")
-                    print("  - updatedAt: \(task.updatedAt)")
-                    print("  - correspondingImageID: \(task.correspondingImageID)")
-                }
-                
-                print("\n--- 所有參數印出完畢 ---")
-                
                 if !tasks.isEmpty { onAdd(tasks) }
             }) {
                 Text("ADD")

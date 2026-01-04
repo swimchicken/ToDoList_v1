@@ -43,16 +43,13 @@ class LocalDataManager {
     /// 獲取所有本地待辦事項
     func getAllTodoItems() -> [TodoItem] {
         guard let data = UserDefaults.standard.data(forKey: todoItemsKey) else {
-            print("DEBUG: 本地無待辦事項數據")
             return []
         }
         
         do {
             let todoItems = try JSONDecoder().decode([TodoItem].self, from: data)
-            print("DEBUG: 從本地加載 \(todoItems.count) 個待辦事項")
             return todoItems
         } catch {
-            print("ERROR: 解碼本地待辦事項失敗 - \(error.localizedDescription)")
             return []
         }
     }
@@ -62,14 +59,12 @@ class LocalDataManager {
         do {
             let data = try JSONEncoder().encode(todoItems)
             UserDefaults.standard.set(data, forKey: todoItemsKey)
-            print("DEBUG: 成功保存 \(todoItems.count) 個待辦事項到本地")
             
             // 同步更新 Widget 數據
             WidgetDataManager.shared.saveTodayTasksForWidget(todoItems)
             // 使用文件系統保存，確保Widget可以找到數據文件
             WidgetFileManager.shared.saveTodayTasksToFile(todoItems)
         } catch {
-            print("ERROR: 編碼待辦事項失敗 - \(error.localizedDescription)")
         }
     }
     
@@ -80,10 +75,8 @@ class LocalDataManager {
         // 檢查是否已存在相同 ID 的項目
         if let index = items.firstIndex(where: { $0.id == item.id }) {
             items[index] = item
-            print("DEBUG: 更新本地現有待辦事項 - ID: \(item.id.uuidString)")
         } else {
             items.append(item)
-            print("DEBUG: 添加新待辦事項到本地 - ID: \(item.id.uuidString)")
         }
         
         saveAllTodoItems(items)
@@ -98,9 +91,7 @@ class LocalDataManager {
             items[index] = item
             saveAllTodoItems(items)
             updateSyncStatus(for: item.id, isSynced: false, error: nil)
-            print("DEBUG: 本地更新待辦事項 - ID: \(item.id.uuidString)")
         } else {
-            print("WARNING: 嘗試更新不存在的待辦事項 - ID: \(item.id.uuidString)，將添加它")
             addTodoItem(item)
         }
     }
@@ -112,9 +103,7 @@ class LocalDataManager {
         if let index = items.firstIndex(where: { $0.id == id }) {
             items.remove(at: index)
             saveAllTodoItems(items)
-            print("DEBUG: 從本地刪除待辦事項 - ID: \(id.uuidString)")
         } else {
-            print("WARNING: 嘗試刪除不存在的待辦事項 - ID: \(id.uuidString)")
         }
         
         // 從同步狀態中也刪除
@@ -138,7 +127,6 @@ class LocalDataManager {
         do {
             return try JSONDecoder().decode([SyncStatus].self, from: data)
         } catch {
-            print("ERROR: 解碼同步狀態失敗 - \(error.localizedDescription)")
             return []
         }
     }
@@ -149,7 +137,6 @@ class LocalDataManager {
             let data = try JSONEncoder().encode(statusList)
             UserDefaults.standard.set(data, forKey: syncStatusKey)
         } catch {
-            print("ERROR: 編碼同步狀態失敗 - \(error.localizedDescription)")
         }
     }
     
@@ -197,7 +184,6 @@ class LocalDataManager {
     func updateLastSyncTime() {
         let now = Date()
         UserDefaults.standard.set(now, forKey: lastSyncTimeKey)
-        print("DEBUG: 更新最後同步時間: \(now)")
     }
     
     /// 獲取最後同步時間
@@ -213,7 +199,6 @@ class LocalDataManager {
         UserDefaults.standard.removeObject(forKey: syncStatusKey)
         UserDefaults.standard.removeObject(forKey: lastSyncTimeKey)
         UserDefaults.standard.removeObject(forKey: "hasShownWelcomeItem") // 確保清除歡迎項目狀態
-        print("DEBUG: 已清除所有本地存儲的待辦事項和同步狀態")
     }
     
     /// 保存所有本地更改
@@ -223,7 +208,6 @@ class LocalDataManager {
         // 這可以確保所有內存中的變更都被寫入到持久化存儲
         let items = getAllTodoItems()
         saveAllTodoItems(items)
-        print("DEBUG: 保存了所有本地待辦事項更改")
         
         // 更新最後同步時間，但不改變同步狀態
         // 這表示資料已保存到本地，但尚未同步到雲端

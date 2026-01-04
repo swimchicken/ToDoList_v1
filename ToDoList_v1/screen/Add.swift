@@ -70,7 +70,6 @@ struct Add: View {
     
     // MARK: - MODIFIED: 修改 init 方法以接收 initialDate
     init(toDoItems: Binding<[TodoItem]>, initialMode: Home.AddTaskMode, initialDate: Date, fromTodoSheet: Bool = false, editingItem: TodoItem? = nil, onClose: (() -> Void)? = nil, onOptimisticAdd: ((TodoItem) -> Void)? = nil) {
-        // print("🔎 Add.swift 初始化開始，模式 = \(initialMode), 初始日期 = \(initialDate), 來自待辦事項佇列 = \(fromTodoSheet)")
 
         self._toDoItems = toDoItems
         self.onClose = onClose
@@ -94,24 +93,20 @@ struct Add: View {
             calculatedMode = .memo
             startIndex = 0
             startIsDateEnabled = false
-            print("🚨 初始化 - 來自待辦事項佇列，強制設置為備忘錄模式。Index = 0")
         } else {
             switch initialMode {
             case .memo:
                 calculatedMode = .memo
                 startIndex = 0
                 startIsDateEnabled = false
-                print("初始化為備忘錄模式。Index = 0")
             case .today:
                 calculatedMode = .today
                 startIndex = 1 // <<<<< 當是 .today 時，強制為 1
                 startIsDateEnabled = true
-                print("初始化為今天模式。Index = 1")
             case .future:
                 calculatedMode = .future
                 startIndex = dateOffset + 1 // 使用我們計算出的 dateOffset
                 startIsDateEnabled = true
-                print("初始化為未來日期模式。Index = \(dateOffset + 1)")
             }
         }
 
@@ -144,10 +139,8 @@ struct Add: View {
                 self._isTimeEnabled = State(initialValue: true)
             }
             
-            print("🔄 編輯模式：預填項目資料 - 標題: \(editingItem.title), 優先級: \(editingItem.priority)")
         }
 
-        // print("Add.swift 初始化完成. 初始 currentBlockIndex = \(startIndex)")
     }
     
     // 設置初始狀態的方法 - 抽取為函數以便重複使用
@@ -158,7 +151,6 @@ struct Add: View {
             isDateEnabled = false
             isTimeEnabled = false
             currentBlockIndex = 0
-            print("🚨 setupInitialState - 來自待辦事項佇列，強制設置為備忘錄模式：isFromTodoSheet=\(isFromTodoSheet), isDateEnabled=\(isDateEnabled), isTimeEnabled=\(isTimeEnabled), currentBlockIndex=\(currentBlockIndex)")
             return
         }
         
@@ -169,27 +161,23 @@ struct Add: View {
             isDateEnabled = false
             isTimeEnabled = false
             currentBlockIndex = 0
-            print("🔧 設置為備忘錄模式：isDateEnabled=false, isTimeEnabled=false, currentBlockIndex=0")
             
         case .today:
             // 今天模式 - 啟用日期
             isDateEnabled = true
             isTimeEnabled = false
             currentBlockIndex = 1
-            print("🔧 設置為今天模式：isDateEnabled=true, currentBlockIndex=1")
             
         case .future:
             // 未來日期模式 - 啟用日期，設置為相應的日期偏移
             isDateEnabled = true
             isTimeEnabled = false
             currentBlockIndex = offset + 1
-            print("🔧 設置為未來日期模式：isDateEnabled=true, currentBlockIndex=\(offset+1)")
         }
     }
     
     // 根據當前的 blockIndex 更新日期選擇
     func updateDateFromBlockIndex() {
-        // print("根據塊索引更新日期，當前索引: \(currentBlockIndex)")
         
         // 根據 currentBlockIndex 更新日期和時間狀態
         if currentBlockIndex == 0 {
@@ -197,7 +185,6 @@ struct Add: View {
             isDateEnabled = false
             isTimeEnabled = false
             // 保留原有時間以備之後需要
-            print("切換到備忘錄模式，清除日期設置")
         } else {
             // 其他模式 - 設置為相應的日期
             let calendar = Calendar.current
@@ -228,7 +215,6 @@ struct Add: View {
             // 啟用日期
             isDateEnabled = true
             
-            print("切換到日期模式，設置為日期: \(selectedDate)")
         }
     }
     
@@ -322,14 +308,12 @@ struct Add: View {
                                       // 向左滑動（增加索引）
                                       if currentBlockIndex < totalDays {
                                           currentBlockIndex += 1
-                                          print(currentBlockIndex)
                                           updateDateFromBlockIndex()
                                       }
                                   } else if value.translation.width > threshold {
                                       // 向右滑動（減少索引）
                                       if currentBlockIndex > 0 {
                                           currentBlockIndex -= 1
-                                          print(currentBlockIndex)
                                           updateDateFromBlockIndex()
                                       }
                                   }
@@ -606,8 +590,7 @@ struct Add: View {
                             } else {
                                 currentBlockIndex = 1 // 默認為今天
                             }
-                            print("設置日期滑匡位置為: \(currentBlockIndex)，日期差異: \(dayDifference) 天")
-                        }
+                                        }
                         
                         // 設置日期狀態，保持時間狀態不變
                         isDateEnabled = true
@@ -645,19 +628,14 @@ struct Add: View {
         .background(Color(red: 0.22, green: 0.22, blue: 0.22).opacity(0.7))
         // 添加 onAppear 處理，確保根據初始模式設置正確的狀態
         .onChange(of: currentBlockIndex) { oldValue, newValue in
-            print("Add.swift: currentBlockIndex changed from \(oldValue) to \(newValue). Calling updateDateFromBlockIndex()")
             updateDateFromBlockIndex()
         }
         // Add.swift
         .onAppear {
-            // print("🔄 Add視圖出現，模式: \(mode), 日期偏移: \(offset), 初始currentBlockIndex: \(currentBlockIndex)")
-            // 不再呼叫 setupInitialState()
-
             // 確保日期/時間狀態與初始索引同步
             // 使用 DispatchQueue.main.async 確保在視圖佈局後執行
             DispatchQueue.main.async {
                 updateDateFromBlockIndex()
-                // print("🔄 onAppear 後， currentBlockIndex = \(currentBlockIndex)")
             }
         }
         // Move the fullScreenCover for AddNote outside the main view structure
@@ -671,10 +649,6 @@ struct Add: View {
                 
                 showAddNoteView = false
                 
-                // 調試信息
-                if hasNote {
-                    print("成功設置筆記內容，資料長度: \(note.count)字")
-                }
             }
         }
     }
@@ -682,7 +656,6 @@ struct Add: View {
     // 添加新任務並保存到本地和雲端
     func saveToCloudKit() {
         guard !displayText.isEmpty else {
-            print("內容為空，取消保存")
             return
         }
 
@@ -691,26 +664,22 @@ struct Add: View {
         // 多重防重複檢查
         // 1. 檢查標題是否為空
         guard !displayText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            print("標題為空，無法保存")
             return
         }
 
         // 2. 檢查是否正在保存
         guard !isSaving else {
-            print("正在保存中，忽略重複點擊 - isSaving檢查")
             return
         }
 
         // 3. 檢查時間間隔防護
         guard now.timeIntervalSince(lastSubmissionTime) >= minimumSubmissionInterval else {
-            print("提交間隔太短，忽略點擊 - 距離上次提交: \(now.timeIntervalSince(lastSubmissionTime))秒")
             return
         }
 
         // 4. 生成唯一任務ID並檢查是否有重複任務正在處理
         let taskId = "\(displayText)_\(Int(now.timeIntervalSince1970))"
         guard currentTaskId != taskId else {
-            print("檢測到重複任務ID，忽略點擊")
             return
         }
 
@@ -718,7 +687,6 @@ struct Add: View {
         DispatchQueue.main.async {
             // 再次檢查，確保在異步執行時狀態沒有改變
             guard !self.isSaving else {
-                print("異步檢查：正在保存中，取消操作")
                 return
             }
 
@@ -727,12 +695,10 @@ struct Add: View {
             self.lastSubmissionTime = now
             self.currentTaskId = taskId
 
-            print("開始保存任務 - ID: \(taskId)")
 
             // 設置超時保護，10秒後自動重置保存狀態
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
                 if self.isSaving && self.currentTaskId == taskId {
-                    print("保存操作超時，重置保存狀態 - TaskID: \(taskId)")
                     self.isSaving = false
                     self.currentTaskId = nil
                 }
@@ -747,7 +713,6 @@ struct Add: View {
     private func performSave(taskId: String) {
         // 驗證任務ID是否仍然有效
         guard currentTaskId == taskId else {
-            print("任務ID不匹配，取消保存 - 當前ID: \(currentTaskId ?? "nil"), 請求ID: \(taskId)")
             return
         }
 
@@ -758,21 +723,17 @@ struct Add: View {
         if currentBlockIndex == 0 && !isTimeEnabled {
             // 備忘錄模式且沒有啟用時間 - 日期設為 nil
             finalTaskDate = nil
-            print("備忘錄模式且未啟用時間，日期設為 nil")
         } else if isTimeEnabled {
             // 有啟用時間才使用完整的selectedDate（包含日期和時間）
             finalTaskDate = selectedDate
-            print("時間已啟用，使用所選日期和時間: \(selectedDate)")
         } else if isDateEnabled {
             // 有啟用日期但沒有啟用時間：使用日期但清除時間部分
             let calendar = Calendar.current
             let dateComponents = calendar.dateComponents([.year, .month, .day], from: selectedDate)
             finalTaskDate = calendar.date(from: dateComponents)
-            print("僅啟用日期，使用日期但清除時間: \(finalTaskDate ?? Date())")
         } else {
             // 都沒啟用的情況（理論上不應該發生）
             finalTaskDate = nil
-            print("日期和時間都未啟用，日期設為 nil")
         }
 
         // 🆕 判斷新的任務類型和完成狀態
@@ -822,15 +783,12 @@ struct Add: View {
         )
         
         // 使用 API 伺服器保存待辦事項
-        print("嘗試\(editingItem == nil ? "新增" : "更新")待辦事項 - ItemID: \(itemId), UserID: \(currentUserID)")
-        print("Task data: title='\(taskToSave.title)', note='\(taskToSave.note)', userID='\(taskToSave.userID)', status=\(taskToSave.status), priority=\(taskToSave.priority), isPinned=\(taskToSave.isPinned), taskDate=\(taskToSave.taskDate?.description ?? "nil"), correspondingImageID='\(taskToSave.correspondingImageID)'")
         
         if let originalEditingItem = editingItem {
             // ✅ 編輯模式：添加樂觀更新
             // 1. 立即更新本地 toDoItems 中的對應項目
             if let index = toDoItems.firstIndex(where: { $0.id == originalEditingItem.id }) {
                 toDoItems[index] = taskToSave
-                print("✅ 樂觀更新編輯項目: \(taskToSave.title)")
             }
 
             // 2. 立即重置保存狀態並關閉視圖
@@ -849,15 +807,12 @@ struct Add: View {
                         if let index = self.toDoItems.firstIndex(where: { $0.id == originalEditingItem.id }) {
                             self.toDoItems[index] = updatedItem
                         }
-                        print("✅ 成功更新待辦事項到API! ID: \(updatedItem.id), TaskID: \(taskId)")
                     }
                 } catch {
                     await MainActor.run {
-                        print("❌ API更新失敗，回滾樂觀更新: \(error.localizedDescription)")
                         // 5. 回滾樂觀更新：恢復原始項目數據
                         if let index = self.toDoItems.firstIndex(where: { $0.id == originalEditingItem.id }) {
                             self.toDoItems[index] = originalEditingItem
-                            print("🔄 已回滾到原始數據: \(originalEditingItem.title)")
                         }
 
                         // 6. 顯示錯誤提示（可選）
@@ -888,7 +843,6 @@ struct Add: View {
             Task {
                 do {
                     let newItem = try await APIDataManager.shared.addTodoItem(taskToSave)
-                    print("✅ 成功新增待辦事項到 API! ID: \(newItem.id), TaskID: \(taskId)")
 
                     // 3. 通知 Home 更新實際的 API 數據
                     await MainActor.run {
@@ -903,7 +857,6 @@ struct Add: View {
                         )
                     }
                 } catch {
-                    print("❌ API 新增失敗: \(error.localizedDescription)")
 
                     // 4. 如果 API 失敗，通知 Home 撤回樂觀更新
                     await MainActor.run {
@@ -982,7 +935,6 @@ struct Add_Previews: PreviewProvider {
     static var previews: some View {
         Add(toDoItems: $mockItems, initialMode: .today, initialDate: Date()) {
              // 空的關閉回調
-             print("預覽關閉")
          }
         .background(Color.black)
         .edgesIgnoringSafeArea(.all)
