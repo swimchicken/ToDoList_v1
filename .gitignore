@@ -96,3 +96,6 @@ APIConfig.plist
 
 # Configuration files
 Release.xcconfig
+
+# SwiftPM workspace data
+**/xcshareddata/swiftpm/
