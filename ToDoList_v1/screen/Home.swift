@@ -100,7 +100,7 @@ struct Home: View {
 
         let formatter = DateFormatter()
         formatter.timeZone = TimeZone(identifier: "Asia/Taipei")
-        formatter.locale = Locale(identifier: "en_US")  // 改為英文
+        formatter.locale = Locale.current
 
         // 月份和日期
         formatter.dateFormat = "MMM dd"
@@ -113,7 +113,7 @@ struct Home: View {
         // 時間和清醒狀態
         formatter.dateFormat = "HH:mm"
         let time = formatter.string(from: currentDateWithOffset)
-        let timeStatus = "\(time) awake"
+        let timeStatus = "\(time) \(String(localized: "home.awake"))"
 
         return (monthDay: monthDay, weekday: weekday, timeStatus: timeStatus)
     }

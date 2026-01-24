@@ -27,7 +27,15 @@ struct CalendarView: View {
     private let completeDayDataManager = CompleteDayDataManager.shared
     
     // 每週日期標題
-    let weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    let weekdays = [
+        String(localized: "calendar.weekday.mon"),
+        String(localized: "calendar.weekday.tue"),
+        String(localized: "calendar.weekday.wed"),
+        String(localized: "calendar.weekday.thu"),
+        String(localized: "calendar.weekday.fri"),
+        String(localized: "calendar.weekday.sat"),
+        String(localized: "calendar.weekday.sun")
+    ]
     
     // 初始化，從本地數據管理器讀取待辦事項
     init(toDoItems: Binding<[TodoItem]>,

@@ -66,10 +66,10 @@ struct ProfileSidebarView: View {
                     Spacer()
                 }
             }
-            .alert("Edit Name", isPresented: $isShowingEditNameAlert) {
-                TextField("Enter new name", text: $newName)
-                Button("Save", action: updateUserName)
-                Button("Cancel", role: .cancel) { }
+            .alert(String(localized: "profile.edit_name_title"), isPresented: $isShowingEditNameAlert) {
+                TextField(String(localized: "profile.enter_new_name_placeholder"), text: $newName)
+                Button(String(localized: "common.save"), action: updateUserName)
+                Button(String(localized: "common.cancel"), role: .cancel) { }
             } message: {
                 Text("profile.enter_new_name")
             }
@@ -147,7 +147,7 @@ struct ProfileSidebarView: View {
             
             NavigationLink(destination: SettingView()) {
                 // 我們仍然使用 MenuItemView 來保持外觀
-                MenuItemView(icon: "rectangle.stack", title: "History")
+                MenuItemView(icon: "rectangle.stack", title: String(localized: "profile.history"))
             }
             .simultaneousGesture(TapGesture().onEnded {
                 // 點擊時關閉側邊欄
@@ -158,7 +158,7 @@ struct ProfileSidebarView: View {
             Divider().background(Color.white.opacity(0.1)).padding(.horizontal, 20)
             NavigationLink(destination: SettingView()) {
                 // 我們仍然使用 MenuItemView 來保持外觀
-                MenuItemView(icon: "gearshape", title: "Setting")
+                MenuItemView(icon: "gearshape", title: String(localized: "settings.title"))
             }
             .simultaneousGesture(TapGesture().onEnded {
                 // 點擊時關閉側邊欄
@@ -169,7 +169,7 @@ struct ProfileSidebarView: View {
             Divider().background(Color.white.opacity(0.1)).padding(.horizontal, 20)
             NavigationLink(destination: AboutUsView()) {
                 // 我們仍然使用 MenuItemView 來保持外觀
-                MenuItemView(icon: "info.circle", title: "About & Help")
+                MenuItemView(icon: "info.circle", title: String(localized: "profile.about_and_help"))
             }
             .simultaneousGesture(TapGesture().onEnded {
                 // 點擊時關閉側邊欄
