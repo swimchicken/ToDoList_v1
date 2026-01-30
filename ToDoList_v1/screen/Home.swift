@@ -670,6 +670,12 @@ struct Home: View {
                         },
                         onMoveToQueue: {
                             if let itemToMove = selectedItem {
+                                print("📤 [MoveToQueue] === 開始移動項目 ===")
+                                print("📤 [MoveToQueue] 項目標題: \(itemToMove.title)")
+                                print("📤 [MoveToQueue] 原始 ID: \(itemToMove.id)")
+                                print("📤 [MoveToQueue] 原始 taskType: \(itemToMove.taskType)")
+                                print("📤 [MoveToQueue] 原始 taskDate: \(String(describing: itemToMove.taskDate))")
+
                                 withAnimation(.easeInOut) {
                                     showingDeleteView = false
                                     selectedItem = nil
@@ -681,8 +687,9 @@ struct Home: View {
                                     item.taskDate == itemToMove.taskDate
                                 } ?? itemToMove
 
+                                print("📤 [MoveToQueue] 找到的 currentItem ID: \(currentItem.id)")
 
-                                // 創建新的待辦項目（移除時間，變成未完成任務）
+                                // 創建新的待辦項目（移除時間，變成備忘錄）
                                 let queueItem = TodoItem(
                                     id: UUID(),
                                     userID: currentItem.userID,
@@ -691,9 +698,9 @@ struct Home: View {
                                     isPinned: currentItem.isPinned,
                                     taskDate: nil, // 移除日期時間
                                     note: currentItem.note,
-                                    taskType: .uncompleted, // 🆕 設定為未完成類型
-                                    completionStatus: .pending, // 🆕 設定為待完成狀態
-                                    status: .undone, // 🔄 向後兼容：未完成任務
+                                    taskType: .memo, // 設定為備忘錄類型，顯示於「備忘錄」分類
+                                    completionStatus: .pending, // 設定為待完成狀態
+                                    status: .toDoList, // 備忘錄使用 toDoList 狀態
                                     createdAt: Date(),
                                     updatedAt: Date(),
                                     correspondingImageID: currentItem.correspondingImageID
@@ -708,23 +715,37 @@ struct Home: View {
                                     toDoItems.removeAll { $0.id == movedItemID }
                                     // 添加到佇列項目（如果當前視圖包含佇列項目）
                                     toDoItems.append(queueItem)
+                                    print("📤 [MoveToQueue] 樂觀更新完成 - 移除原項目，添加佇列項目")
+                                    print("📤 [MoveToQueue] 新佇列項目 ID: \(queueItem.id)")
+                                    print("📤 [MoveToQueue] 新佇列項目 taskType: \(queueItem.taskType)")
+                                    print("📤 [MoveToQueue] 當前 toDoItems 數量: \(toDoItems.count)")
                                 }
 
                                 Task {
                                     do {
                                         // 1. 先新增佇列項目
+                                        print("📤 [MoveToQueue] 呼叫 API: addTodoItem...")
                                         let newQueueItem = try await apiDataManager.addTodoItem(queueItem)
+                                        print("📤 [MoveToQueue] ✅ API addTodoItem 成功，返回 ID: \(newQueueItem.id)")
 
                                         // 2. 再刪除原項目
+                                        print("📤 [MoveToQueue] 呼叫 API: deleteTodoItem (ID: \(movedItemID))...")
                                         try await apiDataManager.deleteTodoItem(withID: movedItemID)
+                                        print("📤 [MoveToQueue] ✅ API deleteTodoItem 成功")
 
                                         await MainActor.run {
                                             // 更新樂觀添加的項目為實際API返回的項目
                                             if let index = toDoItems.firstIndex(where: { $0.id == queueItem.id }) {
                                                 toDoItems[index] = newQueueItem
+                                                print("📤 [MoveToQueue] ✅ 已用 API 返回項目替換樂觀項目")
+                                            } else {
+                                                print("📤 [MoveToQueue] ⚠️ 找不到樂觀項目進行替換")
                                             }
+                                            print("📤 [MoveToQueue] === 流程完成 ===")
                                         }
                                     } catch {
+                                        print("📤 [MoveToQueue] ❌ API 錯誤: \(error)")
+                                        print("📤 [MoveToQueue] ❌ 開始回滾...")
                                         await MainActor.run {
                                             // 回滾樂觀更新
                                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -733,6 +754,7 @@ struct Home: View {
                                                 // 恢復原項目
                                                 toDoItems.append(originalItem)
                                                 toDoItems.sort { $0.createdAt < $1.createdAt }
+                                                print("📤 [MoveToQueue] ❌ 回滾完成，已恢復原項目")
                                             }
                                         }
                                     }
